@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package>
+  <name>NOC</name>
+  <version>1.0.0</version>
+  <description>Software of JSK lab for aerial robot</description>
+
+  <maintainer email="shifan@jsk.imi.i.u-tokyo.ac.jp">Fan Shi</maintainer>
+
+  <license>BSD</license>
+
+  <url type="website">http://www.jsk.t.u-tokyo.ac.jp/</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <run_depend>lqr_control</run_depend>
+
+  <export>
+    <metapackage/>
+  </export>
+</package>
