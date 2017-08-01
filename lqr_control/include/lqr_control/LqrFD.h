@@ -76,10 +76,14 @@ namespace lqr_finite_discrete
     VectorXd *control_ptr_;
     MatrixXd *Q_ptr_;
     MatrixXd *R_ptr_;
+    VectorXd *s0_ptr_;
     std::vector<MatrixXd *> F_ptr_vec_;
+    std::vector<VectorXd *> x_ptr_vec_;
+    std::vector<VectorXd *> u_ptr_vec_;
 
-    void initLQR(double freq, double period, MatrixXd *A, MatrixXd *B, MatrixXd *Q, MatrixXd *R);
+    void initLQR(double freq, double period, MatrixXd *A, MatrixXd *B, MatrixXd *Q, MatrixXd *R, VectorXd *s0);
     void backwardIteration();
+    void forwardUpdateControlValue();
   };
 }
 #endif
