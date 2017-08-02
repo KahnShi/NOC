@@ -40,7 +40,7 @@ namespace lqr_finite_discrete
   LqrFiniteDiscreteControl::LqrFiniteDiscreteControl(ros::NodeHandle nh, ros::NodeHandle nhp): nh_(nh), nhp_(nhp){
   }
 
-  void LqrFiniteDiscreteControl::initLQR(double freq, double period, MatrixXd *A, MatrixXd *B, MatrixXd *Q, MatrixXd *R, VectorXd *s0){
+  void LqrFiniteDiscreteControl::initLQR(double freq, double period, MatrixXd *A, MatrixXd *B, MatrixXd *Q, MatrixXd *R, VectorXd *x0){
     control_freq_ = freq;
     if (floor(freq * period) < freq * period){
       end_time_ = (floor(freq * period) + 1.0) / freq;
@@ -50,14 +50,16 @@ namespace lqr_finite_discrete
       end_time_ = period;
       iteration_times_ = floor(freq * period);
     }
-    s_size_ = Q_ptr_->rows();
+    x_size_ = Q_ptr_->rows();
     u_size_ = R_ptr_->rows();
-    A_ptr_ = new MatrixXd(s_size_, s_size_);
+    A_ptr_ = new MatrixXd(x_size_, x_size_);
     B_ptr_ = new MatrixXd(u_size_, u_size_);
-    Q_ptr_ = new MatrixXd(s_size_, s_size_);
+    Q_ptr_ = new MatrixXd(x_size_, x_size_);
     R_ptr_ = new MatrixXd(u_size_, u_size_);
-    for (int i = 0; i < s_size_; ++i)
-      for (int j = 0; j < s_size_; ++j){
+    x0_ptr_ = new VectorXd(x_size_);
+    u_ptr_ = new VectorXd(u_size_);
+    for (int i = 0; i < x_size_; ++i)
+      for (int j = 0; j < x_size_; ++j){
         (*A_ptr_)(i, j) = (*A)(i, j);
         (*Q_ptr_)(i, j) = (*Q)(i, j);
       }
@@ -66,17 +68,17 @@ namespace lqr_finite_discrete
         (*B_ptr_)(i, j) = (*B)(i, j);
         (*R_ptr_)(i, j) = (*R)(i, j);
       }
-    for (int i = 0; i < s_size_; ++i)
-      (*s0_ptr_)[i] = (*s0)[i];
+    for (int i = 0; i < x_size_; ++i)
+      x0_ptr_[i] = x0[i];
   }
 
   void LqrFiniteDiscreteControl::backwardIteration(){
-    VectorXd P = MatrixXd::Zero(s_size_, s_size_);
+    VectorXd P = MatrixXd::Zero(x_size_, x_size_);
     // todo: assume N is zero, namely do not have x^T *N*u in cost function
-    VectorXd N = MatrixXd::Zero(s_size_, u_size_);
+    VectorXd N = MatrixXd::Zero(x_size_, u_size_);
     P = *Q_ptr_;
     for (int i = 0; i < iteration_times_; ++i){
-      MatrixXd *F_ptr = new MatrixXd(u_size_, s_size_);
+      MatrixXd *F_ptr = new MatrixXd(u_size_, x_size_);
       MatrixXd Fk_1 = ((*R_ptr_) + B_ptr_->transpose() * P * (*B_ptr_)).inverse();
       MatrixXd Fk_2 = B_ptr_->transpose() * P * (*A_ptr_) + N.transpose();
       (*F_ptr) = Fk_1 * Fk_2;
@@ -88,7 +90,7 @@ namespace lqr_finite_discrete
   }
 
   void LqrFiniteDiscreteControl::forwardUpdateControlValue(){
-    x_ptr_vec_.push_back(s0_ptr_);
+    x_ptr_vec_.push_back(x0_ptr_);
     for (int i = F_ptr_vec_.size() - 1; i >= 0; --i){
       VectorXd *x_ptr = new VectorXd(u_size_);
       VectorXd *u_ptr = new VectorXd(u_size_);

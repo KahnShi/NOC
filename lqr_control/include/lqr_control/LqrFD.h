@@ -33,8 +33,8 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#ifndef LQR_FINITE_DISCRETE_controller_H
-#define LQR_FINITE_DISCRETE_controller_H
+#ifndef LQR_FINITE_DISCRETE_CONTROLLER_H
+#define LQR_FINITE_DISCRETE_CONTROLLER_H
 
 /* ros */
 #include <ros/ros.h>
@@ -59,7 +59,6 @@ namespace lqr_finite_discrete
     LqrFiniteDiscreteControl(ros::NodeHandle nh, ros::NodeHandle nhp);
     ~LqrFiniteDiscreteControl();
 
-  private:
     ros::NodeHandle nh_;
     ros::NodeHandle nhp_;
 
@@ -69,14 +68,15 @@ namespace lqr_finite_discrete
     double end_time_;
     int iteration_times_;
     int u_size_;
-    int s_size_;
+    int x_size_;
     MatrixXd *A_ptr_;
     MatrixXd *B_ptr_;
     VectorXd *input_ptr_;
     VectorXd *control_ptr_;
     MatrixXd *Q_ptr_;
     MatrixXd *R_ptr_;
-    VectorXd *s0_ptr_;
+    VectorXd *x0_ptr_;
+    VectorXd *u_ptr_;
     std::vector<MatrixXd *> F_ptr_vec_;
     std::vector<VectorXd *> x_ptr_vec_;
     std::vector<VectorXd *> u_ptr_vec_;
@@ -84,6 +84,7 @@ namespace lqr_finite_discrete
     void initLQR(double freq, double period, MatrixXd *A, MatrixXd *B, MatrixXd *Q, MatrixXd *R, VectorXd *s0);
     void backwardIteration();
     void forwardUpdateControlValue();
+
   };
 }
 #endif
