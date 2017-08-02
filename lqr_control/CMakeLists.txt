@@ -47,6 +47,7 @@ include_directories(
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
   src/LqrFD.cpp
+  src/LqrFD_Quadrotor.cpp
   )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
