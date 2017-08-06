@@ -99,8 +99,17 @@ namespace lqr_finite_discrete{
     (*A_ptr_)(Q_W, Q_Y) = - (*x0_ptr_)[W_Y];
     (*A_ptr_)(Q_W, Q_Z) = - (*x0_ptr_)[W_Z];
     /* d q_x = q_w * w_x + q_x * 0 + q_y * w_z - q_z * w_y */
-    /* d q_y = q_w * w_y - q_x * w_z + q_y * 0 + q_z * w_y */
+    (*A_ptr_)(Q_X, Q_W) = (*x0_ptr_)[W_X];
+    (*A_ptr_)(Q_X, Q_Y) = (*x0_ptr_)[W_Z];
+    (*A_ptr_)(Q_X, Q_Z) = - (*x0_ptr_)[W_Y];
+    /* d q_y = q_w * w_y - q_x * w_z + q_y * 0 + q_z * w_x */
+    (*A_ptr_)(Q_Y, Q_W) = (*x0_ptr_)[W_Y];
+    (*A_ptr_)(Q_Y, Q_X) = - (*x0_ptr_)[W_Z];
+    (*A_ptr_)(Q_Y, Q_Z) = (*x0_ptr_)[W_X];
     /* d q_z = q_w * w_z + q_x * w_y - q_y * w_x + q_z * 0 */
+    (*A_ptr_)(Q_Z, Q_W) = (*x0_ptr_)[W_Z];
+    (*A_ptr_)(Q_Z, Q_X) = (*x0_ptr_)[W_Y];
+    (*A_ptr_)(Q_Z, Q_Y) = (*x0_ptr_)[W_X];
 
     /* w_x, w_y, w_z */
     /* d w = J^-1 * (- (w^) * (Jw) + tau), w^ = [0, -w_z, w_y; w_z, 0, -w_x; -w_y, w_x, 0] */
