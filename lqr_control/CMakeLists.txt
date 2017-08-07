@@ -48,8 +48,12 @@ include_directories(
 add_library(${PROJECT_NAME}
   src/LqrFD.cpp
   src/LqrFD_Quadrotor.cpp
+  src/QuadrotorSimulator.cpp
   )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+
+add_executable(quadrotor_simulator_node src/quadrotor_simulator_node.cpp)
+target_link_libraries(quadrotor_simulator_node ${PROJECT_NAME} ${catkin_LIBRARIES})
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries

@@ -33,39 +33,36 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#ifndef LQR_FINITE_DISCRETE_CONTROLLER_QUADROTOR_H
-#define LQR_FINITE_DISCRETE_CONTROLLER_QUADROTOR_H
+#ifndef QUADROTOR_SIMULATOR_H
+#define QUADROTOR_SIMULATOR_H
 
-#include <lqr_control/LqrFD.h>
-namespace lqr_finite_discrete{
-#define P_X 0
-#define P_Y 1
-#define P_Z 2
-#define V_X 3
-#define V_Y 4
-#define V_Z 5
-#define Q_W 6
-#define Q_X 7
-#define Q_Y 8
-#define Q_Z 9
-#define W_X 10
-#define W_Y 11
-#define W_Z 12
-#define U_1 0
-#define U_2 1
-#define U_3 2
-#define U_4 3
-  class LqrFiniteDiscreteControlQuadrotor: public LqrFiniteDiscreteControl{
+#include <lqr_control/LqrFD_Quadrotor.h>
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
+#include <nav_msgs/Path.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <std_msgs/Empty.h>
+
+using namespace lqr_finite_discrete;
+namespace quadrotor_simulator{
+  class QuadrotorSimulator{
   public:
-    LqrFiniteDiscreteControlQuadrotor(ros::NodeHandle nh, ros::NodeHandle nhp):
-      LqrFiniteDiscreteControl(nh, nhp){};
-    MatrixXd *I_ptr_;
-    MatrixXd *M_para_ptr_;
-    double uav_mass_;
-    void initLQR(double freq, double period, VectorXd *x0);
-    void updateMatrixA();
-    void updateMatrixB();
-    void test();
+    QuadrotorSimulator(ros::NodeHandle nh, ros::NodeHandle nhp);
+    ~QuadrotorSimulator(){};
+    ros::NodeHandle nh_;
+    ros::NodeHandle nhp_;
+    LqrFiniteDiscreteControlQuadrotor *lqr_controller_ptr_;
+    VectorXd *start_state_ptr_;
+    VectorXd *end_state_ptr_;
+    double period_;
+    double controller_freq_;
+
+    nav_msgs::Path traj_;
+    ros::Publisher pub_traj_path_;
+    ros::Publisher pub_traj_end_points_;
+
+    void initQuadrotorSimulator(VectorXd *start_state_ptr, VectorXd *end_state_ptr, double period, double controller_freq);
+    void visualizeTrajectory();
   };
 }
 

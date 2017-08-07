@@ -55,8 +55,7 @@ namespace lqr_finite_discrete{
     u_ptr_ = new VectorXd(u_size_);
 
     for (int i = 0; i < x_size_; ++i)
-      x0_ptr_[i] = x0[i];
-
+      (*x0_ptr_)(i) = (*x0)(i);
 
     /* uav property from paper eth15-slq-window */
     I_ptr_ = new MatrixXd(3, 3);
@@ -79,6 +78,11 @@ namespace lqr_finite_discrete{
     (*M_para_ptr_)(1, 2) = -r_uav;
     (*M_para_ptr_)(2, 0) = (*M_para_ptr_)(2, 2) = -c_rf;
     (*M_para_ptr_)(2, 1) = (*M_para_ptr_)(2, 3) = c_rf;
+  }
+
+  void LqrFiniteDiscreteControlQuadrotor::test(){
+    updateMatrixA();
+    updateMatrixB();
   }
 
   void LqrFiniteDiscreteControlQuadrotor::updateMatrixA(){

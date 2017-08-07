@@ -33,41 +33,25 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#ifndef LQR_FINITE_DISCRETE_CONTROLLER_QUADROTOR_H
-#define LQR_FINITE_DISCRETE_CONTROLLER_QUADROTOR_H
+#include <lqr_control/QuadrotorSimulator.h>
+using namespace quadrotor_simulator;
 
-#include <lqr_control/LqrFD.h>
-namespace lqr_finite_discrete{
-#define P_X 0
-#define P_Y 1
-#define P_Z 2
-#define V_X 3
-#define V_Y 4
-#define V_Z 5
-#define Q_W 6
-#define Q_X 7
-#define Q_Y 8
-#define Q_Z 9
-#define W_X 10
-#define W_Y 11
-#define W_Z 12
-#define U_1 0
-#define U_2 1
-#define U_3 2
-#define U_4 3
-  class LqrFiniteDiscreteControlQuadrotor: public LqrFiniteDiscreteControl{
-  public:
-    LqrFiniteDiscreteControlQuadrotor(ros::NodeHandle nh, ros::NodeHandle nhp):
-      LqrFiniteDiscreteControl(nh, nhp){};
-    MatrixXd *I_ptr_;
-    MatrixXd *M_para_ptr_;
-    double uav_mass_;
-    void initLQR(double freq, double period, VectorXd *x0);
-    void updateMatrixA();
-    void updateMatrixB();
-    void test();
-  };
+int main(int argc, char **argv)
+{
+  ros::init(argc, argv, "quadrotor_simulator");
+  ros::NodeHandle nh;
+  ros::NodeHandle nh_private("~");
+  QuadrotorSimulator* quadrotor_sim_node = new QuadrotorSimulator(nh, nh_private);
+
+  VectorXd start_state = VectorXd::Zero(13);
+  start_state(2) = 0.5;
+  VectorXd end_state = VectorXd::Zero(13);
+  end_state(0) = 5.0;
+  end_state(1) = -10.0;
+  end_state(2) = 3.0;
+  quadrotor_sim_node->initQuadrotorSimulator(&start_state, &end_state, 10.0, 100.0);
+  quadrotor_sim_node->visualizeTrajectory();
+
+  ros::spin();
+  return 0;
 }
-
-
-#endif
