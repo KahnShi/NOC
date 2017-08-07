@@ -51,10 +51,18 @@ namespace lqr_finite_discrete{
 #define W_X 10
 #define W_Y 11
 #define W_Z 12
+#define U_1 0
+#define U_2 1
+#define U_3 2
+#define U_4 3
   class LqrFiniteDiscreteControlQuadrotor: public LqrFiniteDiscreteControl{
   public:
+    MatrixXd *I_ptr_;
+    MatrixXd *M_para_ptr_;
+    double uav_mass_;
     void initLQR(double freq, double period, VectorXd *x0);
     void updateMatrixA();
+    void updateMatrixB();
   };
 }
 

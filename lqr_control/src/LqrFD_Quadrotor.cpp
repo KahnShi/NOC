@@ -56,18 +56,35 @@ namespace lqr_finite_discrete{
 
     for (int i = 0; i < x_size_; ++i)
       x0_ptr_[i] = x0[i];
+
+
+    /* uav property from paper eth15-slq-window */
+    I_ptr_ = new MatrixXd(3, 3);
+    for (int i = 0; i < 3; ++i)
+      for (int j = 0; j < 3; ++j)
+        (*I_ptr_)(i, j) = 0.0;
+    (*I_ptr_)(0, 0) = 0.03;
+    (*I_ptr_)(1, 1) = 0.03;
+    (*I_ptr_)(2, 2) = 0.05;
+
+    uav_mass_ = 0.5;
+    M_para_ptr_ = new MatrixXd(3, 4);
+    for (int i = 0; i < 3; ++i)
+      for (int j = 0; j < 4; ++j)
+        (*M_para_ptr_)(i, j) = 0.0;
+    double r_uav = 0.3, c_rf = 0.025;
+    (*M_para_ptr_)(0, 1) = -r_uav;
+    (*M_para_ptr_)(0, 3) = r_uav;
+    (*M_para_ptr_)(1, 0) = r_uav;
+    (*M_para_ptr_)(1, 2) = -r_uav;
+    (*M_para_ptr_)(2, 0) = (*M_para_ptr_)(2, 2) = -c_rf;
+    (*M_para_ptr_)(2, 1) = (*M_para_ptr_)(2, 3) = c_rf;
   }
 
   void LqrFiniteDiscreteControlQuadrotor::updateMatrixA(){
     for (int i = 0; i < x_size_; ++i)
       for (int j = 0; j < x_size_; ++j){
         (*A_ptr_)(i, j) = 0.0;
-        (*Q_ptr_)(i, j) = 0.0;
-      }
-    for (int i = 0; i < u_size_; ++i)
-      for (int j = 0; j < u_size_; ++j){
-        (*B_ptr_)(i, j) = 0.0;
-        (*R_ptr_)(i, j) = 0.0;
       }
     /* x, y, z */
     (*A_ptr_)(P_X, V_X) = 1;
@@ -78,17 +95,19 @@ namespace lqr_finite_discrete{
     double u = 0.0;
     for (int i = 0; i < u_size_; ++i)
       u += (*u_ptr_)[i];
-    /* d v_x = (2 * q_w * q_y + 2 * q_x * q_z) * (thrust / m) */
+    /* u' = u / m */
+    u /= uav_mass_;
+    /* d v_x = (2 * q_w * q_y + 2 * q_x * q_z) * u' */
     (*A_ptr_)(V_X, Q_W) = 2 * (*x0_ptr_)[Q_Y] * u;
     (*A_ptr_)(V_X, Q_X) = 2 * (*x0_ptr_)[Q_Z] * u;
     (*A_ptr_)(V_X, Q_Y) = 2 * (*x0_ptr_)[Q_W] * u;
     (*A_ptr_)(V_X, Q_Z) = 2 * (*x0_ptr_)[Q_X] * u;
-    /* d v_y = (2 * q_w * q_x + 2 * q_y * q_z) * (thrust / m) */
+    /* d v_y = (2 * q_w * q_x + 2 * q_y * q_z) * u' */
     (*A_ptr_)(V_Y, Q_W) = 2 * (*x0_ptr_)[Q_X] * u;
     (*A_ptr_)(V_Y, Q_X) = 2 * (*x0_ptr_)[Q_W] * u;
     (*A_ptr_)(V_Y, Q_Y) = 2 * (*x0_ptr_)[Q_Z] * u;
     (*A_ptr_)(V_Y, Q_Z) = 2 * (*x0_ptr_)[Q_Y] * u;
-    /* d v_z = (1 - 2 * q_x * q_x - 2 * q_y * q_y) * (thrust / m) */
+    /* d v_z = (1 - 2 * q_x * q_x - 2 * q_y * q_y) * u' */
     (*A_ptr_)(V_Z, Q_X) = -2 * (*x0_ptr_)[Q_X] * u;
     (*A_ptr_)(V_Z, Q_Y) = -2 * (*x0_ptr_)[Q_Y] * u;
 
@@ -112,8 +131,89 @@ namespace lqr_finite_discrete{
     (*A_ptr_)(Q_Z, Q_Y) = (*x0_ptr_)[W_X];
 
     /* w_x, w_y, w_z */
-    /* d w = J^-1 * (- (w^) * (Jw) + tau), w^ = [0, -w_z, w_y; w_z, 0, -w_x; -w_y, w_x, 0] */
-    /* d w = J^-1 * (- d(w^) * (Jw) - (w^) * (J * d(w))) */
+    /* w = I^-1 * (- (w^) * (Iw) + tau), w^ = [0, -w_z, w_y; w_z, 0, -w_x; -w_y, w_x, 0] */
+    /* d w = I^-1 * (- d(w^) * (Iw) - (w^) * (I * d(w))) */
+    Vector3d w((*x0_ptr_)[W_X], (*x0_ptr_)[W_Y], (*x0_ptr_)[W_Z]);
+    MatrixXd w_m = MatrixXd::Zero(3, 3);
+    w_m(0, 1) = -(*x0_ptr_)[W_Z]; w_m(0, 2) = (*x0_ptr_)[W_Y];
+    w_m(1, 0) = (*x0_ptr_)[W_Z]; w_m(1, 2) = -(*x0_ptr_)[W_X];
+    w_m(2, 0) = -(*x0_ptr_)[W_Y]; w_m(2, 1) = (*x0_ptr_)[W_X];
+    MatrixXd dw_m = MatrixXd::Zero(3, 3);
+    dw_m(1, 2) = -1;
+    dw_m(2, 1) = 1;
+    Vector3d dw_x = I_ptr_->inverse() * (-dw_m * ((*I_ptr_) * w))
+      - w_m * ((*I_ptr_) * Vector3d(1.0, 0.0, 0.0));
+    for (int i = 0; i < 3; ++i)
+      (*A_ptr_)(W_X + i, W_X) = dw_x(i);
+
+    dw_m = MatrixXd::Zero(3, 3);
+    dw_m(0, 2) = 1;
+    dw_m(2, 0) = -1;
+    Vector3d dw_y = I_ptr_->inverse() * (-dw_m * ((*I_ptr_) * w))
+      - w_m * ((*I_ptr_) * Vector3d(0.0, 1.0, 0.0));
+    for (int i = 0; i < 3; ++i)
+      (*A_ptr_)(W_X + i, W_Y) = dw_y(i);
+
+    dw_m = MatrixXd::Zero(3, 3);
+    dw_m(0, 1) = -1;
+    dw_m(1, 0) = 1;
+    Vector3d dw_z = I_ptr_->inverse() * (-dw_m * ((*I_ptr_) * w))
+      - w_m * ((*I_ptr_) * Vector3d(0.0, 0.0, 1.0));
+    for (int i = 0; i < 3; ++i)
+      (*A_ptr_)(W_X + i, W_Z) = dw_z(i);
+
+    (*A_ptr_) = (*A_ptr_) / control_freq_ + MatrixXd::Identity(x_size_, x_size_);
+  }
+
+  void LqrFiniteDiscreteControlQuadrotor::updateMatrixB(){
+    for (int i = 0; i < u_size_; ++i)
+      for (int j = 0; j < u_size_; ++j){
+        (*B_ptr_)(i, j) = 0.0;
+      }
+    /* x, y, z */
+    /* all 0 */
+
+    /* v_x, v_y, v_z */
+    /* d v_x = (2 * q_w * q_y + 2 * q_x * q_z) * (u1 + u2 + u3 + u4) / m */
+    (*B_ptr_)(V_X, U_1) = (2 * (*x0_ptr_)[Q_W] * (*x0_ptr_)[Q_Y] + 2 * (*x0_ptr_)[Q_X] * (*x0_ptr_)[Q_Z]) / uav_mass_;
+    (*B_ptr_)(V_X, U_2) = (2 * (*x0_ptr_)[Q_W] * (*x0_ptr_)[Q_Y] + 2 * (*x0_ptr_)[Q_X] * (*x0_ptr_)[Q_Z]) / uav_mass_;
+    (*B_ptr_)(V_X, U_3) = (2 * (*x0_ptr_)[Q_W] * (*x0_ptr_)[Q_Y] + 2 * (*x0_ptr_)[Q_X] * (*x0_ptr_)[Q_Z]) / uav_mass_;
+    (*B_ptr_)(V_X, U_4) = (2 * (*x0_ptr_)[Q_W] * (*x0_ptr_)[Q_Y] + 2 * (*x0_ptr_)[Q_X] * (*x0_ptr_)[Q_Z]) / uav_mass_;
+    /* d v_y = (2 * q_w * q_x + 2 * q_y * q_z) * (u1 + u2 + u3 + u4) / m */
+    (*B_ptr_)(V_Y, U_1) = (2 * (*x0_ptr_)[Q_W] * (*x0_ptr_)[Q_X] + 2 * (*x0_ptr_)[Q_Y] * (*x0_ptr_)[Q_Z]) / uav_mass_;
+    (*B_ptr_)(V_Y, U_2) = (2 * (*x0_ptr_)[Q_W] * (*x0_ptr_)[Q_X] + 2 * (*x0_ptr_)[Q_Y] * (*x0_ptr_)[Q_Z]) / uav_mass_;
+    (*B_ptr_)(V_Y, U_3) = (2 * (*x0_ptr_)[Q_W] * (*x0_ptr_)[Q_X] + 2 * (*x0_ptr_)[Q_Y] * (*x0_ptr_)[Q_Z]) / uav_mass_;
+    (*B_ptr_)(V_Y, U_4) = (2 * (*x0_ptr_)[Q_W] * (*x0_ptr_)[Q_X] + 2 * (*x0_ptr_)[Q_Y] * (*x0_ptr_)[Q_Z]) / uav_mass_;
+    /* d v_z = (1 - 2 * q_x * q_x - 2 * q_y * q_y) * (u1 + u2 + u3 + u4) / m */
+    (*B_ptr_)(V_Z, U_1) = (1 -2 * (*x0_ptr_)[Q_X] * (*x0_ptr_)[Q_X] - 2 * (*x0_ptr_)[Q_Y] * (*x0_ptr_)[Q_Y]) / uav_mass_;
+    (*B_ptr_)(V_Z, U_2) = (1 -2 * (*x0_ptr_)[Q_X] * (*x0_ptr_)[Q_X] - 2 * (*x0_ptr_)[Q_Y] * (*x0_ptr_)[Q_Y]) / uav_mass_;
+    (*B_ptr_)(V_Z, U_3) = (1 -2 * (*x0_ptr_)[Q_X] * (*x0_ptr_)[Q_X] - 2 * (*x0_ptr_)[Q_Y] * (*x0_ptr_)[Q_Y]) / uav_mass_;
+    (*B_ptr_)(V_Z, U_4) = (1 -2 * (*x0_ptr_)[Q_X] * (*x0_ptr_)[Q_X] - 2 * (*x0_ptr_)[Q_Y] * (*x0_ptr_)[Q_Y]) / uav_mass_;
+
+    /* q_w, q_x, q_y, q_z */
+    /* d q = 1/2 * q * [0, w]^T */
+    /* all 0 */
+
+    /* w_x, w_y, w_z */
+    /* w = I^-1 * (- (w^) * (Iw) + M_para * [u1;u2;u3;u4]) */
+    /* d w = M_para * d[u1;u2;u3;u4] */
+    Vector3d dw_u1 = (*M_para_ptr_) * Vector4d(1.0, 0.0, 0.0, 0.0);
+    for (int i = 0; i < 4; ++i)
+      (*B_ptr_)(W_X + i, U_1) = dw_u1(i);
+
+    Vector3d dw_u2 = (*M_para_ptr_) * Vector4d(0.0, 1.0, 0.0, 0.0);
+    for (int i = 0; i < 4; ++i)
+      (*B_ptr_)(W_X + i, U_2) = dw_u2(i);
+
+    Vector3d dw_u3 = (*M_para_ptr_) * Vector4d(0.0, 0.0, 1.0, 0.0);
+    for (int i = 0; i < 4; ++i)
+      (*B_ptr_)(W_X + i, U_3) = dw_u3(i);
+
+    Vector3d dw_u4 = (*M_para_ptr_) * Vector4d(0.0, 0.0, 0.0, 1.0);
+    for (int i = 0; i < 4; ++i)
+      (*B_ptr_)(W_X + i, U_4) = dw_u4(i);
+
+    (*B_ptr_) = (*B_ptr_) / control_freq_;
   }
 
 }

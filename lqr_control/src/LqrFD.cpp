@@ -79,9 +79,8 @@ namespace lqr_finite_discrete
     P = *Q_ptr_;
     for (int i = 0; i < iteration_times_; ++i){
       MatrixXd *F_ptr = new MatrixXd(u_size_, x_size_);
-      MatrixXd Fk_1 = ((*R_ptr_) + B_ptr_->transpose() * P * (*B_ptr_)).inverse();
-      MatrixXd Fk_2 = B_ptr_->transpose() * P * (*A_ptr_) + N.transpose();
-      (*F_ptr) = Fk_1 * Fk_2;
+      (*F_ptr) = ((*R_ptr_) + B_ptr_->transpose() * P * (*B_ptr_)).inverse()
+        * (B_ptr_->transpose() * P * (*A_ptr_) + N.transpose());
       P = A_ptr_->transpose() * P * (*A_ptr_)
         - (A_ptr_->transpose() * P * (*B_ptr_) + N.transpose()) * (*F_ptr)
         + (*Q_ptr_);
