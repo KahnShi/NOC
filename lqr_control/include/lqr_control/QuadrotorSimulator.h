@@ -62,6 +62,7 @@ namespace quadrotor_simulator{
     ros::Publisher pub_traj_end_points_;
 
     void initQuadrotorSimulator(VectorXd *start_state_ptr, VectorXd *end_state_ptr, double period, double controller_freq);
+    void planOptimalTrajectory();
     void visualizeTrajectory();
   };
 }

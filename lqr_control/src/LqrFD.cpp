@@ -53,7 +53,7 @@ namespace lqr_finite_discrete
     x_size_ = Q_ptr_->rows();
     u_size_ = R_ptr_->rows();
     A_ptr_ = new MatrixXd(x_size_, x_size_);
-    B_ptr_ = new MatrixXd(u_size_, u_size_);
+    B_ptr_ = new MatrixXd(x_size_, u_size_);
     Q_ptr_ = new MatrixXd(x_size_, x_size_);
     R_ptr_ = new MatrixXd(u_size_, u_size_);
     x0_ptr_ = new VectorXd(x_size_);
@@ -73,16 +73,16 @@ namespace lqr_finite_discrete
   }
 
   void LqrFiniteDiscreteControl::backwardIteration(){
-    VectorXd P = MatrixXd::Zero(x_size_, x_size_);
+    MatrixXd P = MatrixXd::Zero(x_size_, x_size_);
     // todo: assume N is zero, namely do not have x^T *N*u in cost function
-    VectorXd N = MatrixXd::Zero(x_size_, u_size_);
+    MatrixXd N = MatrixXd::Zero(x_size_, u_size_);
     P = *Q_ptr_;
     for (int i = 0; i < iteration_times_; ++i){
       MatrixXd *F_ptr = new MatrixXd(u_size_, x_size_);
       (*F_ptr) = ((*R_ptr_) + B_ptr_->transpose() * P * (*B_ptr_)).inverse()
         * (B_ptr_->transpose() * P * (*A_ptr_) + N.transpose());
       P = A_ptr_->transpose() * P * (*A_ptr_)
-        - (A_ptr_->transpose() * P * (*B_ptr_) + N.transpose()) * (*F_ptr)
+        - (A_ptr_->transpose() * P * (*B_ptr_) + N) * (*F_ptr)
         + (*Q_ptr_);
       F_ptr_vec_.push_back(F_ptr);
     }

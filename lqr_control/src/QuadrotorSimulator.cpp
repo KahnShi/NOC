@@ -52,6 +52,15 @@ namespace quadrotor_simulator{
     std::cout << "[QuadrotorSimulator] init finished\n";
   }
 
+  void QuadrotorSimulator::planOptimalTrajectory(){
+    lqr_controller_ptr_->updateMatrixAB();
+    std::cout << "[QuadrotorSimulator] updateMatrixAB finished\n";
+    lqr_controller_ptr_->backwardIteration();
+    std::cout << "[QuadrotorSimulator] backwardIteration finished\n";
+    lqr_controller_ptr_->forwardUpdateControlValue();
+    std::cout << "[QuadrotorSimulator] forwardUpdateControlValue finished\n";
+  }
+
   void QuadrotorSimulator::visualizeTrajectory(){
     visualization_msgs::MarkerArray end_points_markers;
     visualization_msgs::Marker point_marker;

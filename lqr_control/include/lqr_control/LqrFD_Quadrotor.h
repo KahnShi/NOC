@@ -65,7 +65,7 @@ namespace lqr_finite_discrete{
     void initLQR(double freq, double period, VectorXd *x0);
     void updateMatrixA();
     void updateMatrixB();
-    void test();
+    void updateMatrixAB();
   };
 }
 

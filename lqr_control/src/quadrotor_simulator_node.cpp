@@ -51,6 +51,7 @@ int main(int argc, char **argv)
   end_state(2) = 3.0;
   quadrotor_sim_node->initQuadrotorSimulator(&start_state, &end_state, 10.0, 100.0);
   quadrotor_sim_node->visualizeTrajectory();
+  quadrotor_sim_node->planOptimalTrajectory();
 
   ros::spin();
   return 0;
