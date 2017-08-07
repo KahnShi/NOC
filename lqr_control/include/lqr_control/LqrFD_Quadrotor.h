@@ -36,8 +36,8 @@
 #ifndef LQR_FINITE_DISCRETE_CONTROLLER_QUADROTOR_H
 #define LQR_FINITE_DISCRETE_CONTROLLER_QUADROTOR_H
 
-#include <lqr_control/LqrFD.h>
-namespace lqr_finite_discrete{
+#include <lqr_control/LqrDiscreteBase.h>
+namespace lqr_discrete{
 #define P_X 0
 #define P_Y 1
 #define P_Z 2
@@ -55,10 +55,10 @@ namespace lqr_finite_discrete{
 #define U_2 1
 #define U_3 2
 #define U_4 3
-  class LqrFiniteDiscreteControlQuadrotor: public LqrFiniteDiscreteControl{
+  class LqrFiniteDiscreteControlQuadrotor: public LqrDiscreteControlBase{
   public:
     LqrFiniteDiscreteControlQuadrotor(ros::NodeHandle nh, ros::NodeHandle nhp):
-      LqrFiniteDiscreteControl(nh, nhp){};
+      LqrDiscreteControlBase(nh, nhp){};
     MatrixXd *I_ptr_;
     MatrixXd *M_para_ptr_;
     double uav_mass_;

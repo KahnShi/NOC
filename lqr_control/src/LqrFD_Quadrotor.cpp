@@ -34,7 +34,7 @@
  *********************************************************************/
 
 #include <lqr_control/LqrFD_Quadrotor.h>
-namespace lqr_finite_discrete{
+namespace lqr_discrete{
   void LqrFiniteDiscreteControlQuadrotor::initLQR(double freq, double period, VectorXd *x0, VectorXd *xn){
     control_freq_ = freq;
     if (floor(freq * period) < freq * period){

@@ -46,7 +46,7 @@ include_directories(
 
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
-  src/LqrFD.cpp
+  src/LqrDiscreteBase.cpp
   src/LqrFD_Quadrotor.cpp
   src/QuadrotorSimulator.cpp
   )

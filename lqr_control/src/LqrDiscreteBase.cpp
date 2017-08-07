@@ -33,14 +33,14 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#include <lqr_control/LqrFD.h>
+#include <lqr_control/LqrDiscreteBase.h>
 
-namespace lqr_finite_discrete
+namespace lqr_discrete
 {
-  LqrFiniteDiscreteControl::LqrFiniteDiscreteControl(ros::NodeHandle nh, ros::NodeHandle nhp): nh_(nh), nhp_(nhp){
+  LqrDiscreteControlBase::LqrDiscreteControlBase(ros::NodeHandle nh, ros::NodeHandle nhp): nh_(nh), nhp_(nhp){
   }
 
-  void LqrFiniteDiscreteControl::initLQR(double freq, double period, MatrixXd *A, MatrixXd *B, MatrixXd *Q, MatrixXd *R, VectorXd *x0){
+  void LqrDiscreteControlBase::initLQR(double freq, double period, MatrixXd *A, MatrixXd *B, MatrixXd *Q, MatrixXd *R, VectorXd *x0){
     control_freq_ = freq;
     if (floor(freq * period) < freq * period){
       end_time_ = (floor(freq * period) + 1.0) / freq;
@@ -70,34 +70,5 @@ namespace lqr_finite_discrete
       }
     for (int i = 0; i < x_size_; ++i)
       x0_ptr_[i] = x0[i];
-  }
-
-  void LqrFiniteDiscreteControl::backwardIteration(){
-    MatrixXd P = MatrixXd::Zero(x_size_, x_size_);
-    // todo: assume N is zero, namely do not have x^T *N*u in cost function
-    MatrixXd N = MatrixXd::Zero(x_size_, u_size_);
-    P = *Q_ptr_;
-    for (int i = 0; i < iteration_times_; ++i){
-      MatrixXd *F_ptr = new MatrixXd(u_size_, x_size_);
-      (*F_ptr) = ((*R_ptr_) + B_ptr_->transpose() * P * (*B_ptr_)).inverse()
-        * (B_ptr_->transpose() * P * (*A_ptr_) + N.transpose());
-      P = A_ptr_->transpose() * P * (*A_ptr_)
-        - (A_ptr_->transpose() * P * (*B_ptr_) + N) * (*F_ptr)
-        + (*Q_ptr_);
-      F_ptr_vec_.push_back(F_ptr);
-    }
-  }
-
-  void LqrFiniteDiscreteControl::forwardUpdateControlValue(){
-    x_ptr_vec_.push_back(x0_ptr_);
-    for (int i = F_ptr_vec_.size() - 1; i >= 0; --i){
-      VectorXd *x_ptr = new VectorXd(u_size_);
-      VectorXd *u_ptr = new VectorXd(u_size_);
-      (*u_ptr) = -(*(F_ptr_vec_[i])) * (*(x_ptr_vec_[F_ptr_vec_.size() - 1 - i]));
-      u_ptr_vec_.push_back(u_ptr);
-      (*x_ptr) = (*A_ptr_) * (*(x_ptr_vec_[F_ptr_vec_.size() - 1 - i]))
-        +(*B_ptr_) * (*u_ptr);
-      x_ptr_vec_.push_back(x_ptr);
-    }
   }
 }

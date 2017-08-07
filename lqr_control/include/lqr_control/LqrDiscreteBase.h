@@ -33,8 +33,8 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#ifndef LQR_FINITE_DISCRETE_CONTROLLER_H
-#define LQR_FINITE_DISCRETE_CONTROLLER_H
+#ifndef LQR_DISCRETE_CONTROLLER_BASE_H
+#define LQR_DISCRETE_CONTROLLER_BASE_H
 
 /* ros */
 #include <ros/ros.h>
@@ -52,12 +52,12 @@
 #include <iostream>
 
 using namespace Eigen;
-namespace lqr_finite_discrete
+namespace lqr_discrete
 {
-  class LqrFiniteDiscreteControl{
+  class LqrDiscreteControlBase{
   public:
-    LqrFiniteDiscreteControl(ros::NodeHandle nh, ros::NodeHandle nhp);
-    ~LqrFiniteDiscreteControl();
+    LqrDiscreteControlBase(ros::NodeHandle nh, ros::NodeHandle nhp);
+    ~LqrDiscreteControlBase();
 
     ros::NodeHandle nh_;
     ros::NodeHandle nhp_;
@@ -84,9 +84,6 @@ namespace lqr_finite_discrete
     std::vector<VectorXd *> u_ptr_vec_;
 
     void initLQR(double freq, double period, MatrixXd *A, MatrixXd *B, MatrixXd *Q, MatrixXd *R, VectorXd *s0);
-    void backwardIteration();
-    void forwardUpdateControlValue();
-
   };
 }
 #endif

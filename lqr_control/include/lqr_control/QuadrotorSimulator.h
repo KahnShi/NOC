@@ -43,7 +43,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/Empty.h>
 
-using namespace lqr_finite_discrete;
+using namespace lqr_discrete;
 namespace quadrotor_simulator{
   class QuadrotorSimulator{
   public:
