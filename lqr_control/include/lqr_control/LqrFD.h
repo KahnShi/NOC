@@ -76,6 +76,7 @@ namespace lqr_finite_discrete
     MatrixXd *Q_ptr_;
     MatrixXd *R_ptr_;
     VectorXd *x0_ptr_;
+    VectorXd *xn_ptr_;
     VectorXd *x_ptr_;
     VectorXd *u_ptr_;
     std::vector<MatrixXd *> F_ptr_vec_;

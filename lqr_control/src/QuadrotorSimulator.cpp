@@ -48,17 +48,19 @@ namespace quadrotor_simulator{
     end_state_ptr_ = end_state_ptr;
     period_ = period;
     controller_freq_ = controller_freq;
-    lqr_controller_ptr_->initLQR(controller_freq_, period_, start_state_ptr_);
+    lqr_controller_ptr_->initLQR(controller_freq_, period_, start_state_ptr_, end_state_ptr_);
     std::cout << "[QuadrotorSimulator] init finished\n";
   }
 
   void QuadrotorSimulator::planOptimalTrajectory(){
-    lqr_controller_ptr_->updateMatrixAB();
-    std::cout << "[QuadrotorSimulator] updateMatrixAB finished\n";
-    lqr_controller_ptr_->backwardIteration();
-    std::cout << "[QuadrotorSimulator] backwardIteration finished\n";
-    lqr_controller_ptr_->forwardUpdateControlValue();
-    std::cout << "[QuadrotorSimulator] forwardUpdateControlValue finished\n";
+    // lqr_controller_ptr_->updateMatrixAB();
+    // std::cout << "[QuadrotorSimulator] updateMatrixAB finished\n";
+    // lqr_controller_ptr_->backwardIteration();
+    // std::cout << "[QuadrotorSimulator] backwardIteration finished\n";
+    // lqr_controller_ptr_->forwardUpdateControlValue();
+    // std::cout << "[QuadrotorSimulator] forwardUpdateControlValue finished\n";
+    lqr_controller_ptr_->updateAll();
+    std::cout << "[QuadrotorSimulator] updateAll finished\n";
   }
 
   void QuadrotorSimulator::visualizeTrajectory(){

@@ -35,7 +35,7 @@
 
 #include <lqr_control/LqrFD_Quadrotor.h>
 namespace lqr_finite_discrete{
-  void LqrFiniteDiscreteControlQuadrotor::initLQR(double freq, double period, VectorXd *x0){
+  void LqrFiniteDiscreteControlQuadrotor::initLQR(double freq, double period, VectorXd *x0, VectorXd *xn){
     control_freq_ = freq;
     if (floor(freq * period) < freq * period){
       end_time_ = (floor(freq * period) + 1.0) / freq;
@@ -52,10 +52,14 @@ namespace lqr_finite_discrete{
     Q_ptr_ = new MatrixXd(x_size_, x_size_);
     R_ptr_ = new MatrixXd(u_size_, u_size_);
     x0_ptr_ = new VectorXd(x_size_);
+    xn_ptr_ = new VectorXd(x_size_);
+    x_ptr_ = new VectorXd(x_size_);
     u_ptr_ = new VectorXd(u_size_);
 
     for (int i = 0; i < x_size_; ++i)
       (*x0_ptr_)(i) = (*x0)(i);
+    for (int i = 0; i < x_size_; ++i)
+      (*xn_ptr_)(i) = (*xn)(i);
 
     /* init Q and R matrice */
     for (int i = 0; i < x_size_; ++i)
@@ -86,11 +90,30 @@ namespace lqr_finite_discrete{
     (*M_para_ptr_)(2, 1) = (*M_para_ptr_)(2, 3) = c_rf;
   }
 
+  void LqrFiniteDiscreteControlQuadrotor::updateAll(){
+    MatrixXd P = MatrixXd::Zero(x_size_, x_size_);
+    // todo: assume N is zero, namely do not have x^T *N*u in cost function
+    MatrixXd N = MatrixXd::Zero(x_size_, u_size_);
+    P = *Q_ptr_;
+    std::copy(xn_ptr_, xn_ptr_ + 1, x_ptr_);
+    for (int i = 0; i < 4; ++i)
+      (*u_ptr_)(i) = uav_mass_ * 9.78 / 4.0;
+    for (int i = 0; i < iteration_times_; ++i){
+      updateMatrixAB();
+      MatrixXd F = MatrixXd::Zero(u_size_, x_size_);
+      F = ((*R_ptr_) + B_ptr_->transpose() * P * (*B_ptr_)).inverse()
+        * (B_ptr_->transpose() * P * (*A_ptr_) + N.transpose());
+      P = A_ptr_->transpose() * P * (*A_ptr_)
+        - (A_ptr_->transpose() * P * (*B_ptr_) + N) * F
+        + (*Q_ptr_);
+      VectorXd new_u = -F * (*x_ptr_);
+      *u_ptr_ = new_u;
+    }
+  }
+
   void LqrFiniteDiscreteControlQuadrotor::updateMatrixAB(){
     updateMatrixA();
-    std::cout << "[LqrFD_Quadrotor] Matrix A is updated\n";
     updateMatrixB();
-    std::cout << "[LqrFD_Quadrotor] Matrix B is updated\n";
   }
 
   void LqrFiniteDiscreteControlQuadrotor::updateMatrixA(){
