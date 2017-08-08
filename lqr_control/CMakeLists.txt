@@ -48,6 +48,7 @@ include_directories(
 add_library(${PROJECT_NAME}
   src/LqrDiscreteBase.cpp
   src/LqrFD_Quadrotor.cpp
+  src/LqrID_Quadrotor.cpp
   src/QuadrotorSimulator.cpp
   )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})

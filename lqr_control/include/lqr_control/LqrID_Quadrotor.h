@@ -33,30 +33,42 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#include <lqr_control/QuadrotorSimulator.h>
-using namespace quadrotor_simulator;
+#ifndef LQR_INFINITE_DISCRETE_CONTROLLER_QUADROTOR_H
+#define LQR_INFINITE_DISCRETE_CONTROLLER_QUADROTOR_H
 
-int main(int argc, char **argv)
-{
-  ros::init(argc, argv, "quadrotor_simulator");
-  ros::NodeHandle nh;
-  ros::NodeHandle nh_private("~");
-  QuadrotorSimulator* quadrotor_sim_node = new QuadrotorSimulator(nh, nh_private);
-
-  VectorXd start_state = VectorXd::Zero(13);
-  start_state(0) = 0.5;
-  start_state(1) = 0.5;
-  start_state(2) = 0.5;
-  start_state(Q_W) = 1.0;
-  VectorXd end_state = VectorXd::Zero(13);
-  end_state(0) = 5.0;
-  end_state(1) = -10.0;
-  end_state(2) = 3.0;
-  end_state(Q_W) = 1.0;
-  quadrotor_sim_node->initQuadrotorSimulator(&start_state, &end_state, 10.0, 100.0);
-  quadrotor_sim_node->planOptimalTrajectory();
-  quadrotor_sim_node->visualizeTrajectory();
-
-  ros::spin();
-  return 0;
+#include <lqr_control/LqrDiscreteBase.h>
+namespace lqr_discrete{
+#define P_X 0
+#define P_Y 1
+#define P_Z 2
+#define V_X 3
+#define V_Y 4
+#define V_Z 5
+#define Q_W 6
+#define Q_X 7
+#define Q_Y 8
+#define Q_Z 9
+#define W_X 10
+#define W_Y 11
+#define W_Z 12
+#define U_1 0
+#define U_2 1
+#define U_3 2
+#define U_4 3
+  class LqrInfiniteDiscreteControlQuadrotor: public LqrDiscreteControlBase{
+  public:
+    LqrInfiniteDiscreteControlQuadrotor(ros::NodeHandle nh, ros::NodeHandle nhp):
+      LqrDiscreteControlBase(nh, nhp){};
+    MatrixXd *I_ptr_;
+    MatrixXd *M_para_ptr_;
+    double uav_mass_;
+    void initLQR(double freq, double period, VectorXd *x0, VectorXd *xn);
+    void updateMatrixA();
+    void updateMatrixB();
+    void updateMatrixAB();
+    void updateAll();
+  };
 }
+
+
+#endif

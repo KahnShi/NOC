@@ -36,7 +36,7 @@
 #include <lqr_control/QuadrotorSimulator.h>
 namespace quadrotor_simulator{
   QuadrotorSimulator::QuadrotorSimulator(ros::NodeHandle nh, ros::NodeHandle nhp): nh_(nh), nhp_(nhp){
-    lqr_controller_ptr_ = new LqrFiniteDiscreteControlQuadrotor(nh_, nhp_);
+    lqr_controller_ptr_ = new LqrInfiniteDiscreteControlQuadrotor(nh_, nhp_);
 
     pub_traj_path_ = nh_.advertise<nav_msgs::Path>("lqr_path", 1);
     pub_traj_end_points_ = nh_.advertise<visualization_msgs::MarkerArray>("end_points_markers", 1);
@@ -53,12 +53,6 @@ namespace quadrotor_simulator{
   }
 
   void QuadrotorSimulator::planOptimalTrajectory(){
-    // lqr_controller_ptr_->updateMatrixAB();
-    // std::cout << "[QuadrotorSimulator] updateMatrixAB finished\n";
-    // lqr_controller_ptr_->backwardIteration();
-    // std::cout << "[QuadrotorSimulator] backwardIteration finished\n";
-    // lqr_controller_ptr_->forwardUpdateControlValue();
-    // std::cout << "[QuadrotorSimulator] forwardUpdateControlValue finished\n";
     lqr_controller_ptr_->updateAll();
     std::cout << "[QuadrotorSimulator] updateAll finished\n";
   }
@@ -105,6 +99,29 @@ namespace quadrotor_simulator{
     end_points_markers.markers.push_back(point_marker);
 
     pub_traj_end_points_.publish(end_points_markers);
+
+    traj_.header.frame_id = std::string("/world");
+    traj_.header.stamp = ros::Time().now();
+    geometry_msgs::PoseStamped pose_stamped;
+    pose_stamped.header = traj_.header;
+    pose_stamped.pose.orientation.x = 0.0f;
+    pose_stamped.pose.orientation.y = 0.0f;
+    pose_stamped.pose.orientation.z = 0.0f;
+    pose_stamped.pose.orientation.w = 1.0f;
+    for (int i = 0; i < lqr_controller_ptr_->iteration_times_; ++i){
+      // VectorXd *result = lqr_controller_ptr_->x_ptr_vec_[i];
+      // pose_stamped.pose.position.x = (*result)(0);
+      // pose_stamped.pose.position.y = (*result)(1);
+      // pose_stamped.pose.position.z = (*result)(2);
+
+      // test
+      VectorXd result = lqr_controller_ptr_->x_vec_[i];
+      pose_stamped.pose.position.x = (result)(0);
+      pose_stamped.pose.position.y = (result)(1);
+      pose_stamped.pose.position.z = (result)(2);
+      traj_.poses.push_back(pose_stamped);
+    }
+    pub_traj_path_.publish(traj_);
   }
 }
 

@@ -37,6 +37,7 @@
 #define QUADROTOR_SIMULATOR_H
 
 #include <lqr_control/LqrFD_Quadrotor.h>
+#include <lqr_control/LqrID_Quadrotor.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <nav_msgs/Path.h>
@@ -51,7 +52,7 @@ namespace quadrotor_simulator{
     ~QuadrotorSimulator(){};
     ros::NodeHandle nh_;
     ros::NodeHandle nhp_;
-    LqrFiniteDiscreteControlQuadrotor *lqr_controller_ptr_;
+    LqrInfiniteDiscreteControlQuadrotor *lqr_controller_ptr_;
     VectorXd *start_state_ptr_;
     VectorXd *end_state_ptr_;
     double period_;
