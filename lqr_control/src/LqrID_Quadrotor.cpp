@@ -102,6 +102,8 @@ namespace lqr_discrete{
     un_ptr_ = new VectorXd(u_size_);
     for (int i = 0; i < 4; ++i)
       (*un_ptr_)(i) = uav_mass_ * 9.78 / 4.0;
+
+    debug_ = false;
   }
 
   void LqrInfiniteDiscreteControlQuadrotor::updateAll(){
@@ -131,42 +133,44 @@ namespace lqr_discrete{
       // method 2: x(k+1) = x(k) + f(x, u) * dt
       updateNewState(new_x_ptr);
 
-      // test
-      static int cnt = 0;
-      if (cnt % 100 == 0){
-      std::cout << "\n\nexamine A:";
-      for (int i = 0; i < x_size_; ++i){
-        std::cout << "\n";
-        for (int j = 0; j < x_size_; ++j){
-          std::cout << (*A_ptr_)(i, j) << ", ";
-        }
-      }
-      std::cout << "\nexamine x:\n";
-      for (int i = 0; i < x_size_; ++i)
-        std::cout << (*x_ptr_)(i) << ", ";
-      std::cout << "\n\nexamine B:";
-      for (int i = 0; i < x_size_; ++i){
-        std::cout << "\n";
-        for (int j = 0; j < u_size_; ++j){
-          std::cout << (*B_ptr_)(i, j) << ", ";
-        }
-      }
-      std::cout << "\nexamine u:";
-      for (int i = 0; i < u_size_; ++i)
-        std::cout << (*u_ptr_)(i) << ", ";
+      // debug
+      if (debug_){
+        static int cnt = 0;
+        if (cnt % 100 == 0){
+          std::cout << "\n\nexamine A:";
+          for (int i = 0; i < x_size_; ++i){
+            std::cout << "\n";
+            for (int j = 0; j < x_size_; ++j){
+              std::cout << (*A_ptr_)(i, j) << ", ";
+            }
+          }
+          std::cout << "\nexamine x:\n";
+          for (int i = 0; i < x_size_; ++i)
+            std::cout << (*x_ptr_)(i) << ", ";
+          std::cout << "\n\nexamine B:";
+          for (int i = 0; i < x_size_; ++i){
+            std::cout << "\n";
+            for (int j = 0; j < u_size_; ++j){
+              std::cout << (*B_ptr_)(i, j) << ", ";
+            }
+          }
+          std::cout << "\nexamine u:";
+          for (int i = 0; i < u_size_; ++i)
+            std::cout << (*u_ptr_)(i) << ", ";
 
-      std::cout << "\nexamine dx:\n";
-      for (int i = 0; i < x_size_; ++i)
-        std::cout << ((*new_x_ptr)(i) - (*x_ptr_)(i)) * control_freq_ << ", ";
-      std::cout << "\n\nexamine F:";
-      for (int i = 0; i < u_size_; ++i){
-        std::cout << "\n";
-        for (int j = 0; j < x_size_; ++j){
-          std::cout << F(i, j) << ", ";
+          std::cout << "\nexamine dx:\n";
+          for (int i = 0; i < x_size_; ++i)
+            std::cout << ((*new_x_ptr)(i) - (*x_ptr_)(i)) * control_freq_ << ", ";
+          std::cout << "\n\nexamine F:";
+          for (int i = 0; i < u_size_; ++i){
+            std::cout << "\n";
+            for (int j = 0; j < x_size_; ++j){
+              std::cout << F(i, j) << ", ";
+            }
+          }
         }
+        ++cnt;
       }
-      }
-      ++cnt;
 
       /* normalize quaternion */
       double q_sum = 0.0;
@@ -180,12 +184,12 @@ namespace lqr_discrete{
       // our real x' = x - xn, u' = u - un
       *new_u_ptr = -F * (*x_ptr_);
       *x_ptr_ = *new_x_ptr;
-      x_ptr_vec_.push_back(new_x_ptr);
       *u_ptr_ = *new_u_ptr;
-      u_ptr_vec_.push_back(new_u_ptr);
-      //test
-      Vector3d x_vec((*new_x_ptr)(0), (*new_x_ptr)(1), (*new_x_ptr)(2));
-      x_vec_.push_back(x_vec);
+
+      Vector3d x((*new_x_ptr)(0), (*new_x_ptr)(1), (*new_x_ptr)(2));
+      x_vec_.push_back(x);
+      Vector4d u((*new_u_ptr)(0), (*new_u_ptr)(1), (*new_u_ptr)(2), (*new_u_ptr)(3));
+      u_vec_.push_back(u);
     }
   }
 
