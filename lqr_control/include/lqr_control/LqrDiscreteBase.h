@@ -81,8 +81,8 @@ namespace lqr_discrete
     VectorXd *u_ptr_;
     VectorXd *u0_ptr_;
     VectorXd *un_ptr_;
-    std::vector<Vector3d> x_vec_;
-    std::vector<Vector4d> u_vec_;
+    std::vector<VectorXd> x_vec_;
+    std::vector<VectorXd> u_vec_;
 
     void initLQR(double freq, double period, MatrixXd *A, MatrixXd *B, MatrixXd *Q, MatrixXd *R, VectorXd *s0);
   };

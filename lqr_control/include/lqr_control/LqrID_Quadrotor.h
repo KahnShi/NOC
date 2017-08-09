@@ -69,6 +69,7 @@ namespace lqr_discrete{
     void updateMatrixAB();
     void updateAll();
     void updateNewState(VectorXd *new_x_ptr);
+    void ricatti(MatrixXd *new_P_ptr);
   };
 }
 

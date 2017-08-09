@@ -144,8 +144,8 @@ namespace lqr_discrete{
       }
     }
 
-    x_vec_.push_back(Vector3d((*x0_ptr_)(0), (*x0_ptr_)(1), (*x0_ptr_)(2)));
-    u_vec_.push_back(Vector4d((*u0_ptr_)(0), (*u0_ptr_)(1), (*u0_ptr_)(2), (*u0_ptr_)(3)));
+    x_vec_.push_back(*x0_ptr_);
+    u_vec_.push_back(*u0_ptr_);
     for (int i = 0; i < iteration_times_; ++i){
       VectorXd u = -F_vec_[iteration_times_-1-i] * (*x_ptr_);
       // debug
@@ -171,13 +171,13 @@ namespace lqr_discrete{
       // method 1: x(k+1) = A*x(k) + B*u(k)
       VectorXd x = (*A_ptr_) * (*x_ptr_)
         + (*B_ptr_) * u;
-      x_vec_.push_back(Vector3d(x(0), x(1), x(2)));
+      x_vec_.push_back(x);
       *x_ptr_ = x;
 
       // method 2: x(k+1) = f(x(k), u(k))
       // VectorXd *x = new VectorXd(x_size_);
       // updateNewState(x);
-      // x_vec_.push_back(Vector3d((*x)(0), (*x)(1), (*x)(2)));
+      // x_vec_.push_back(x);
       // *x_ptr_ = *x;
 
     }
