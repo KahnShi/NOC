@@ -186,10 +186,8 @@ namespace lqr_discrete{
       *x_ptr_ = *new_x_ptr;
       *u_ptr_ = *new_u_ptr;
 
-      Vector3d x((*new_x_ptr)(0), (*new_x_ptr)(1), (*new_x_ptr)(2));
-      x_vec_.push_back(x);
-      Vector4d u((*new_u_ptr)(0), (*new_u_ptr)(1), (*new_u_ptr)(2), (*new_u_ptr)(3));
-      u_vec_.push_back(u);
+      x_vec_.push_back(*new_x_ptr);
+      u_vec_.push_back(*new_u_ptr);
     }
   }
 
@@ -392,7 +390,19 @@ namespace lqr_discrete{
 
     *new_x_ptr = dev_x / control_freq_ + *x_ptr_;
   }
+  void LqrInfiniteDiscreteControlQuadrotor::ricatti(MatrixXd *new_P_ptr){
+    MatrixXd P = MatrixXd::Zero(x_size_, x_size_);
+    // todo: assume N is zero, namely do not have x^T *N*u in cost function
+    MatrixXd N = MatrixXd::Zero(x_size_, u_size_);
+    P = *Q_ptr_;
 
+    MatrixXd F = MatrixXd::Zero(u_size_, x_size_);
+    F = ((*R_ptr_) + B_ptr_->transpose() * P * (*B_ptr_)).inverse()
+      * (B_ptr_->transpose() * P * (*A_ptr_) + N.transpose());
+    *new_P_ptr = A_ptr_->transpose() * P * (*A_ptr_)
+      - (A_ptr_->transpose() * P * (*B_ptr_) + N) * F
+      + (*Q_ptr_);
+  }
 }
 
 
