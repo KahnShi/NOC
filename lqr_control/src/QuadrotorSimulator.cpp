@@ -36,7 +36,8 @@
 #include <lqr_control/QuadrotorSimulator.h>
 namespace quadrotor_simulator{
   QuadrotorSimulator::QuadrotorSimulator(ros::NodeHandle nh, ros::NodeHandle nhp): nh_(nh), nhp_(nhp){
-    lqr_controller_ptr_ = new LqrFiniteDiscreteControlQuadrotor(nh_, nhp_);
+    // controller_ptr_ = new LqrFiniteDiscreteControlQuadrotor(nh_, nhp_);
+    controller_ptr_ = new SlqFiniteDiscreteControlQuadrotor(nh_, nhp_);
 
     pub_traj_path_ = nh_.advertise<nav_msgs::Path>("lqr_path", 1);
     pub_traj_end_points_ = nh_.advertise<visualization_msgs::MarkerArray>("end_points_markers", 1);
@@ -48,12 +49,13 @@ namespace quadrotor_simulator{
     end_state_ptr_ = end_state_ptr;
     period_ = period;
     controller_freq_ = controller_freq;
-    lqr_controller_ptr_->initLQR(controller_freq_, period_, start_state_ptr_, end_state_ptr_);
+    // controller_ptr_->initLQR(controller_freq_, period_, start_state_ptr_, end_state_ptr_);
+    controller_ptr_->initSLQ(controller_freq_, period_, start_state_ptr_, end_state_ptr_);
     std::cout << "[QuadrotorSimulator] init finished\n";
   }
 
   void QuadrotorSimulator::planOptimalTrajectory(){
-    lqr_controller_ptr_->updateAll();
+    controller_ptr_->updateAll();
     std::cout << "[QuadrotorSimulator] updateAll finished\n";
   }
 
@@ -108,14 +110,14 @@ namespace quadrotor_simulator{
     pose_stamped.pose.orientation.y = 0.0f;
     pose_stamped.pose.orientation.z = 0.0f;
     pose_stamped.pose.orientation.w = 1.0f;
-    for (int i = 0; i < lqr_controller_ptr_->iteration_times_; ++i){
-      // VectorXd *result = lqr_controller_ptr_->x_ptr_vec_[i];
+    for (int i = 0; i < controller_ptr_->x_vec_.size(); ++i){
+      // VectorXd *result = controller_ptr_->x_ptr_vec_[i];
       // pose_stamped.pose.position.x = (*result)(0);
       // pose_stamped.pose.position.y = (*result)(1);
       // pose_stamped.pose.position.z = (*result)(2);
 
       // test
-      VectorXd result = lqr_controller_ptr_->x_vec_[i];
+      VectorXd result = controller_ptr_->x_vec_[i];
       pose_stamped.pose.position.x = (result)(0);
       pose_stamped.pose.position.y = (result)(1);
       pose_stamped.pose.position.z = (result)(2);

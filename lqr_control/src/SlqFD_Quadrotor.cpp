@@ -33,9 +33,12 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#include <lqr_control/LqrFD_Quadrotor.h>
+#include <lqr_control/SlqFD_Quadrotor.h>
 namespace lqr_discrete{
-  void LqrFiniteDiscreteControlQuadrotor::initLQR(double freq, double period, VectorXd *x0, VectorXd *xn){
+  void SlqFiniteDiscreteControlQuadrotor::initSLQ(double freq, double period, VectorXd *x0, VectorXd *xn){
+    lqr_controller_ptr_ = new LqrFiniteDiscreteControlQuadrotor(nh_, nhp_);
+    lqr_controller_ptr_->initLQR(freq, period, x0, xn);
+
     control_freq_ = freq;
     if (floor(freq * period) < freq * period){
       end_time_ = (floor(freq * period) + 1.0) / freq;
@@ -51,6 +54,7 @@ namespace lqr_discrete{
     B_ptr_ = new MatrixXd(x_size_, u_size_);
     Q_ptr_ = new MatrixXd(x_size_, x_size_);
     R_ptr_ = new MatrixXd(u_size_, u_size_);
+    H_ptr_ = new MatrixXd(x_size_, x_size_);
     x0_ptr_ = new VectorXd(x_size_);
     xn_ptr_ = new VectorXd(x_size_);
     x_ptr_ = new VectorXd(x_size_);
@@ -103,9 +107,48 @@ namespace lqr_discrete{
       (*u0_ptr_)(i) = (*un_ptr_)(i) = uav_mass_ * 9.78 / 4.0;
 
     debug_ = false;
+
+    /* calculate LQR as inital value */
+    lqr_controller_ptr_->updateAll();
+    std::cout << "\n[SLQ]: LQR initial value is generated.\n";
+    getRicattiH();
+    std::cout << "\n[SLQ]: Ricatti matrice is generated.\n";
   }
 
-  void LqrFiniteDiscreteControlQuadrotor::updateAll(){
+  void SlqFiniteDiscreteControlQuadrotor::getRicattiH(){
+    VectorXd x_tf(x_size_);
+    VectorXd u_tf(u_size_);
+    std::cout << lqr_controller_ptr_->x_vec_.size() << "]\n";
+    x_tf = lqr_controller_ptr_->x_vec_[lqr_controller_ptr_->x_vec_.size() - 1];
+    u_tf = lqr_controller_ptr_->u_vec_[lqr_controller_ptr_->u_vec_.size() - 1];
+    LqrInfiniteDiscreteControlQuadrotor *lqr_ID_controller_ptr;
+    lqr_ID_controller_ptr = new LqrInfiniteDiscreteControlQuadrotor(nh_, nhp_);
+    lqr_ID_controller_ptr->initLQR(control_freq_, iteration_times_, x0_ptr_, xn_ptr_);
+    if (debug_){
+      std::cout << "\nx and u in tf:\n";
+      for (int i = 0; i < x_size_; ++i)
+        std::cout << x_tf(i) << ", ";
+      std::cout << "\n";
+      for (int i = 0; i < u_size_; ++i)
+        std::cout << u_tf(i) << ", ";
+      std::cout << "\n";
+    }
+    *(lqr_ID_controller_ptr->x_ptr_) = x_tf;
+    *(lqr_ID_controller_ptr->u_ptr_) = u_tf;
+    lqr_ID_controller_ptr->updateMatrixAB();
+    lqr_ID_controller_ptr->ricatti(H_ptr_);
+    if (debug_){
+      std::cout << "\n\nH matrice:";
+      for (int i = 0; i < x_size_; ++i){
+        std::cout << "\n";
+        for (int j = 0; j < x_size_; ++j){
+          std::cout << (*H_ptr_)(i, j) << ", ";
+        }
+      }
+    }
+  }
+
+  void SlqFiniteDiscreteControlQuadrotor::updateAll(){
     MatrixXd P = MatrixXd::Zero(x_size_, x_size_);
     // todo: assume N is zero, namely do not have x^T *N*u in cost function
     MatrixXd N = MatrixXd::Zero(x_size_, u_size_);
@@ -144,8 +187,8 @@ namespace lqr_discrete{
       }
     }
 
-    x_vec_.push_back(*x0_ptr_);
-    u_vec_.push_back(*u0_ptr_);
+    x_vec_.push_back(Vector3d((*x0_ptr_)(0), (*x0_ptr_)(1), (*x0_ptr_)(2)));
+    u_vec_.push_back(Vector4d((*u0_ptr_)(0), (*u0_ptr_)(1), (*u0_ptr_)(2), (*u0_ptr_)(3)));
     for (int i = 0; i < iteration_times_; ++i){
       VectorXd u = -F_vec_[iteration_times_-1-i] * (*x_ptr_);
       // debug
@@ -167,28 +210,21 @@ namespace lqr_discrete{
         }
       }
 
-      u_vec_.push_back(u);
-      // method 1: x(k+1) = A*x(k) + B*u(k)
       VectorXd x = (*A_ptr_) * (*x_ptr_)
         + (*B_ptr_) * u;
-      x_vec_.push_back(x);
+      x_vec_.push_back(Vector3d(x(0), x(1), x(2)));
       *x_ptr_ = x;
-
-      // method 2: x(k+1) = f(x(k), u(k))
-      // VectorXd *x = new VectorXd(x_size_);
-      // updateNewState(x);
-      // x_vec_.push_back(x);
-      // *x_ptr_ = *x;
+      u_vec_.push_back(u);
 
     }
   }
 
-  void LqrFiniteDiscreteControlQuadrotor::updateMatrixAB(){
+  void SlqFiniteDiscreteControlQuadrotor::updateMatrixAB(){
     updateMatrixA();
     updateMatrixB();
   }
 
-  void LqrFiniteDiscreteControlQuadrotor::updateMatrixA(){
+  void SlqFiniteDiscreteControlQuadrotor::updateMatrixA(){
     for (int i = 0; i < x_size_; ++i)
       for (int j = 0; j < x_size_; ++j){
         (*A_ptr_)(i, j) = 0.0;
@@ -272,7 +308,7 @@ namespace lqr_discrete{
     (*A_ptr_) = (*A_ptr_) / control_freq_ + MatrixXd::Identity(x_size_, x_size_);
   }
 
-  void LqrFiniteDiscreteControlQuadrotor::updateMatrixB(){
+  void SlqFiniteDiscreteControlQuadrotor::updateMatrixB(){
     for (int i = 0; i < x_size_; ++i)
       for (int j = 0; j < u_size_; ++j){
         (*B_ptr_)(i, j) = 0.0;
@@ -322,65 +358,7 @@ namespace lqr_discrete{
 
     (*B_ptr_) = (*B_ptr_) / control_freq_;
   }
-  void LqrFiniteDiscreteControlQuadrotor::updateNewState(VectorXd *new_x_ptr){
-    VectorXd dev_x(x_size_);
-    for (int i = 0; i < x_size_; ++i)
-      dev_x(i) = 0.0;
-    /* x, y, z */
-    dev_x(P_X) = (*x_ptr_)(V_X);
-    dev_x(P_Y) = (*x_ptr_)(V_Y);
-    dev_x(P_Z) = (*x_ptr_)(V_Z);
 
-    /* v_x, v_y, v_z */
-    double u = 0.0;
-    for (int i = 0; i < u_size_; ++i)
-      u += (*u_ptr_)[i];
-    /* u' = u / m */
-    u = u / uav_mass_;
-    /* d v_x = (2 * q_w * q_y + 2 * q_x * q_z) * u' */
-    dev_x(V_X) = (2 * (*x_ptr_)[Q_W] * (*x_ptr_)[Q_Y]
-                  + 2 * (*x_ptr_)[Q_X] * (*x_ptr_)[Q_Z]) * u;
-    /* d v_y = (2 * q_w * q_x + 2 * q_y * q_z) * u' */
-    dev_x(V_Y) = (2 * (*x_ptr_)[Q_W] * (*x_ptr_)[Q_X]
-                  + 2 * (*x_ptr_)[Q_Y] * (*x_ptr_)[Q_Z]) * u;
-    /* d v_z = (1 - 2 * q_x * q_x - 2 * q_y * q_y) * u' */
-    dev_x(V_Z) = (1 - 2 * (*x_ptr_)[Q_X] * (*x_ptr_)[Q_X]
-                  - 2 * (*x_ptr_)[Q_Y] * (*x_ptr_)[Q_Y]) * u - 9.78;
-
-    /* q_w, q_x, q_y, q_z */
-    /* d q = 1/2 * q * [0, w]^T (the multiply opeation is under quaternion multiply) */
-    /* d q_w = 1/2 (q_w * 0 - q_x * w_x - q_y * w_y - q_z * w_z) */
-    dev_x(Q_W) = (-(*x_ptr_)[Q_X] * (*x_ptr_)[W_X]
-                  -(*x_ptr_)[Q_Y] * (*x_ptr_)[W_Y]
-                  -(*x_ptr_)[Q_Z] * (*x_ptr_)[W_Z])/ 2.0;
-    /* d q_x = 1/2 (q_w * w_x + q_x * 0 + q_y * w_z - q_z * w_y) */
-    dev_x(Q_X) = ((*x_ptr_)[Q_W] * (*x_ptr_)[W_X]
-                  +(*x_ptr_)[Q_Y] * (*x_ptr_)[W_Z]
-                  -(*x_ptr_)[Q_Z] * (*x_ptr_)[W_Y])/ 2.0;
-    /* d q_y = 1/2 (q_w * w_y - q_x * w_z + q_y * 0 + q_z * w_x) */
-    dev_x(Q_Y) = ((*x_ptr_)[Q_W] * (*x_ptr_)[W_Y]
-                  -(*x_ptr_)[Q_X] * (*x_ptr_)[W_Z]
-                  +(*x_ptr_)[Q_Z] * (*x_ptr_)[W_X])/ 2.0;
-    /* d q_z = 1/2 (q_w * w_z + q_x * w_y - q_y * w_x + q_z * 0) */
-    dev_x(Q_Z) = ((*x_ptr_)[Q_W] * (*x_ptr_)[W_Z]
-                  +(*x_ptr_)[Q_X] * (*x_ptr_)[W_Y]
-                  -(*x_ptr_)[Q_Y] * (*x_ptr_)[W_X])/ 2.0;
-
-    /* w_x, w_y, w_z */
-    /* d w = I^-1 * (- (w^) * (Iw) + M_para * [u1;u2;u3;u4]), w^ = [0, -w_z, w_y; w_z, 0, -w_x; -w_y, w_x, 0] */
-    /* d w_w = I^-1 * (- d(w^) * (Iw) - (w^) * (I * d(w))) */
-    Vector3d w((*x_ptr_)[W_X], (*x_ptr_)[W_Y], (*x_ptr_)[W_Z]);
-    MatrixXd w_m = MatrixXd::Zero(3, 3);
-    w_m(0, 1) = -(*x_ptr_)[W_Z]; w_m(0, 2) = (*x_ptr_)[W_Y];
-    w_m(1, 0) = (*x_ptr_)[W_Z]; w_m(1, 2) = -(*x_ptr_)[W_X];
-    w_m(2, 0) = -(*x_ptr_)[W_Y]; w_m(2, 1) = (*x_ptr_)[W_X];
-    Vector3d dw;
-    dw = I_ptr_->inverse() * (-w_m * (*I_ptr_) * w + (*M_para_ptr_) * (*u_ptr_));
-    for (int i = 0; i < 3; ++i)
-      dev_x(W_X + i) = dw(i);
-
-    *new_x_ptr = dev_x / control_freq_ + *x_ptr_;
-  }
 }
 
 
