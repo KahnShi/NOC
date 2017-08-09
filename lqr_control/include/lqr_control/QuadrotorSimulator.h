@@ -52,7 +52,7 @@ namespace quadrotor_simulator{
     ~QuadrotorSimulator(){};
     ros::NodeHandle nh_;
     ros::NodeHandle nhp_;
-    LqrInfiniteDiscreteControlQuadrotor *lqr_controller_ptr_;
+    LqrFiniteDiscreteControlQuadrotor *lqr_controller_ptr_;
     VectorXd *start_state_ptr_;
     VectorXd *end_state_ptr_;
     double period_;

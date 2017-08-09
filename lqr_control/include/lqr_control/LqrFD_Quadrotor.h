@@ -62,6 +62,8 @@ namespace lqr_discrete{
     MatrixXd *I_ptr_;
     MatrixXd *M_para_ptr_;
     double uav_mass_;
+    bool debug_;
+    std::vector<MatrixXd> F_vec_;
     void initLQR(double freq, double period, VectorXd *x0, VectorXd *xn);
     void updateMatrixA();
     void updateMatrixB();
