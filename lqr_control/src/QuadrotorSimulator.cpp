@@ -55,8 +55,20 @@ namespace quadrotor_simulator{
   }
 
   void QuadrotorSimulator::planOptimalTrajectory(){
-    controller_ptr_->updateAll();
-    std::cout << "[QuadrotorSimulator] updateAll finished\n";
+    // lqr
+    // controller_ptr_->updateAll();
+    // std::cout << "[QuadrotorSimulator] updateAll finished\n";
+
+    // slq
+    while (1){
+      controller_ptr_->iterativeOptimization();
+      visualizeTrajectory();
+      std::cout << "[press 1 to continue, 2 to break]\n";
+      int id;
+      std::cin >> id;
+      if (id == 2)
+        break;
+    }
   }
 
   void QuadrotorSimulator::visualizeTrajectory(){

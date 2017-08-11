@@ -47,7 +47,16 @@ namespace lqr_discrete{
     MatrixXd *M_para_ptr_;
     double uav_mass_;
     bool debug_;
+    /* slq */
     MatrixXd *H_ptr_;
+    MatrixXd *P_ptr_;
+    VectorXd *p_ptr_;
+    MatrixXd *K_ptr_;
+    MatrixXd *G_ptr_;
+    VectorXd *g_ptr_;
+    VectorXd *l_ptr_;
+    VectorXd *r_ptr_;
+    double alpha_;
     std::vector<MatrixXd> F_vec_;
     LqrFiniteDiscreteControlQuadrotor *lqr_controller_ptr_;
     void initSLQ(double freq, double period, VectorXd *x0, VectorXd *xn);
@@ -56,6 +65,8 @@ namespace lqr_discrete{
     void updateMatrixAB();
     void updateAll();
     void getRicattiH();
+    void iterativeOptimization();
+    void updateNewState(VectorXd *new_x_ptr);
   };
 }
 
