@@ -223,16 +223,28 @@ namespace lqr_discrete{
         }
       }
 
-      if (i != iteration_times_ - 1){
-        *u_ptr_ = u_vec_[i + 1];
-        *x_ptr_ = x_vec_[i + 1];
-      }
+      // if (i != iteration_times_ - 1){
+      //   *u_ptr_ = u_vec_[i + 1];
+      //   *x_ptr_ = x_vec_[i + 1];
+      // }
+      // u_vec_[i] = u_vec_[i] + alpha_ * (*l_ptr_) + (*K_ptr_) * (*x_ptr_ - VectorXd::Zero(x_size_));
+      // // method 1:
+      // updateNewState(&(x_vec_[i]));
+      // // method 2:
+      // // x_vec_[i] = (*A_ptr_) * x_vec_[i] + (*B_ptr_) * *u_ptr_;
+      // normalizeQuaternion(&(x_vec_[i]));
+
+
       u_vec_[i] = u_vec_[i] + alpha_ * (*l_ptr_) + (*K_ptr_) * (*x_ptr_ - VectorXd::Zero(x_size_));
       // method 1:
-      updateNewState(&(x_vec_[i]));
+      updateNewState(x_ptr_);
       // method 2:
       // x_vec_[i] = (*A_ptr_) * x_vec_[i] + (*B_ptr_) * *u_ptr_;
-      normalizeQuaternion(&(x_vec_[i]));
+      normalizeQuaternion(x_ptr_);
+      if (i != iteration_times_ - 1){
+        *u_ptr_ = u_vec_[i + 1];
+        x_vec_[i + 1] = *x_ptr_;
+      }
     }
   }
 
@@ -379,9 +391,7 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlQuadrotor::updateNewState(VectorXd *new_x_ptr){
-    VectorXd dev_x(x_size_);
-    for (int i = 0; i < x_size_; ++i)
-      dev_x(i) = 0.0;
+    VectorXd dev_x = VectorXd::Zero(x_size_);
     /* x, y, z */
     dev_x(P_X) = (*x_ptr_)(V_X);
     dev_x(P_Y) = (*x_ptr_)(V_Y);
