@@ -67,6 +67,7 @@ namespace lqr_discrete{
     void getRicattiH();
     void iterativeOptimization();
     void updateNewState(VectorXd *new_x_ptr);
+    void normalizeQuaternion(VectorXd *new_x_ptr);
   };
 }
 

@@ -70,9 +70,10 @@ namespace lqr_discrete{
     for (int i = 0; i < x_size_; ++i)
       for (int j = 0; j < x_size_; ++j)
         (*Q_ptr_)(i, j) = 0.0;
-    for (int i = 0; i < x_size_; ++i)
-      (*Q_ptr_)(i, i) = 10.0;
-
+    for (int i = 0; i < 3; ++i)
+      (*Q_ptr_)(i, i) = 100.0;
+    for (int i = 3; i < x_size_; ++i)
+      (*Q_ptr_)(i, i) = 1.0;
     for (int i = 0; i < u_size_; ++i)
       for (int j = 0; j < u_size_; ++j)
         (*R_ptr_)(i, j) = 0.0;
@@ -88,7 +89,7 @@ namespace lqr_discrete{
     (*I_ptr_)(1, 1) = 0.03;
     (*I_ptr_)(2, 2) = 0.05;
 
-    uav_mass_ = 0.5;
+    uav_mass_ = 1.0;
     M_para_ptr_ = new MatrixXd(3, 4);
     for (int i = 0; i < 3; ++i)
       for (int j = 0; j < 4; ++j)
@@ -151,7 +152,7 @@ namespace lqr_discrete{
 
     alpha_ = 0.5;
 
-    debug_ = true;
+    debug_ = false;
   }
 
   void SlqFiniteDiscreteControlQuadrotor::getRicattiH(){
@@ -231,7 +232,7 @@ namespace lqr_discrete{
       updateNewState(&(x_vec_[i]));
       // method 2:
       // x_vec_[i] = (*A_ptr_) * x_vec_[i] + (*B_ptr_) * *u_ptr_;
-
+      normalizeQuaternion(&(x_vec_[i]));
     }
   }
 
@@ -261,14 +262,16 @@ namespace lqr_discrete{
     (*A_ptr_)(V_X, Q_X) = 2 * (*x_ptr_)[Q_Z] * u;
     (*A_ptr_)(V_X, Q_Y) = 2 * (*x_ptr_)[Q_W] * u;
     (*A_ptr_)(V_X, Q_Z) = 2 * (*x_ptr_)[Q_X] * u;
-    /* d v_y = (2 * q_w * q_x + 2 * q_y * q_z) * u' */
-    (*A_ptr_)(V_Y, Q_W) = 2 * (*x_ptr_)[Q_X] * u;
-    (*A_ptr_)(V_Y, Q_X) = 2 * (*x_ptr_)[Q_W] * u;
+    /* d v_y = (2 * q_y * q_z - 2 * q_w * q_x) * u' */
+    (*A_ptr_)(V_Y, Q_W) = -2 * (*x_ptr_)[Q_X] * u;
+    (*A_ptr_)(V_Y, Q_X) = -2 * (*x_ptr_)[Q_W] * u;
     (*A_ptr_)(V_Y, Q_Y) = 2 * (*x_ptr_)[Q_Z] * u;
     (*A_ptr_)(V_Y, Q_Z) = 2 * (*x_ptr_)[Q_Y] * u;
-    /* d v_z = (1 - 2 * q_x * q_x - 2 * q_y * q_y) * u' */
+    /* d v_z = (q_w ^2 - q_x ^2 - q_y ^2 + q_z ^2) * u' */
+    (*A_ptr_)(V_Z, Q_W) = 2 * (*x_ptr_)[Q_W] * u;
     (*A_ptr_)(V_Z, Q_X) = -2 * (*x_ptr_)[Q_X] * u;
     (*A_ptr_)(V_Z, Q_Y) = -2 * (*x_ptr_)[Q_Y] * u;
+    (*A_ptr_)(V_Z, Q_Z) = 2 * (*x_ptr_)[Q_Z] * u;
 
     /* q_w, q_x, q_y, q_z */
     /* d q = 1/2 * q * [0, w]^T (the multiply opeation is under quaternion multiply) */
@@ -338,11 +341,11 @@ namespace lqr_discrete{
     (*B_ptr_)(V_X, U_2) = (2 * (*x_ptr_)[Q_W] * (*x_ptr_)[Q_Y] + 2 * (*x_ptr_)[Q_X] * (*x_ptr_)[Q_Z]) / uav_mass_;
     (*B_ptr_)(V_X, U_3) = (2 * (*x_ptr_)[Q_W] * (*x_ptr_)[Q_Y] + 2 * (*x_ptr_)[Q_X] * (*x_ptr_)[Q_Z]) / uav_mass_;
     (*B_ptr_)(V_X, U_4) = (2 * (*x_ptr_)[Q_W] * (*x_ptr_)[Q_Y] + 2 * (*x_ptr_)[Q_X] * (*x_ptr_)[Q_Z]) / uav_mass_;
-    /* d v_y = (2 * q_w * q_x + 2 * q_y * q_z) * (u1 + u2 + u3 + u4) / m */
-    (*B_ptr_)(V_Y, U_1) = (2 * (*x_ptr_)[Q_W] * (*x_ptr_)[Q_X] + 2 * (*x_ptr_)[Q_Y] * (*x_ptr_)[Q_Z]) / uav_mass_;
-    (*B_ptr_)(V_Y, U_2) = (2 * (*x_ptr_)[Q_W] * (*x_ptr_)[Q_X] + 2 * (*x_ptr_)[Q_Y] * (*x_ptr_)[Q_Z]) / uav_mass_;
-    (*B_ptr_)(V_Y, U_3) = (2 * (*x_ptr_)[Q_W] * (*x_ptr_)[Q_X] + 2 * (*x_ptr_)[Q_Y] * (*x_ptr_)[Q_Z]) / uav_mass_;
-    (*B_ptr_)(V_Y, U_4) = (2 * (*x_ptr_)[Q_W] * (*x_ptr_)[Q_X] + 2 * (*x_ptr_)[Q_Y] * (*x_ptr_)[Q_Z]) / uav_mass_;
+    /* d v_y = (2 * q_y * q_z - 2 * q_w * q_x) * (u1 + u2 + u3 + u4) / m */
+    (*B_ptr_)(V_Y, U_1) = (2 * (*x_ptr_)[Q_Y] * (*x_ptr_)[Q_Z] - 2 * (*x_ptr_)[Q_W] * (*x_ptr_)[Q_X]) / uav_mass_;
+    (*B_ptr_)(V_Y, U_2) = (2 * (*x_ptr_)[Q_Y] * (*x_ptr_)[Q_Z] - 2 * (*x_ptr_)[Q_W] * (*x_ptr_)[Q_X]) / uav_mass_;
+    (*B_ptr_)(V_Y, U_3) = (2 * (*x_ptr_)[Q_Y] * (*x_ptr_)[Q_Z] - 2 * (*x_ptr_)[Q_W] * (*x_ptr_)[Q_X]) / uav_mass_;
+    (*B_ptr_)(V_Y, U_4) = (2 * (*x_ptr_)[Q_Y] * (*x_ptr_)[Q_Z] - 2 * (*x_ptr_)[Q_W] * (*x_ptr_)[Q_X]) / uav_mass_;
     /* d v_z = (1 - 2 * q_x * q_x - 2 * q_y * q_y) * (u1 + u2 + u3 + u4) / m */
     (*B_ptr_)(V_Z, U_1) = (1 -2 * (*x_ptr_)[Q_X] * (*x_ptr_)[Q_X] - 2 * (*x_ptr_)[Q_Y] * (*x_ptr_)[Q_Y]) / uav_mass_;
     (*B_ptr_)(V_Z, U_2) = (1 -2 * (*x_ptr_)[Q_X] * (*x_ptr_)[Q_X] - 2 * (*x_ptr_)[Q_Y] * (*x_ptr_)[Q_Y]) / uav_mass_;
@@ -393,12 +396,13 @@ namespace lqr_discrete{
     /* d v_x = (2 * q_w * q_y + 2 * q_x * q_z) * u' */
     dev_x(V_X) = (2 * (*x_ptr_)[Q_W] * (*x_ptr_)[Q_Y]
                   + 2 * (*x_ptr_)[Q_X] * (*x_ptr_)[Q_Z]) * u;
-    /* d v_y = (2 * q_w * q_x + 2 * q_y * q_z) * u' */
-    dev_x(V_Y) = (2 * (*x_ptr_)[Q_W] * (*x_ptr_)[Q_X]
+    /* d v_y = (2 * q_y * q_z - 2 * q_w * q_x) * u' */
+    dev_x(V_Y) = (-2 * (*x_ptr_)[Q_W] * (*x_ptr_)[Q_X]
                   + 2 * (*x_ptr_)[Q_Y] * (*x_ptr_)[Q_Z]) * u;
-    /* d v_z = (1 - 2 * q_x * q_x - 2 * q_y * q_y) * u' */
-    dev_x(V_Z) = (1 - 2 * (*x_ptr_)[Q_X] * (*x_ptr_)[Q_X]
-                  - 2 * (*x_ptr_)[Q_Y] * (*x_ptr_)[Q_Y]) * u - 9.78;
+    /* d v_z = (q_w ^2 - q_x ^2 - q_y ^2 + q_z ^2) * u' */
+    dev_x(V_Z) = (pow((*x_ptr_)[Q_W], 2.0) - pow((*x_ptr_)[Q_X], 2.0)
+                      - pow((*x_ptr_)[Q_Y], 2.0) + pow((*x_ptr_)[Q_Z], 2.0))
+                  * u - 9.78;
 
     /* q_w, q_x, q_y, q_z */
     /* d q = 1/2 * q * [0, w]^T (the multiply opeation is under quaternion multiply) */
@@ -421,7 +425,6 @@ namespace lqr_discrete{
 
     /* w_x, w_y, w_z */
     /* d w = I^-1 * (- (w^) * (Iw) + M_para * [u1;u2;u3;u4]), w^ = [0, -w_z, w_y; w_z, 0, -w_x; -w_y, w_x, 0] */
-    /* d w_w = I^-1 * (- d(w^) * (Iw) - (w^) * (I * d(w))) */
     Vector3d w((*x_ptr_)[W_X], (*x_ptr_)[W_Y], (*x_ptr_)[W_Z]);
     MatrixXd w_m = MatrixXd::Zero(3, 3);
     w_m(0, 1) = -(*x_ptr_)[W_Z]; w_m(0, 2) = (*x_ptr_)[W_Y];
@@ -433,6 +436,14 @@ namespace lqr_discrete{
       dev_x(W_X + i) = dw(i);
 
     *new_x_ptr = dev_x / control_freq_ + *x_ptr_;
+  }
+
+  void SlqFiniteDiscreteControlQuadrotor::normalizeQuaternion(VectorXd *new_x_ptr){
+    double q_sum = 0.0;
+    for (int i = Q_W; i <= Q_Z; ++i)
+      q_sum += pow((*new_x_ptr)(i), 2.0);
+    for (int i = Q_W; i <= Q_Z; ++i)
+      (*new_x_ptr)(i) = (*new_x_ptr)(i) / q_sum;
   }
 }
 
