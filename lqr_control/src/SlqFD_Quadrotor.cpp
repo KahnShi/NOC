@@ -155,7 +155,7 @@ namespace lqr_discrete{
 
     alpha_ = 1.0;
 
-    debug_ = false;
+    debug_ = true;
   }
 
   void SlqFiniteDiscreteControlQuadrotor::getRicattiH(){
@@ -195,10 +195,12 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlQuadrotor::iterativeOptimization(){
-    *x_ptr_ = x_vec_[0];
-    *u_ptr_ = u_vec_[0];
+    *P_ptr_ = *Q_ptr_;
+    *p_ptr_ = VectorXd::Zero(x_size_);
 
-    for (int i = 0; i < iteration_times_; ++i){
+    for (int i = iteration_times_ - 1; i >= 0; --i){
+      *x_ptr_ = x_vec_[i];
+      *u_ptr_ = u_vec_[i];
       updateMatrixAB();
       (*H_ptr_) = (*R_ptr_) + B_ptr_->transpose() * (*P_ptr_) * (*B_ptr_);
       (*G_ptr_) = B_ptr_->transpose() * (*P_ptr_) * (*A_ptr_);
@@ -214,23 +216,15 @@ namespace lqr_discrete{
         + K_ptr_->transpose() * (*g_ptr_)
         + G_ptr_->transpose() * (*l_ptr_);
 
-      if (i % 100 <= 2){
-        if (debug_){
-          std::cout << "\n\n[debug] id[" << i << "]print current state:\n";
-          for (int j = 0; j < x_size_; ++j)
-            std::cout << (*x_ptr_)(j) << ", ";
-          std::cout << "\n[debug] id[" << i << "]print current u:\n";
-          for (int j = 0; j < u_size_; ++j)
-            std::cout << (*u_ptr_)(j) << ", ";
-        }
-      }
-
       VectorXd new_u(u_size_);
       // todo
       alpha_ = 1.0;
       bool u_flag = true;
       while (1){
-        new_u = *u_ptr_ + alpha_ * (*l_ptr_) + (*K_ptr_) * (*x_ptr_ - VectorXd::Zero(x_size_));
+        VectorXd diff_x(x_size_);
+        diff_x = *x_ptr_ - VectorXd::Zero(x_size_);
+        //diff_x = *x_ptr_ - *x0_ptr_ - (*xn_ptr_ - *x0_ptr_) / iteration_times_ * i;
+        new_u = *u_ptr_ + alpha_ * (*l_ptr_) + (*K_ptr_) * diff_x;
         for (int i = 0; i < u_size_; ++i){
           if (new_u(i) < 0 || new_u(i) > 3.0){
             alpha_ /= 2.0;
@@ -246,19 +240,35 @@ namespace lqr_discrete{
         }
       }
       u_vec_[i] = new_u;
+    }
+
+    // u is updated in backward way
+    *u_ptr_ = u_vec_[0];
+    *x_ptr_ = x_vec_[0];
+    for (int i = 0; i < iteration_times_ - 1; ++i){
+      updateMatrixAB();
       VectorXd new_x(x_size_);
       // method 1:
-      *u_ptr_ = new_u;
       updateNewState(&new_x);
       // method 2:
       // new_x = (*A_ptr_) * x_vec_[i] + (*B_ptr_) * *u_ptr_;
       normalizeQuaternion(&new_x);
 
-      if (i != iteration_times_ - 1){
-        *u_ptr_ = u_vec_[i + 1];
-        *x_ptr_ = x_vec_[i + 1];
-        x_vec_[i+1] = new_x;
+      if ((i+1) % 100 <= 2){
+        if (debug_){
+          std::cout << "\n\n[debug] id[" << i << "]print current state:\n";
+          for (int j = 0; j < x_size_; ++j)
+            std::cout << new_x(j) << ", ";
+          std::cout << "\n[debug] id[" << i << "]print current u:\n";
+          for (int j = 0; j < u_size_; ++j)
+            std::cout << (*u_ptr_)(j) << ", ";
+          std::cout << "\n";
+        }
       }
+
+      *u_ptr_ = u_vec_[i + 1];
+      x_vec_[i + 1] = new_x;
+      *x_ptr_ = x_vec_[i + 1];
 
 
       // u_vec_[i] = u_vec_[i] + alpha_ * (*l_ptr_) + (*K_ptr_) * (*x_ptr_ - VectorXd::Zero(x_size_));
