@@ -112,7 +112,10 @@ namespace lqr_discrete{
     // todo: assume start point the quadrotor is hovering
     VectorXd x_init(x_size_), u_init(u_size_);
     x_init = (*x0_ptr_);
-    u_init = VectorXd::Zero(u_size_); // uav_mass_ * 9.78 / 4.0
+    u_init = VectorXd::Zero(u_size_);
+    for (int i = 0; i < u_size_; ++i)
+      u_init(i) = uav_mass_ * 9.78 / 4.0;
+
     for (int i = 0; i < iteration_times_; ++i){
       x_vec_.push_back(x_init);
       u_vec_.push_back(u_init);
@@ -150,7 +153,7 @@ namespace lqr_discrete{
     r_ptr_ = new VectorXd(u_size_);
     (*r_ptr_) = VectorXd::Zero(u_size_);
 
-    alpha_ = 0.5;
+    alpha_ = 1.0;
 
     debug_ = false;
   }
@@ -195,9 +198,8 @@ namespace lqr_discrete{
     *x_ptr_ = x_vec_[0];
     *u_ptr_ = u_vec_[0];
 
-    updateMatrixAB();
-
     for (int i = 0; i < iteration_times_; ++i){
+      updateMatrixAB();
       (*H_ptr_) = (*R_ptr_) + B_ptr_->transpose() * (*P_ptr_) * (*B_ptr_);
       (*G_ptr_) = B_ptr_->transpose() * (*P_ptr_) * (*A_ptr_);
       (*g_ptr_) = (*r_ptr_) + B_ptr_->transpose() * (*p_ptr_);
@@ -223,28 +225,53 @@ namespace lqr_discrete{
         }
       }
 
-      // if (i != iteration_times_ - 1){
-      //   *u_ptr_ = u_vec_[i + 1];
-      //   *x_ptr_ = x_vec_[i + 1];
-      // }
-      // u_vec_[i] = u_vec_[i] + alpha_ * (*l_ptr_) + (*K_ptr_) * (*x_ptr_ - VectorXd::Zero(x_size_));
-      // // method 1:
-      // updateNewState(&(x_vec_[i]));
-      // // method 2:
-      // // x_vec_[i] = (*A_ptr_) * x_vec_[i] + (*B_ptr_) * *u_ptr_;
-      // normalizeQuaternion(&(x_vec_[i]));
-
-
-      u_vec_[i] = u_vec_[i] + alpha_ * (*l_ptr_) + (*K_ptr_) * (*x_ptr_ - VectorXd::Zero(x_size_));
+      VectorXd new_u(u_size_);
+      // todo
+      alpha_ = 1.0;
+      bool u_flag = true;
+      while (1){
+        new_u = *u_ptr_ + alpha_ * (*l_ptr_) + (*K_ptr_) * (*x_ptr_ - VectorXd::Zero(x_size_));
+        for (int i = 0; i < u_size_; ++i){
+          if (new_u(i) < 0 || new_u(i) > 3.0){
+            alpha_ /= 2.0;
+            u_flag = false;
+            break;
+          }
+        }
+        if (u_flag)
+          break;
+        if (alpha_ < 0.06){
+          // ROS_ERROR("[SLQ] alpha is already less than 0.06, but still no suitable u.\n\n");
+          break;
+        }
+      }
+      u_vec_[i] = new_u;
+      VectorXd new_x(x_size_);
       // method 1:
-      updateNewState(x_ptr_);
+      *u_ptr_ = new_u;
+      updateNewState(&new_x);
       // method 2:
-      // x_vec_[i] = (*A_ptr_) * x_vec_[i] + (*B_ptr_) * *u_ptr_;
-      normalizeQuaternion(x_ptr_);
+      // new_x = (*A_ptr_) * x_vec_[i] + (*B_ptr_) * *u_ptr_;
+      normalizeQuaternion(&new_x);
+
       if (i != iteration_times_ - 1){
         *u_ptr_ = u_vec_[i + 1];
-        x_vec_[i + 1] = *x_ptr_;
+        *x_ptr_ = x_vec_[i + 1];
+        x_vec_[i+1] = new_x;
       }
+
+
+      // u_vec_[i] = u_vec_[i] + alpha_ * (*l_ptr_) + (*K_ptr_) * (*x_ptr_ - VectorXd::Zero(x_size_));
+      // // method 1:
+      // updateNewState(x_ptr_);
+      // // method 2:
+      // // x_vec_[i] = (*A_ptr_) * x_vec_[i] + (*B_ptr_) * *u_ptr_;
+      // normalizeQuaternion(x_ptr_);
+      // if (i != iteration_times_ - 1){
+      //   *u_ptr_ = u_vec_[i + 1];
+      //   x_vec_[i + 1] = *x_ptr_;
+      // }
+
     }
   }
 

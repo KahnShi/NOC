@@ -56,7 +56,7 @@ int main(int argc, char **argv)
   end_state(1) = 0.0;
   end_state(2) = 0.0;
   end_state(Q_W) = 1.0;
-  quadrotor_sim_node->initQuadrotorSimulator(&start_state, &end_state, 10.0, 100.0);
+  quadrotor_sim_node->initQuadrotorSimulator(&start_state, &end_state, 5.0, 100.0);
   quadrotor_sim_node->planOptimalTrajectory();
   quadrotor_sim_node->visualizeTrajectory();
 
