@@ -198,6 +198,9 @@ namespace lqr_discrete{
     *P_ptr_ = *Q_ptr_;
     *p_ptr_ = VectorXd::Zero(x_size_);
 
+    std::vector<VectorXd> u_fw_vec;
+    std::vector<VectorXd> u_fb_vec;
+
     for (int i = iteration_times_ - 1; i >= 0; --i){
       *x_ptr_ = x_vec_[i];
       *u_ptr_ = u_vec_[i];
@@ -205,9 +208,9 @@ namespace lqr_discrete{
       (*H_ptr_) = (*R_ptr_) + B_ptr_->transpose() * (*P_ptr_) * (*B_ptr_);
       (*G_ptr_) = B_ptr_->transpose() * (*P_ptr_) * (*A_ptr_);
       (*g_ptr_) = (*r_ptr_) + B_ptr_->transpose() * (*p_ptr_);
-      (*K_ptr_) = -H_ptr_->inverse() * (*G_ptr_);
-      (*l_ptr_) = -H_ptr_->inverse() * (*g_ptr_);
-      (*P_ptr_) = *Q_ptr_ + A_ptr_->transpose() * (*P_ptr_) * (*A_ptr_)
+      (*K_ptr_) = -(H_ptr_->inverse() * (*G_ptr_));
+      (*l_ptr_) = -(H_ptr_->inverse() * (*g_ptr_));
+      (*P_ptr_) = (*Q_ptr_) + A_ptr_->transpose() * (*P_ptr_) * (*A_ptr_)
         + K_ptr_->transpose() * (*H_ptr_) * (*K_ptr_)
         + K_ptr_->transpose() * (*G_ptr_)
         + G_ptr_->transpose() * (*K_ptr_);
@@ -216,15 +219,19 @@ namespace lqr_discrete{
         + K_ptr_->transpose() * (*g_ptr_)
         + G_ptr_->transpose() * (*l_ptr_);
 
-      VectorXd new_u(u_size_);
-      // todo
-      alpha_ = 1.0;
+      VectorXd diff_x(x_size_);
+      diff_x = *x_ptr_ - VectorXd::Zero(x_size_);
+      u_fb_vec.push_back((*K_ptr_) * diff_x);
+      u_fw_vec.push_back((*l_ptr_));
+    }
+
+    // todo
+    alpha_ = 1.0;
+    while (1){
       bool u_flag = true;
-      while (1){
-        VectorXd diff_x(x_size_);
-        diff_x = *x_ptr_ - VectorXd::Zero(x_size_);
-        //diff_x = *x_ptr_ - *x0_ptr_ - (*xn_ptr_ - *x0_ptr_) / iteration_times_ * i;
-        new_u = *u_ptr_ + alpha_ * (*l_ptr_) + (*K_ptr_) * diff_x;
+      for (int i = 0; i < iteration_times_; ++i){
+        VectorXd new_u = u_vec_[i] + alpha_ * u_fw_vec[iteration_times_ - 1 - i]
+          + u_fb_vec[iteration_times_ - 1 - i];
         for (int i = 0; i < u_size_; ++i){
           if (new_u(i) < 0 || new_u(i) > 3.0){
             alpha_ /= 2.0;
@@ -232,14 +239,20 @@ namespace lqr_discrete{
             break;
           }
         }
-        if (u_flag)
-          break;
-        if (alpha_ < 0.06){
-          // ROS_ERROR("[SLQ] alpha is already less than 0.06, but still no suitable u.\n\n");
+        if (!u_flag)
           break;
         }
-      }
-      u_vec_[i] = new_u;
+      if (u_flag)
+        break;
+      else if (alpha_ < 0.06)
+        break;
+      else
+        continue;
+    }
+
+    for (int i = 0; i < iteration_times_; ++i){
+      u_vec_[i] = u_vec_[i] + alpha_ * u_fw_vec[iteration_times_ - 1 - i]
+        + u_fb_vec[iteration_times_ - 1 - i];
     }
 
     // u is updated in backward way
