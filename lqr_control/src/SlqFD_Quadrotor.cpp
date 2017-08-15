@@ -78,7 +78,7 @@ namespace lqr_discrete{
       for (int j = 0; j < u_size_; ++j)
         (*R_ptr_)(i, j) = 0.0;
     for (int i = 0; i < u_size_; ++i)
-      (*R_ptr_)(i, i) = 1.0;
+      (*R_ptr_)(i, i) = 100000.0;
 
     /* uav property from paper eth15-slq-window */
     I_ptr_ = new MatrixXd(3, 3);
@@ -113,8 +113,8 @@ namespace lqr_discrete{
     VectorXd x_init(x_size_), u_init(u_size_);
     x_init = (*x0_ptr_);
     u_init = VectorXd::Zero(u_size_);
-    for (int i = 0; i < u_size_; ++i)
-      u_init(i) = uav_mass_ * 9.78 / 4.0;
+    // for (int i = 0; i < u_size_; ++i)
+    //   u_init(i) = uav_mass_ * 9.78 / 4.0;
 
     for (int i = 0; i < iteration_times_; ++i){
       x_vec_.push_back(x_init);
@@ -202,6 +202,14 @@ namespace lqr_discrete{
     std::vector<VectorXd> u_fb_vec;
 
     for (int i = iteration_times_ - 1; i >= 0; --i){
+      // add weight for waypoint
+      // double ru = 1.0;
+      // double weight = exp(-ru / 2 * pow(i * 5.0 / iteration_times_ - 5.0, 2.0));
+      // for (int j = 0; j < 3; ++j)
+      //   (*Q_ptr_)(j, j) = std::max(100.0 * weight, 1.0);
+      // for (int j = 3; j < x_size_; ++j)
+      //   (*Q_ptr_)(j, j) = std::max(weight, 1.0);
+
       *x_ptr_ = x_vec_[i];
       *u_ptr_ = u_vec_[i];
       updateMatrixAB();
@@ -232,6 +240,9 @@ namespace lqr_discrete{
       for (int i = 0; i < iteration_times_; ++i){
         VectorXd new_u = u_vec_[i] + alpha_ * u_fw_vec[iteration_times_ - 1 - i]
           + u_fb_vec[iteration_times_ - 1 - i];
+        // test: u is (u_uav - un)
+        new_u = new_u + (*un_ptr_);
+
         for (int i = 0; i < u_size_; ++i){
           if (new_u(i) < 0 || new_u(i) > 3.0){
             alpha_ /= 2.0;
@@ -274,7 +285,9 @@ namespace lqr_discrete{
             std::cout << new_x(j) << ", ";
           std::cout << "\n[debug] id[" << i << "]print current u:\n";
           for (int j = 0; j < u_size_; ++j)
-            std::cout << (*u_ptr_)(j) << ", ";
+            //std::cout << (*u_ptr_)(j) << ", ";
+            // test: u is (u_uav - un)
+            std::cout << (*u_ptr_)(j) + (*un_ptr_)(j) << ", ";
           std::cout << "\n";
         }
       }
@@ -296,6 +309,28 @@ namespace lqr_discrete{
       // }
 
     }
+
+    // test output A and B
+    // *x_ptr_ = *xn_ptr_;
+    // *u_ptr_ = VectorXd::Zero(u_size_);
+    // updateMatrixAB();
+    // std::cout << "\n\nexamine A:";
+    // for (int i = 0; i < x_size_; ++i){
+    //   std::cout << "\n";
+    //   for (int j = 0; j < x_size_; ++j){
+    //     std::cout << (*A_ptr_)(i, j) << ", ";
+    //   }
+    //   std::cout << ";";
+    // }
+    // std::cout << "\n\nexamine B:";
+    // for (int i = 0; i < x_size_; ++i){
+    //   std::cout << "\n";
+    //   for (int j = 0; j < u_size_; ++j){
+    //     std::cout << (*B_ptr_)(i, j) << ", ";
+    //   }
+    //   std::cout << ";";
+    // }
+    
   }
 
   void SlqFiniteDiscreteControlQuadrotor::updateMatrixAB(){
@@ -317,6 +352,10 @@ namespace lqr_discrete{
     double u = 0.0;
     for (int i = 0; i < u_size_; ++i)
       u += (*u_ptr_)[i];
+    // test: u is (u_uav - un)
+    for (int i = 0; i < u_size_; ++i)
+      u += (*un_ptr_)[i];
+
     /* u' = u / m */
     u = u / uav_mass_;
     /* d v_x = (2 * q_w * q_y + 2 * q_x * q_z) * u' */
@@ -341,18 +380,30 @@ namespace lqr_discrete{
     (*A_ptr_)(Q_W, Q_X) = - (*x_ptr_)[W_X] / 2.0;
     (*A_ptr_)(Q_W, Q_Y) = - (*x_ptr_)[W_Y] / 2.0;
     (*A_ptr_)(Q_W, Q_Z) = - (*x_ptr_)[W_Z] / 2.0;
+    (*A_ptr_)(Q_W, W_X) = - (*x_ptr_)[Q_X] / 2.0;
+    (*A_ptr_)(Q_W, W_Y) = - (*x_ptr_)[Q_Y] / 2.0;
+    (*A_ptr_)(Q_W, W_Z) = - (*x_ptr_)[Q_Z] / 2.0;
     /* d q_x = 1/2 (q_w * w_x + q_x * 0 + q_y * w_z - q_z * w_y) */
     (*A_ptr_)(Q_X, Q_W) = (*x_ptr_)[W_X] / 2.0;
     (*A_ptr_)(Q_X, Q_Y) = (*x_ptr_)[W_Z] / 2.0;
     (*A_ptr_)(Q_X, Q_Z) = - (*x_ptr_)[W_Y] / 2.0;
+    (*A_ptr_)(Q_X, W_X) = (*x_ptr_)[Q_W] / 2.0;
+    (*A_ptr_)(Q_X, W_Y) = -(*x_ptr_)[Q_Z] / 2.0;
+    (*A_ptr_)(Q_X, W_Z) = (*x_ptr_)[Q_Y] / 2.0;
     /* d q_y = 1/2 (q_w * w_y - q_x * w_z + q_y * 0 + q_z * w_x) */
     (*A_ptr_)(Q_Y, Q_W) = (*x_ptr_)[W_Y] / 2.0;
     (*A_ptr_)(Q_Y, Q_X) = - (*x_ptr_)[W_Z] / 2.0;
     (*A_ptr_)(Q_Y, Q_Z) = (*x_ptr_)[W_X] / 2.0;
+    (*A_ptr_)(Q_Y, W_X) = (*x_ptr_)[Q_Z] / 2.0;
+    (*A_ptr_)(Q_Y, W_Y) = (*x_ptr_)[Q_W] / 2.0;
+    (*A_ptr_)(Q_Y, W_Z) = - (*x_ptr_)[Q_X] / 2.0;
     /* d q_z = 1/2 (q_w * w_z + q_x * w_y - q_y * w_x + q_z * 0) */
     (*A_ptr_)(Q_Z, Q_W) = (*x_ptr_)[W_Z] / 2.0;
     (*A_ptr_)(Q_Z, Q_X) = (*x_ptr_)[W_Y] / 2.0;
     (*A_ptr_)(Q_Z, Q_Y) = (*x_ptr_)[W_X] / 2.0;
+    (*A_ptr_)(Q_Z, W_X) = - (*x_ptr_)[Q_Y] / 2.0;
+    (*A_ptr_)(Q_Z, W_Y) = (*x_ptr_)[Q_X] / 2.0;
+    (*A_ptr_)(Q_Z, W_Z) = (*x_ptr_)[Q_W] / 2.0;
 
     /* w_x, w_y, w_z */
     /* d w = I^-1 * (- (w^) * (Iw) + tau), w^ = [0, -w_z, w_y; w_z, 0, -w_x; -w_y, w_x, 0] */
@@ -451,6 +502,10 @@ namespace lqr_discrete{
     double u = 0.0;
     for (int i = 0; i < u_size_; ++i)
       u += (*u_ptr_)[i];
+    // test: u is (u_uav - un)
+    for (int i = 0; i < u_size_; ++i)
+      u += (*un_ptr_)[i];
+
     /* u' = u / m */
     u = u / uav_mass_;
     /* d v_x = (2 * q_w * q_y + 2 * q_x * q_z) * u' */
@@ -491,7 +546,9 @@ namespace lqr_discrete{
     w_m(1, 0) = (*x_ptr_)[W_Z]; w_m(1, 2) = -(*x_ptr_)[W_X];
     w_m(2, 0) = -(*x_ptr_)[W_Y]; w_m(2, 1) = (*x_ptr_)[W_X];
     Vector3d dw;
-    dw = I_ptr_->inverse() * (-w_m * (*I_ptr_) * w + (*M_para_ptr_) * (*u_ptr_));
+    //dw = I_ptr_->inverse() * (-w_m * (*I_ptr_) * w + (*M_para_ptr_) * (*u_ptr_));
+    // test: u is (u_uav - un)
+    dw = I_ptr_->inverse() * (-w_m * (*I_ptr_) * w + (*M_para_ptr_) * ((*u_ptr_) + (*un_ptr_)));
     for (int i = 0; i < 3; ++i)
       dev_x(W_X + i) = dw(i);
 
