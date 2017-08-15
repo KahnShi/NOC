@@ -78,7 +78,7 @@ namespace lqr_discrete{
       for (int j = 0; j < u_size_; ++j)
         (*R_ptr_)(i, j) = 0.0;
     for (int i = 0; i < u_size_; ++i)
-      (*R_ptr_)(i, i) = 100000.0;
+      (*R_ptr_)(i, i) = 1000000.0;
 
     /* uav property from paper eth15-slq-window */
     I_ptr_ = new MatrixXd(3, 3);
@@ -198,11 +198,22 @@ namespace lqr_discrete{
     *P_ptr_ = *Q_ptr_;
     *p_ptr_ = VectorXd::Zero(x_size_);
 
+    // test: ARE from matlab
+    // for (int i = 0; i < x_size_; ++i)
+    //   (*P_ptr_)(i, i) = 100;
+    // (*P_ptr_)(6, 6) = 37142;
+    // (*P_ptr_)(7, 7) = 38643;
+    // (*P_ptr_)(8, 8) = 38643;
+    // (*P_ptr_)(9, 9) = 1;
+    // (*P_ptr_)(10, 10) = 9662;
+    // (*P_ptr_)(11, 11) = 9662;
+    // (*P_ptr_)(12, 12) = 1;
+
     std::vector<VectorXd> u_fw_vec;
     std::vector<VectorXd> u_fb_vec;
 
     for (int i = iteration_times_ - 1; i >= 0; --i){
-      // add weight for waypoint
+      // test: add weight for waypoint
       // double ru = 1.0;
       // double weight = exp(-ru / 2 * pow(i * 5.0 / iteration_times_ - 5.0, 2.0));
       // for (int j = 0; j < 3; ++j)
@@ -416,24 +427,27 @@ namespace lqr_discrete{
     MatrixXd dw_m = MatrixXd::Zero(3, 3);
     dw_m(1, 2) = -1;
     dw_m(2, 1) = 1;
-    Vector3d dw_x = I_ptr_->inverse() * (-dw_m * ((*I_ptr_) * w))
-      - w_m * ((*I_ptr_) * Vector3d(1.0, 0.0, 0.0));
+    Vector3d dw_x = I_ptr_->inverse() *
+      ((-dw_m * ((*I_ptr_) * w))
+       - w_m * ((*I_ptr_) * Vector3d(1.0, 0.0, 0.0)));
     for (int i = 0; i < 3; ++i)
       (*A_ptr_)(W_X + i, W_X) = dw_x(i);
 
     dw_m = MatrixXd::Zero(3, 3);
     dw_m(0, 2) = 1;
     dw_m(2, 0) = -1;
-    Vector3d dw_y = I_ptr_->inverse() * (-dw_m * ((*I_ptr_) * w))
-      - w_m * ((*I_ptr_) * Vector3d(0.0, 1.0, 0.0));
+    Vector3d dw_y = I_ptr_->inverse() *
+      ((-dw_m * ((*I_ptr_) * w))
+       - w_m * ((*I_ptr_) * Vector3d(0.0, 1.0, 0.0)));
     for (int i = 0; i < 3; ++i)
       (*A_ptr_)(W_X + i, W_Y) = dw_y(i);
 
     dw_m = MatrixXd::Zero(3, 3);
     dw_m(0, 1) = -1;
     dw_m(1, 0) = 1;
-    Vector3d dw_z = I_ptr_->inverse() * (-dw_m * ((*I_ptr_) * w))
-      - w_m * ((*I_ptr_) * Vector3d(0.0, 0.0, 1.0));
+    Vector3d dw_z = I_ptr_->inverse() *
+      ((-dw_m * ((*I_ptr_) * w))
+       - w_m * ((*I_ptr_) * Vector3d(0.0, 0.0, 1.0)));
     for (int i = 0; i < 3; ++i)
       (*A_ptr_)(W_X + i, W_Z) = dw_z(i);
 
