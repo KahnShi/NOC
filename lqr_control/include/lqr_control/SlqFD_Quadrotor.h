@@ -60,14 +60,16 @@ namespace lqr_discrete{
     std::vector<MatrixXd> F_vec_;
     LqrFiniteDiscreteControlQuadrotor *lqr_controller_ptr_;
     void initSLQ(double freq, double period, VectorXd *x0, VectorXd *xn);
-    void updateMatrixA();
-    void updateMatrixB();
-    void updateMatrixAB();
+    void updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr);
+    void updateMatrixB(VectorXd *x_ptr, VectorXd *u_ptr);
+    void updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr);
     void updateAll();
     void getRicattiH();
     void iterativeOptimization();
-    void updateNewState(VectorXd *new_x_ptr);
+    void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr);
     void normalizeQuaternion(VectorXd *new_x_ptr);
+    double getSystemEnergy(std::vector<VectorXd> &u_fw_vec, std::vector<VectorXd> &u_fb_vec);
+    bool feedforwardConverged(std::vector<VectorXd> &u_fw_vec);
   };
 }
 
