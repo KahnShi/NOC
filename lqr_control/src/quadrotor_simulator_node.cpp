@@ -46,7 +46,7 @@ int main(int argc, char **argv)
   VectorXd start_state = VectorXd::Zero(13);
   start_state(0) = 5.0;
   start_state(1) = -10.0;
-  start_state(2) = 3;
+  start_state(2) = 13;
   start_state(Q_W) = 1.0;
   // start_state(Q_X) = 0.5;
   // start_state(Q_Y) = 0.5;
@@ -54,7 +54,7 @@ int main(int argc, char **argv)
   VectorXd end_state = VectorXd::Zero(13);
   end_state(0) = 0.0;
   end_state(1) = 0.0;
-  end_state(2) = 0.0;
+  end_state(2) = 10.0;
   end_state(Q_W) = 1.0;
   quadrotor_sim_node->initQuadrotorSimulator(&start_state, &end_state, 5.0, 100.0);
   quadrotor_sim_node->planOptimalTrajectory();

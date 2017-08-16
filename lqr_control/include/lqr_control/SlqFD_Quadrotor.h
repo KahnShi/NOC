@@ -70,6 +70,11 @@ namespace lqr_discrete{
     void normalizeQuaternion(VectorXd *new_x_ptr);
     double getSystemEnergy(std::vector<VectorXd> &u_fw_vec, std::vector<VectorXd> &u_fb_vec);
     bool feedforwardConverged(std::vector<VectorXd> &u_fw_vec);
+    VectorXd stateAddition(VectorXd *x1_ptr, VectorXd *x2_ptr);
+    VectorXd stateSubtraction(VectorXd *x1_ptr, VectorXd *x2_ptr);
+    Vector4d quationAddition(Vector4d q1, Vector4d q2);
+    VectorXd getAbsoluteState(VectorXd *relative_x_ptr);
+    VectorXd getRelativeState(VectorXd *absolute_x_ptr);
   };
 }
 

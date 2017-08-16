@@ -123,13 +123,7 @@ namespace quadrotor_simulator{
     pose_stamped.pose.orientation.z = 0.0f;
     pose_stamped.pose.orientation.w = 1.0f;
     for (int i = 0; i < controller_ptr_->x_vec_.size(); ++i){
-      // VectorXd *result = controller_ptr_->x_ptr_vec_[i];
-      // pose_stamped.pose.position.x = (*result)(0);
-      // pose_stamped.pose.position.y = (*result)(1);
-      // pose_stamped.pose.position.z = (*result)(2);
-
-      // test
-      VectorXd result = controller_ptr_->x_vec_[i];
+      VectorXd result = controller_ptr_->getAbsoluteState(&(controller_ptr_->x_vec_[i]));
       pose_stamped.pose.position.x = (result)(0);
       pose_stamped.pose.position.y = (result)(1);
       pose_stamped.pose.position.z = (result)(2);

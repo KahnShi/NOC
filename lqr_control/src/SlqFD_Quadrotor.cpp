@@ -78,7 +78,7 @@ namespace lqr_discrete{
       for (int j = 0; j < u_size_; ++j)
         (*R_ptr_)(i, j) = 0.0;
     for (int i = 0; i < u_size_; ++i)
-      (*R_ptr_)(i, i) = 10000.0 * 1;
+      (*R_ptr_)(i, i) = 10000.0;
 
     /* uav property from paper eth15-slq-window */
     I_ptr_ = new MatrixXd(3, 3);
@@ -113,7 +113,7 @@ namespace lqr_discrete{
     /* SLQ special initialization */
     // todo: assume start point the quadrotor is hovering
     VectorXd x_init(x_size_), u_init(u_size_);
-    x_init = (*x0_ptr_);
+    x_init = getRelativeState(x0_ptr_);
     u_init = VectorXd::Zero(u_size_);
     // for (int i = 0; i < u_size_; ++i)
     //   u_init(i) = uav_mass_ * 9.78 / 4.0;
@@ -243,9 +243,7 @@ namespace lqr_discrete{
         + K_ptr_->transpose() * (*g_ptr_)
         + G_ptr_->transpose() * (*l_ptr_);
 
-      VectorXd diff_x(x_size_);
-      diff_x = *x_ptr_ - VectorXd::Zero(x_size_);
-      u_fb_vec.push_back((*K_ptr_) * diff_x);
+      u_fb_vec.push_back((*K_ptr_) * (*x_ptr_));
       u_fw_vec.push_back((*l_ptr_));
     }
 
@@ -308,9 +306,10 @@ namespace lqr_discrete{
 
       if ((i+1) % 100 <= 2){
         if (debug_){
+          VectorXd new_absolute_x = getAbsoluteState(&new_x);
           std::cout << "\n\n[debug] id[" << i << "]print current state:\n";
           for (int j = 0; j < x_size_; ++j)
-            std::cout << new_x(j) << ", ";
+            std::cout << new_absolute_x(j) << ", ";
           std::cout << "\n[debug] id[" << i << "]print current u:\n";
           for (int j = 0; j < u_size_; ++j)
             //std::cout << (*u_ptr_)(j) << ", ";
@@ -339,9 +338,9 @@ namespace lqr_discrete{
     }
 
     // test output A and B
-    *x_ptr_ = *xn_ptr_;
-    *u_ptr_ = VectorXd::Zero(u_size_);
-    updateMatrixAB(x_ptr_, u_ptr_);
+    VectorXd x = getRelativeState(xn_ptr_);
+    VectorXd u = VectorXd::Zero(u_size_);
+    updateMatrixAB(&x, &u);
     std::cout << "\n\nexamine A:";
     for (int i = 0; i < x_size_; ++i){
       std::cout << "\n";
@@ -583,15 +582,26 @@ namespace lqr_discrete{
     for (int i = 0; i < 3; ++i)
       dev_x(W_X + i) = dw(i);
 
-    *new_x_ptr = dev_x / control_freq_ + *x_ptr;
+    dev_x = dev_x / control_freq_;
+    *new_x_ptr = dev_x + *x_ptr;
+    // test
+    //*new_x_ptr = stateAddition(x_ptr, &dev_x);
   }
 
   void SlqFiniteDiscreteControlQuadrotor::normalizeQuaternion(VectorXd *new_x_ptr){
     double q_sum = 0.0;
     for (int i = Q_W; i <= Q_Z; ++i)
       q_sum += pow((*new_x_ptr)(i), 2.0);
-    for (int i = Q_W; i <= Q_Z; ++i)
-      (*new_x_ptr)(i) = (*new_x_ptr)(i) / q_sum;
+    q_sum = sqrt(q_sum);
+    if (q_sum == 0.0){
+      (*new_x_ptr)(Q_W) = 1.0;
+      for (int i = Q_X; i <= Q_Z; ++i)
+        (*new_x_ptr)(i) = 0.0;
+    }
+    else{
+      for (int i = Q_W; i <= Q_Z; ++i)
+        (*new_x_ptr)(i) = (*new_x_ptr)(i) / q_sum;
+    }
   }
 
   double SlqFiniteDiscreteControlQuadrotor::getSystemEnergy(std::vector<VectorXd> &u_fw_vec, std::vector<VectorXd> &u_fb_vec){
@@ -657,6 +667,54 @@ namespace lqr_discrete{
       return false;
   }
 
+  VectorXd SlqFiniteDiscreteControlQuadrotor::stateAddition(VectorXd *x1_ptr, VectorXd *x2_ptr){
+    VectorXd result(x_size_);
+    result = (*x1_ptr) + (*x2_ptr);
+    Vector4d q = quationAddition(Vector4d((*x1_ptr)(Q_W), (*x1_ptr)(Q_X),
+                                          (*x1_ptr)(Q_Y), (*x1_ptr)(Q_Z)),
+                                 Vector4d((*x2_ptr)(Q_W), (*x2_ptr)(Q_X),
+                                          (*x2_ptr)(Q_Y), (*x2_ptr)(Q_Z)));
+    for (int i = Q_W; i <= Q_Z; ++i)
+      result(i) = q(i - Q_W);
+
+    normalizeQuaternion(&result);
+    return result;
+  }
+
+  VectorXd SlqFiniteDiscreteControlQuadrotor::stateSubtraction(VectorXd *x1_ptr, VectorXd *x2_ptr){
+    VectorXd result(x_size_);
+    result = (*x1_ptr) - (*x2_ptr);
+    Vector4d q = quationAddition(Vector4d((*x1_ptr)(Q_W), (*x1_ptr)(Q_X),
+                                          (*x1_ptr)(Q_Y), (*x1_ptr)(Q_Z)),
+                                 Vector4d((*x2_ptr)(Q_W), -(*x2_ptr)(Q_X),
+                                          -(*x2_ptr)(Q_Y), -(*x2_ptr)(Q_Z)));
+    for (int i = Q_W; i <= Q_Z; ++i)
+      result(i) = q(i - Q_W);
+
+    normalizeQuaternion(&result);
+    return result;
+  }
+
+  Vector4d SlqFiniteDiscreteControlQuadrotor::quationAddition(Vector4d q1, Vector4d q2){
+    Vector4d result;
+    result(0) = q1(0) * q2(0) - q1(1) * q2(1) -
+      q1(2) * q2(2) - q1(3) * q2(3);
+    result(1) = q1(0) * q2(1) + q1(1) * q2(0) +
+      q1(2) * q2(3) - q1(3) * q2(2);
+    result(2) = q1(0) * q2(2) - q1(1) * q2(3) +
+      q1(2) * q2(0) + q1(3) * q2(1);
+    result(3) = q1(0) * q2(3) + q1(1) * q2(2) -
+      q1(2) * q2(1) + q1(3) * q2(0);
+    return result;
+  }
+
+  VectorXd SlqFiniteDiscreteControlQuadrotor::getAbsoluteState(VectorXd *relative_x_ptr){
+    return stateAddition(relative_x_ptr, xn_ptr_);
+  }
+
+  VectorXd SlqFiniteDiscreteControlQuadrotor::getRelativeState(VectorXd *absolute_x_ptr){
+    return stateSubtraction(absolute_x_ptr, xn_ptr_);
+  }
 }
 
 
