@@ -70,15 +70,15 @@ namespace lqr_discrete{
     for (int i = 0; i < x_size_; ++i)
       for (int j = 0; j < x_size_; ++j)
         (*Q_ptr_)(i, j) = 0.0;
-    for (int i = 0; i < 3; ++i)
-      (*Q_ptr_)(i, i) = 100.0;
-    for (int i = 3; i < x_size_; ++i)
+    for (int i = 0; i < 6; ++i)
+      (*Q_ptr_)(i, i) = 10.0;
+    for (int i = 6; i < x_size_; ++i)
       (*Q_ptr_)(i, i) = 1.0;
     for (int i = 0; i < u_size_; ++i)
       for (int j = 0; j < u_size_; ++j)
         (*R_ptr_)(i, j) = 0.0;
     for (int i = 0; i < u_size_; ++i)
-      (*R_ptr_)(i, i) = 1000000.0;
+      (*R_ptr_)(i, i) = 10000.0 * 1;
 
     /* uav property from paper eth15-slq-window */
     I_ptr_ = new MatrixXd(3, 3);
@@ -105,8 +105,10 @@ namespace lqr_discrete{
     /* Assume initial and final state is still, namely dx = [v, a] = 0 */
     u0_ptr_ = new VectorXd(u_size_);
     un_ptr_ = new VectorXd(u_size_);
-    for (int i = 0; i < 4; ++i)
-      (*u0_ptr_)(i) = (*un_ptr_)(i) = uav_mass_ * 9.78 / 4.0;
+    for (int i = 0; i < 4; ++i){
+      (*u0_ptr_)(i) = uav_mass_ * 9.78 / 4.0;
+      (*un_ptr_)(i) = uav_mass_ * 9.78 / 4.0;
+    }
 
     /* SLQ special initialization */
     // todo: assume start point the quadrotor is hovering
@@ -153,8 +155,8 @@ namespace lqr_discrete{
     r_ptr_ = new VectorXd(u_size_);
     (*r_ptr_) = VectorXd::Zero(u_size_);
     // test: u is (u_uav - un)
-    for (int i = 0; i < 4; ++i)
-      (*r_ptr_)(i) = (*un_ptr_)(i) = uav_mass_ * 9.78 / 4.0;
+    // control energy: (u + un)' * R * (u + un) = u'Ru + 2u'R un
+    (*r_ptr_) = (*R_ptr_) * (*un_ptr_);
 
     alpha_ = 1.0;
 
@@ -218,13 +220,11 @@ namespace lqr_discrete{
     for (int i = iteration_times_ - 1; i >= 0; --i){
       // test: add weight for waypoint
       double ru = 1.0;
-      double weight = exp(-ru / 2 * pow(i * 5.0 / iteration_times_ - 5.0, 2.0));
-      for (int j = 0; j < 3; ++j)
-        // (*Q_ptr_)(j, j) = std::max(100.0 * weight, 1.0);
-        (*Q_ptr_)(j, j) = 100.0 * weight;
-      for (int j = 3; j < x_size_; ++j)
-        // (*Q_ptr_)(j, j) = std::max(weight, 1.0);
-        (*Q_ptr_)(j, j) = weight;
+      double weight = exp(-ru / 2 * pow(i * 5.0 / double(iteration_times_) - 5.0, 2.0));
+      for (int j = 0; j < 6; ++j)
+        (*Q_ptr_)(j, j) = 10.0 * weight + 1;
+      for (int j = 6; j < x_size_; ++j)
+        (*Q_ptr_)(j, j) = weight + 1;
 
       *x_ptr_ = x_vec_[i];
       *u_ptr_ = u_vec_[i];
@@ -251,10 +251,10 @@ namespace lqr_discrete{
 
     // todo
     alpha_ = 1.0;
+    double alpha_candidate = 1.0, energy_min = -1.0;
     if (feedforwardConverged(u_fw_vec))
       std::cout << "[SLQ] feedforward converge.";
     else{
-      double alpha_candidate = 1.0, energy_min = -1.0;
       while (1){
         bool u_flag = true;
         for (int i = 0; i < iteration_times_; ++i){
@@ -263,14 +263,16 @@ namespace lqr_discrete{
           // test: u is (u_uav - un)
           new_u = new_u + (*un_ptr_);
 
-          for (int i = 0; i < u_size_; ++i){
-            if (new_u(i) < 0 || new_u(i) > 3.0){
+          for (int j = 0; j < u_size_; ++j){
+            if (new_u(j) < 0 || new_u(j) > uav_mass_ * 9.78 / 4.0 * 3.0){
               u_flag = false;
               break;
             }
           }
-          if (!u_flag)
+          if (!u_flag){
+            std::cout << "alpha: " << alpha_ << ", out of dynamic limitation\n";
             break;
+          }
         }
         if (alpha_ < 1.0/32.0)
           break;
@@ -285,8 +287,10 @@ namespace lqr_discrete{
       }
     }
 
+    std::cout << "\nAlpha selected: " << alpha_candidate << "\n\n";
+
     for (int i = 0; i < iteration_times_; ++i){
-      u_vec_[i] = u_vec_[i] + alpha_ * u_fw_vec[iteration_times_ - 1 - i]
+      u_vec_[i] = u_vec_[i] + alpha_candidate * u_fw_vec[iteration_times_ - 1 - i]
         + u_fb_vec[iteration_times_ - 1 - i];
     }
 
@@ -610,9 +614,9 @@ namespace lqr_discrete{
         Q(j, j) = weight;
       double state_energy = x.transpose() * Q * x;
       state_energy *= 0.5;
+      u = u + (*un_ptr_);
       double control_energy = (u.transpose() * (*R_ptr_) * u);
       control_energy *= 0.5;
-      control_energy += u.transpose() * (*r_ptr_);
       energy_sum += state_energy + control_energy;
 
       updateMatrixAB(&x, &u);
