@@ -602,22 +602,15 @@ namespace lqr_discrete{
       u += (*un_ptr_)[i];
 
     /* u' = u / m */
-    u = u / uav_mass_;
-    /* d v_x = (2 * q_w * q_y + 2 * q_x * q_z) * u' */
-    dev_x(V_X) = (2 * (*x_ptr)[Q_W] * (*x_ptr)[Q_Y]
-                  + 2 * (*x_ptr)[Q_X] * (*x_ptr)[Q_Z]) * u;
-    /* d v_y = (2 * q_y * q_z - 2 * q_w * q_x) * u' */
-    dev_x(V_Y) = (-2 * (*x_ptr)[Q_W] * (*x_ptr)[Q_X]
-                  + 2 * (*x_ptr)[Q_Y] * (*x_ptr)[Q_Z]) * u;
-    /* d v_z = (q_w ^2 - q_x ^2 - q_y ^2 + q_z ^2) * u' */
-    dev_x(V_Z) = (pow((*x_ptr)[Q_W], 2.0) - pow((*x_ptr)[Q_X], 2.0)
-                      - pow((*x_ptr)[Q_Y], 2.0) + pow((*x_ptr)[Q_Z], 2.0))
-                  * u - 9.78;
+    Quaterniond qw((*x_ptr)[Q_W], (*x_ptr)[Q_X], (*x_ptr)[Q_Y], (*x_ptr)[Q_Z]);
+    MatrixXd rot = qw.normalized().toRotationMatrix();
+    Vector3d acc = rot * Vector3d(0, 0, u / uav_mass_) - Vector3d(0, 0, 9.78);
+    dev_x(V_X) = acc(0);
+    dev_x(V_Y) = acc(1);
+    dev_x(V_Z) = acc(2);
 
     /* q_w, q_x, q_y, q_z */
     /* d q = 1/2 * q * [0, R * w_b]^T (the multiply opeation is under quaternion multiply) */
-    Quaterniond qw((*x_ptr)[Q_W], (*x_ptr)[Q_X], (*x_ptr)[Q_Y], (*x_ptr)[Q_Z]);
-    MatrixXd rot = qw.normalized().toRotationMatrix();
     MatrixXd rot4 = MatrixXd::Zero(4, 4);
     for (int i = 0; i < 3; ++i)
       for (int j = 0; j < 3; ++j)
