@@ -357,7 +357,9 @@ namespace lqr_discrete{
       }
       std::cout << ";";
     }
-    
+    std::cout << "\n\n";
+
+    // test
   }
 
   void SlqFiniteDiscreteControlQuadrotor::updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr){
@@ -402,35 +404,98 @@ namespace lqr_discrete{
     (*A_ptr_)(V_Z, Q_Z) = 2 * (*x_ptr)[Q_Z] * u;
 
     /* q_w, q_x, q_y, q_z */
-    /* d q = 1/2 * q * [0, w]^T (the multiply opeation is under quaternion multiply) */
-    /* d q_w = 1/2 (q_w * 0 - q_x * w_x - q_y * w_y - q_z * w_z) */
-    (*A_ptr_)(Q_W, Q_X) = - (*x_ptr)[W_X] / 2.0;
-    (*A_ptr_)(Q_W, Q_Y) = - (*x_ptr)[W_Y] / 2.0;
-    (*A_ptr_)(Q_W, Q_Z) = - (*x_ptr)[W_Z] / 2.0;
-    (*A_ptr_)(Q_W, W_X) = - (*x_ptr)[Q_X] / 2.0;
-    (*A_ptr_)(Q_W, W_Y) = - (*x_ptr)[Q_Y] / 2.0;
-    (*A_ptr_)(Q_W, W_Z) = - (*x_ptr)[Q_Z] / 2.0;
-    /* d q_x = 1/2 (q_w * w_x + q_x * 0 + q_y * w_z - q_z * w_y) */
-    (*A_ptr_)(Q_X, Q_W) = (*x_ptr)[W_X] / 2.0;
-    (*A_ptr_)(Q_X, Q_Y) = (*x_ptr)[W_Z] / 2.0;
-    (*A_ptr_)(Q_X, Q_Z) = - (*x_ptr)[W_Y] / 2.0;
-    (*A_ptr_)(Q_X, W_X) = (*x_ptr)[Q_W] / 2.0;
-    (*A_ptr_)(Q_X, W_Y) = -(*x_ptr)[Q_Z] / 2.0;
-    (*A_ptr_)(Q_X, W_Z) = (*x_ptr)[Q_Y] / 2.0;
-    /* d q_y = 1/2 (q_w * w_y - q_x * w_z + q_y * 0 + q_z * w_x) */
-    (*A_ptr_)(Q_Y, Q_W) = (*x_ptr)[W_Y] / 2.0;
-    (*A_ptr_)(Q_Y, Q_X) = - (*x_ptr)[W_Z] / 2.0;
-    (*A_ptr_)(Q_Y, Q_Z) = (*x_ptr)[W_X] / 2.0;
-    (*A_ptr_)(Q_Y, W_X) = (*x_ptr)[Q_Z] / 2.0;
-    (*A_ptr_)(Q_Y, W_Y) = (*x_ptr)[Q_W] / 2.0;
-    (*A_ptr_)(Q_Y, W_Z) = - (*x_ptr)[Q_X] / 2.0;
-    /* d q_z = 1/2 (q_w * w_z + q_x * w_y - q_y * w_x + q_z * 0) */
-    (*A_ptr_)(Q_Z, Q_W) = (*x_ptr)[W_Z] / 2.0;
-    (*A_ptr_)(Q_Z, Q_X) = (*x_ptr)[W_Y] / 2.0;
-    (*A_ptr_)(Q_Z, Q_Y) = (*x_ptr)[W_X] / 2.0;
-    (*A_ptr_)(Q_Z, W_X) = - (*x_ptr)[Q_Y] / 2.0;
-    (*A_ptr_)(Q_Z, W_Y) = (*x_ptr)[Q_X] / 2.0;
-    (*A_ptr_)(Q_Z, W_Z) = (*x_ptr)[Q_W] / 2.0;
+    /* d q = 1/2 * q * [0, w_w]^T (the multiply opeation is under quaternion multiply) */
+    /* d q = 1/2 * q * [0 R] * [0, w_b]^T */
+    /* d q w = 1/2 * q * [0 R] * [0, d w_b]^T */
+    Quaterniond qw((*x_ptr)[Q_W], (*x_ptr)[Q_X], (*x_ptr)[Q_Y], (*x_ptr)[Q_Z]);
+    MatrixXd rot = qw.normalized().toRotationMatrix();
+    MatrixXd rot4 = MatrixXd::Zero(4, 4);
+    for (int i = 0; i < 3; ++i)
+      for (int j = 0; j < 3; ++j)
+        rot4(i+1, j+1) = rot(i, j);
+    MatrixXd q_m = MatrixXd::Zero(4, 4);
+    q_m << qw.w(), -qw.x(), -qw.y(), -qw.z(),
+      qw.x(), qw.w(), qw.z(), -qw.y(),
+      qw.y(), -qw.z(), qw.w(), qw.x(),
+      qw.z(), qw.y(), -qw.x(), qw.w();
+    Vector4d d_q_w_x = 0.5 * q_m * rot4 * Vector4d(0, 1, 0, 0);
+    Vector4d d_q_w_y = 0.5 * q_m * rot4 * Vector4d(0, 0, 1, 0);
+    Vector4d d_q_w_z = 0.5 * q_m * rot4 * Vector4d(0, 0, 0, 1);
+
+    /* d q q = 1/2 * (d q * [0 R] + q * [0 dR]) * [0, w_b]^T */
+    Vector4d w_b4(0, (*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
+    // d qw
+    MatrixXd q_m_w = MatrixXd::Zero(4, 4);
+    q_m_w(0, 0) = q_m_w(1, 1) = q_m_w(2, 2) = q_m_w(3, 3) = 1;
+    MatrixXd rot4_w = MatrixXd::Zero(4, 4);
+    rot4_w << 0, 0, 0, 0,
+      0, qw.w(), -qw.z(), qw.y(),
+      0, qw.z(), qw.w(), -qw.x(),
+      0, -qw.y(), qw.x(), qw.w();
+    rot4_w = 2 * rot4_w;
+    Vector4d d_q_q_w = 0.5 * (q_m_w * rot4 + q_m * rot4_w) * w_b4;
+    // d qx
+    MatrixXd q_m_x = MatrixXd::Zero(4, 4);
+    q_m_x(1, 0) = q_m_x(2, 3) = 1; q_m_x(0, 1) = q_m_x(3, 2) = -1;
+    MatrixXd rot4_x = MatrixXd::Zero(4, 4);
+    rot4_x << 0, 0, 0, 0,
+      0, qw.x(), qw.y(), qw.z(),
+      0, qw.y(), -qw.x(), -qw.w(),
+      0, qw.z(), qw.w(), -qw.x();
+    rot4_x = 2 * rot4_x;
+    Vector4d d_q_q_x = 0.5 * (q_m_x * rot4 + q_m * rot4_x) * w_b4;
+    // d qy
+    MatrixXd q_m_y = MatrixXd::Zero(4, 4);
+    q_m_y(2, 0) = q_m_y(3, 1) = 1; q_m_y(0, 2) = q_m_y(1, 3) = -1;
+    MatrixXd rot4_y = MatrixXd::Zero(4, 4);
+    rot4_y << 0, 0, 0, 0,
+      0, -qw.y(), qw.x(), qw.w(),
+      0, qw.x(), qw.y(), qw.z(),
+      0, -qw.w(), qw.z(), qw.y();
+    rot4_y = 2 * rot4_y;
+    Vector4d d_q_q_y = 0.5 * (q_m_y * rot4 + q_m * rot4_y) * w_b4;
+    // d qz
+    MatrixXd q_m_z = MatrixXd::Zero(4, 4);
+    q_m_z(1, 2) = q_m_z(3, 0) = 1; q_m_z(2, 1) = q_m_z(0, 3) = -1;
+    MatrixXd rot4_z = MatrixXd::Zero(4, 4);
+    rot4_z << 0, 0, 0, 0,
+      0, -qw.z(), -qw.w(), qw.x(),
+      0, qw.w(), -qw.z(), qw.y(),
+      0, qw.x(), qw.y(), qw.z();
+    rot4_z = 2 * rot4_z;
+    Vector4d d_q_q_z = 0.5 * (q_m_z * rot4 + q_m * rot4_z) * w_b4;
+
+    (*A_ptr_)(Q_W, Q_W) = d_q_q_w(0);
+    (*A_ptr_)(Q_W, Q_X) = d_q_q_x(0);
+    (*A_ptr_)(Q_W, Q_Y) = d_q_q_y(0);
+    (*A_ptr_)(Q_W, Q_Z) = d_q_q_z(0);
+    (*A_ptr_)(Q_W, W_X) = d_q_w_x(0);
+    (*A_ptr_)(Q_W, W_Y) = d_q_w_y(0);
+    (*A_ptr_)(Q_W, W_Z) = d_q_w_z(0);
+
+    (*A_ptr_)(Q_X, Q_W) = d_q_q_w(1);
+    (*A_ptr_)(Q_X, Q_X) = d_q_q_x(1);
+    (*A_ptr_)(Q_X, Q_Y) = d_q_q_y(1);
+    (*A_ptr_)(Q_X, Q_Z) = d_q_q_z(1);
+    (*A_ptr_)(Q_X, W_X) = d_q_w_x(1);
+    (*A_ptr_)(Q_X, W_Y) = d_q_w_y(1);
+    (*A_ptr_)(Q_X, W_Z) = d_q_w_z(1);
+
+    (*A_ptr_)(Q_Y, Q_W) = d_q_q_w(2);
+    (*A_ptr_)(Q_Y, Q_X) = d_q_q_x(2);
+    (*A_ptr_)(Q_Y, Q_Y) = d_q_q_y(2);
+    (*A_ptr_)(Q_Y, Q_Z) = d_q_q_z(2);
+    (*A_ptr_)(Q_Y, W_X) = d_q_w_x(2);
+    (*A_ptr_)(Q_Y, W_Y) = d_q_w_y(2);
+    (*A_ptr_)(Q_Y, W_Z) = d_q_w_z(2);
+
+    (*A_ptr_)(Q_Z, Q_W) = d_q_q_w(3);
+    (*A_ptr_)(Q_Z, Q_X) = d_q_q_x(3);
+    (*A_ptr_)(Q_Z, Q_Y) = d_q_q_y(3);
+    (*A_ptr_)(Q_Z, Q_Z) = d_q_q_z(3);
+    (*A_ptr_)(Q_Z, W_X) = d_q_w_x(3);
+    (*A_ptr_)(Q_Z, W_Y) = d_q_w_y(3);
+    (*A_ptr_)(Q_Z, W_Z) = d_q_w_z(3);
 
     /* w_x, w_y, w_z */
     /* d w = I^-1 * (- (w^) * (Iw) + tau), w^ = [0, -w_z, w_y; w_z, 0, -w_x; -w_y, w_x, 0] */
@@ -496,7 +561,7 @@ namespace lqr_discrete{
     (*B_ptr_)(V_Z, U_4) = (1 -2 * (*x_ptr)[Q_X] * (*x_ptr)[Q_X] - 2 * (*x_ptr)[Q_Y] * (*x_ptr)[Q_Y]) / uav_mass_;
 
     /* q_w, q_x, q_y, q_z */
-    /* d q = 1/2 * q * [0, w]^T */
+    /* d q = 1/2 * q * [0, w_b]^T */
     /* all 0 */
 
     /* w_x, w_y, w_z */
@@ -550,23 +615,24 @@ namespace lqr_discrete{
                   * u - 9.78;
 
     /* q_w, q_x, q_y, q_z */
-    /* d q = 1/2 * q * [0, w]^T (the multiply opeation is under quaternion multiply) */
-    /* d q_w = 1/2 (q_w * 0 - q_x * w_x - q_y * w_y - q_z * w_z) */
-    dev_x(Q_W) = (-(*x_ptr)[Q_X] * (*x_ptr)[W_X]
-                  -(*x_ptr)[Q_Y] * (*x_ptr)[W_Y]
-                  -(*x_ptr)[Q_Z] * (*x_ptr)[W_Z])/ 2.0;
-    /* d q_x = 1/2 (q_w * w_x + q_x * 0 + q_y * w_z - q_z * w_y) */
-    dev_x(Q_X) = ((*x_ptr)[Q_W] * (*x_ptr)[W_X]
-                  +(*x_ptr)[Q_Y] * (*x_ptr)[W_Z]
-                  -(*x_ptr)[Q_Z] * (*x_ptr)[W_Y])/ 2.0;
-    /* d q_y = 1/2 (q_w * w_y - q_x * w_z + q_y * 0 + q_z * w_x) */
-    dev_x(Q_Y) = ((*x_ptr)[Q_W] * (*x_ptr)[W_Y]
-                  -(*x_ptr)[Q_X] * (*x_ptr)[W_Z]
-                  +(*x_ptr)[Q_Z] * (*x_ptr)[W_X])/ 2.0;
-    /* d q_z = 1/2 (q_w * w_z + q_x * w_y - q_y * w_x + q_z * 0) */
-    dev_x(Q_Z) = ((*x_ptr)[Q_W] * (*x_ptr)[W_Z]
-                  +(*x_ptr)[Q_X] * (*x_ptr)[W_Y]
-                  -(*x_ptr)[Q_Y] * (*x_ptr)[W_X])/ 2.0;
+    /* d q = 1/2 * q * [0, R * w_b]^T (the multiply opeation is under quaternion multiply) */
+    Quaterniond qw((*x_ptr)[Q_W], (*x_ptr)[Q_X], (*x_ptr)[Q_Y], (*x_ptr)[Q_Z]);
+    MatrixXd rot = qw.normalized().toRotationMatrix();
+    MatrixXd rot4 = MatrixXd::Zero(4, 4);
+    for (int i = 0; i < 3; ++i)
+      for (int j = 0; j < 3; ++j)
+        rot4(i+1, j+1) = rot(i, j);
+    MatrixXd q_m = MatrixXd::Zero(4, 4);
+    q_m << qw.w(), -qw.x(), -qw.y(), -qw.z(),
+      qw.x(), qw.w(), qw.z(), -qw.y(),
+      qw.y(), -qw.z(), qw.w(), qw.x(),
+      qw.z(), qw.y(), -qw.x(), qw.w();
+    Vector4d w_b4(0, (*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
+    Vector4d dev_q = 0.5 * q_m * rot4 * w_b4;
+    dev_x(Q_W) = dev_q(0);
+    dev_x(Q_X) = dev_q(1);
+    dev_x(Q_Y) = dev_q(2);
+    dev_x(Q_Z) = dev_q(3);
 
     /* w_x, w_y, w_z */
     /* d w = I^-1 * (- (w^) * (Iw) + M_para * [u1;u2;u3;u4]), w^ = [0, -w_z, w_y; w_z, 0, -w_x; -w_y, w_x, 0] */
