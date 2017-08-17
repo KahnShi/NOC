@@ -47,6 +47,7 @@ namespace lqr_discrete{
     MatrixXd *M_para_ptr_;
     double uav_mass_;
     bool debug_;
+    bool quaternion_mode_;
     /* slq */
     MatrixXd *H_ptr_;
     MatrixXd *P_ptr_;
@@ -57,6 +58,8 @@ namespace lqr_discrete{
     VectorXd *l_ptr_;
     VectorXd *r_ptr_;
     double alpha_;
+    std::vector<Vector4d> u_fw_vec_;
+    std::vector<Vector4d> u_fb_vec_;
     std::vector<MatrixXd> F_vec_;
     LqrFiniteDiscreteControlQuadrotor *lqr_controller_ptr_;
     void initSLQ(double freq, double period, VectorXd *x0, VectorXd *xn);
@@ -68,13 +71,15 @@ namespace lqr_discrete{
     void iterativeOptimization();
     void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr);
     void normalizeQuaternion(VectorXd *new_x_ptr);
-    double getSystemEnergy(std::vector<VectorXd> &u_fw_vec, std::vector<VectorXd> &u_fb_vec);
-    bool feedforwardConverged(std::vector<VectorXd> &u_fw_vec);
+    double getSystemEnergy();
+    bool feedforwardConverged();
     VectorXd stateAddition(VectorXd *x1_ptr, VectorXd *x2_ptr);
     VectorXd stateSubtraction(VectorXd *x1_ptr, VectorXd *x2_ptr);
     Vector4d quationAddition(Vector4d q1, Vector4d q2);
     VectorXd getAbsoluteState(VectorXd *relative_x_ptr);
     VectorXd getRelativeState(VectorXd *absolute_x_ptr);
+    void updateQWeight(double time);
+    void updateSLQEquations();
   };
 }
 
