@@ -76,9 +76,9 @@ namespace lqr_discrete{
 
     /* init Q and R matrice */
     *Q_ptr_ = MatrixXd::Zero(x_size_, x_size_);
-    for (int i = 0; i < 6; ++i)
+    for (int i = 0; i <= V_Z; ++i)
       (*Q_ptr_)(i, i) = 10.0;
-    for (int i = 6; i < x_size_; ++i)
+    for (int i = V_Z + 1; i < x_size_; ++i)
       (*Q_ptr_)(i, i) = 1.0;
 
     *R_ptr_ = MatrixXd::Identity(u_size_, u_size_);
