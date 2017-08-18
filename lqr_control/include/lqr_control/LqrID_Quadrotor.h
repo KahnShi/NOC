@@ -51,9 +51,9 @@ namespace lqr_discrete{
 #define Q_X 10
 #define Q_Y 11
 #define Q_Z 12
-#define E_X 9
-#define E_Y 10
-#define E_Z 11
+#define E_R 9
+#define E_P 10
+#define E_Y 11
 #define U_1 0
 #define U_2 1
 #define U_3 2
