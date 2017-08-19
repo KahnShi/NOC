@@ -131,49 +131,84 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlQuadrotor::getRicattiH(){
+    *x_ptr_ = x_vec_[iteration_times_];
+    *u_ptr_ = u_vec_[iteration_times_];
+    if (debug_){
+      VectorXd new_absolute_x;
+      new_absolute_x = getAbsoluteState(x_ptr_);
+      std::cout << "\n\n[debug][Ricatti] print tf state:\n";
+      for (int j = 0; j < x_size_; ++j)
+        std::cout << new_absolute_x(j) << ", ";
+      std::cout << "\n[debug][LQR] print current u:\n";
+      for (int j = 0; j < u_size_; ++j)
+        std::cout << (*u_ptr_)(j) + (*un_ptr_)(j) << ", ";
+      // test: real u
+      // std::cout << u(j) << ", ";
+      std::cout << "\n";
+    }
+    if (quaternion_mode_)
+      updateMatrixAB(x_ptr_, u_ptr_);
+    else
+      updateEulerMatrixAB(x_ptr_, u_ptr_);
+    if (debug_){
+      std::cout << "\n\n[Ricatti]examine A:";
+      for (int i = 0; i < x_size_; ++i){
+        std::cout << "\n";
+        for (int j = 0; j < x_size_; ++j){
+          std::cout << (*A_ptr_)(i, j) << ", ";
+        }
+        std::cout << ";";
+      }
+      std::cout << "\n\nexamine B:";
+      for (int i = 0; i < x_size_; ++i){
+        std::cout << "\n";
+        for (int j = 0; j < u_size_; ++j){
+          std::cout << (*B_ptr_)(i, j) << ", ";
+        }
+        std::cout << ";";
+      }
+      std::cout << "\n\n";
+    }
+    (*P_ptr_) << 1.057225e+03,4.149522e-01,1.577371e+01,5.037004e+02,6.652228e-01,2.038528e+01,3.898811e+01,1.598054e+02,4.470630e-02,3.098625e+02,1.278271e+03,-3.445311e+01,
+      4.149522e-01,1.057039e+03,1.260658e+01,4.067847e-01,5.034601e+02,1.629918e+01,-1.598697e+02,3.885845e+01,-1.967760e-01,-1.278963e+03,3.087984e+02,4.323374e+01,
+      1.577371e+01,1.260658e+01,1.537589e+03,2.039206e+01,1.629070e+01,1.124606e+03,2.912221e+00,-6.260590e+00,3.679170e-03,2.336489e+01,-5.002482e+01,-3.279774e-03,
+      5.037004e+02,4.067847e-01,2.039206e+01,3.933735e+02,1.142471e+00,4.350419e+01,4.080891e+01,1.672695e+02,-1.971702e-01,2.853454e+02,1.178192e+03,-3.191168e+01,
+      6.652228e-01,5.034601e+02,1.629070e+01,1.142471e+00,3.928601e+02,3.476925e+01,-1.673370e+02,4.067370e+01,4.992133e-01,-1.178831e+03,2.843802e+02,4.035515e+01,
+      2.038528e+01,1.629918e+01,1.124606e+03,4.350419e+01,3.476925e+01,1.718226e+03,3.048253e+00,-6.553011e+00,-6.610636e-03,2.154406e+01,-4.610193e+01,-1.115169e-02,
+      3.898811e+01,-1.598697e+02,2.912221e+00,4.080891e+01,-1.673370e+02,3.048253e+00,2.086885e+02,-1.317371e-03,-8.375069e-02,7.927934e+02,2.560395e+00,-3.016571e+01,
+      1.598054e+02,3.885845e+01,-6.260590e+00,1.672695e+02,4.067370e+01,-6.553011e+00,-1.317371e-03,2.086928e+02,3.676955e-02,-2.580762e+00,7.927024e+02,-1.402084e+01,
+      4.470630e-02,-1.967760e-01,3.679170e-03,-1.971702e-01,4.992133e-01,-6.610636e-03,-8.375069e-02,3.676955e-02,5.327119e+03,-2.386748e-01,1.958607e+01,1.108764e+03,
+      3.098625e+02,-1.278963e+03,2.336489e+01,2.853454e+02,-1.178831e+03,2.154406e+01,7.927934e+02,-2.580762e+00,-2.386748e-01,4.671562e+03,-8.673698e-02,-1.776000e+02,
+      1.278271e+03,3.087984e+02,-5.002482e+01,1.178192e+03,2.843802e+02,-4.610193e+01,2.560395e+00,7.927024e+02,1.958607e+01,-8.673698e-02,4.670517e+03,-7.443355e+01,
+      -3.445311e+01,4.323374e+01,-3.279774e-03,-3.191168e+01,4.035515e+01,-1.115169e-02,-3.016571e+01,-1.402084e+01,1.108764e+03,-1.776000e+02,-7.443355e+01,4.903796e+02;
+    // if (debug_){
+    //   std::cout << "[Debug] print matrix P initial value:\n";
+    //   for (int i = 0; i < x_size_; ++i){
+    //     for (int j = 0; j < x_size_; ++j)
+    //       std::cout << (*P_ptr_)(i, j) << ", ";
+    //     std::cout << "\n";
+    //   }
+    // }
+
+    std::cout << "[SLQ] Get P matrice initial value from Ricatti function.\n";
   }
 
   void SlqFiniteDiscreteControlQuadrotor::updateAll(){
   }
 
   void SlqFiniteDiscreteControlQuadrotor::iterativeOptimization(){
-    *P_ptr_ = *Q_ptr_;
     *p_ptr_ = VectorXd::Zero(x_size_);
     *r_ptr_ = (*R_ptr_) * (*un_ptr_);
     // test: real u
     // *r_ptr_ = VectorXd::Zero(u_size_);
 
-    // test output A and B
-    // VectorXd x;
-    // x = getRelativeState(x0_ptr_);
-    // VectorXd u = VectorXd::Zero(u_size_);
-    // if (quaternion_mode_)
-    //   updateMatrixAB(&x, &u);
-    // else
-    //   updateEulerMatrixAB(&x, &u);
-    // std::cout << "\n\nexamine A:";
-    // for (int i = 0; i < x_size_; ++i){
-    //   std::cout << "\n";
-    //   for (int j = 0; j < x_size_; ++j){
-    //     std::cout << (*A_ptr_)(i, j) << ", ";
-    //   }
-    //   std::cout << ";";
-    // }
-    // std::cout << "\n\nexamine B:";
-    // for (int i = 0; i < x_size_; ++i){
-    //   std::cout << "\n";
-    //   for (int j = 0; j < u_size_; ++j){
-    //     std::cout << (*B_ptr_)(i, j) << ", ";
-    //   }
-    //   std::cout << ";";
-    // }
-    // std::cout << "\n\n";
-
     FDLQR();
+
+    getRicattiH();
 
     for (int i = iteration_times_ - 1; i >= 0; --i){
       // test: add weight for waypoint
-      updateQWeight(i * end_time_ / iteration_times_);
+      // updateQWeight(i * end_time_ / iteration_times_);
 
       *x_ptr_ = x_vec_[i];
       *u_ptr_ = u_vec_[i];
@@ -187,6 +222,16 @@ namespace lqr_discrete{
       Vector4d u_fb = (*K_ptr_) * (*x_ptr_);
       u_fb_vec_[i] = u_fb;
       u_fw_vec_[i] = (*l_ptr_);
+
+      if ((i + 1) % 100 < 2 && debug_){
+        std::cout << "\n[Debug] u feedback: ";
+        for (int j = 0; j < u_size_; ++j)
+          std::cout << u_fb_vec_[i](j) << ", ";
+        std::cout << "\n[Debug] u feedforward: ";
+        for (int j = 0; j < u_size_; ++j)
+          std::cout << u_fw_vec_[i](j) << ", ";
+        std::cout << "\n\n";
+      }
     }
 
     /* Update control by finding the best alpha */
@@ -271,6 +316,34 @@ namespace lqr_discrete{
       x_vec_[i + 1] = new_x;
       *x_ptr_ = new_x;
     }
+    // test: real u
+    // *r_ptr_ = VectorXd::Zero(u_size_);
+
+    // test output A and B
+    // VectorXd x;
+    // x = getRelativeState(x0_ptr_);
+    // VectorXd u = VectorXd::Zero(u_size_);
+    // if (quaternion_mode_)
+    //   updateMatrixAB(&x, &u);
+    // else
+    //   updateEulerMatrixAB(&x, &u);
+    // std::cout << "\n\nexamine A:";
+    // for (int i = 0; i < x_size_; ++i){
+    //   std::cout << "\n";
+    //   for (int j = 0; j < x_size_; ++j){
+    //     std::cout << (*A_ptr_)(i, j) << ", ";
+    //   }
+    //   std::cout << ";";
+    // }
+    // std::cout << "\n\nexamine B:";
+    // for (int i = 0; i < x_size_; ++i){
+    //   std::cout << "\n";
+    //   for (int j = 0; j < u_size_; ++j){
+    //     std::cout << (*B_ptr_)(i, j) << ", ";
+    //   }
+    //   std::cout << ";";
+    // }
+    // std::cout << "\n\n";
   }
 
   void SlqFiniteDiscreteControlQuadrotor::updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr){
