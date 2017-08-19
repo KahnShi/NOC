@@ -81,7 +81,7 @@ namespace lqr_discrete{
     for (int i = V_Z + 1; i < x_size_; ++i)
       (*Q_ptr_)(i, i) = 1.0;
 
-    *R_ptr_ = MatrixXd::Identity(u_size_, u_size_);
+    *R_ptr_ = 50*MatrixXd::Identity(u_size_, u_size_);
 
     /* uav property from paper eth15-slq-window */
     I_ptr_ = new MatrixXd(3, 3);
@@ -116,8 +116,10 @@ namespace lqr_discrete{
     VectorXd x_init(x_size_), u_init(u_size_);
     x_init = getRelativeState(x0_ptr_);
     u_init = VectorXd::Zero(u_size_);
+    // test: real u
+    // u_init = (*un_ptr_);
 
-    for (int i = 0; i < iteration_times_; ++i){
+    for (int i = 0; i <= iteration_times_; ++i){
       x_vec_.push_back(x_init);
       u_vec_.push_back(u_init);
       u_fw_vec_.push_back(u_init);
@@ -138,6 +140,36 @@ namespace lqr_discrete{
     *P_ptr_ = *Q_ptr_;
     *p_ptr_ = VectorXd::Zero(x_size_);
     *r_ptr_ = (*R_ptr_) * (*un_ptr_);
+    // test: real u
+    // *r_ptr_ = VectorXd::Zero(u_size_);
+
+    // test output A and B
+    // VectorXd x;
+    // x = getRelativeState(x0_ptr_);
+    // VectorXd u = VectorXd::Zero(u_size_);
+    // if (quaternion_mode_)
+    //   updateMatrixAB(&x, &u);
+    // else
+    //   updateEulerMatrixAB(&x, &u);
+    // std::cout << "\n\nexamine A:";
+    // for (int i = 0; i < x_size_; ++i){
+    //   std::cout << "\n";
+    //   for (int j = 0; j < x_size_; ++j){
+    //     std::cout << (*A_ptr_)(i, j) << ", ";
+    //   }
+    //   std::cout << ";";
+    // }
+    // std::cout << "\n\nexamine B:";
+    // for (int i = 0; i < x_size_; ++i){
+    //   std::cout << "\n";
+    //   for (int j = 0; j < u_size_; ++j){
+    //     std::cout << (*B_ptr_)(i, j) << ", ";
+    //   }
+    //   std::cout << ";";
+    // }
+    // std::cout << "\n\n";
+
+    FDLQR();
 
     for (int i = iteration_times_ - 1; i >= 0; --i){
       // test: add weight for waypoint
@@ -168,6 +200,9 @@ namespace lqr_discrete{
         for (int i = 0; i < iteration_times_; ++i){
           VectorXd new_u = u_vec_[i] + (*un_ptr_)
             + alpha_ * u_fw_vec_[i] + u_fb_vec_[i];
+          // test: real u
+          //VectorXd new_u = u_vec_[i]
+          // + alpha_ * u_fw_vec_[i] + u_fb_vec_[i];
 
           for (int j = 0; j < u_size_; ++j){
             if (new_u(j) < 0 || new_u(j) > (uav_mass_ * 9.78 / 4.0) * 3.0){
@@ -205,7 +240,7 @@ namespace lqr_discrete{
     // u is updated in backward way
     *u_ptr_ = u_vec_[0];
     *x_ptr_ = x_vec_[0];
-    for (int i = 0; i < iteration_times_ - 1; ++i){
+    for (int i = 0; i < iteration_times_; ++i){
       if (quaternion_mode_)
         updateMatrixAB(x_ptr_, u_ptr_);
       else
@@ -226,6 +261,8 @@ namespace lqr_discrete{
           std::cout << "\n[debug] id[" << i << "]print current u:\n";
           for (int j = 0; j < u_size_; ++j)
             std::cout << (*u_ptr_)(j) + (*un_ptr_)(j) << ", ";
+            // test: real u
+            // std::cout << (*u_ptr_)(j) << ", ";
           std::cout << "\n";
         }
       }
@@ -234,32 +271,6 @@ namespace lqr_discrete{
       x_vec_[i + 1] = new_x;
       *x_ptr_ = new_x;
     }
-
-    // test output A and B
-    // VectorXd x;
-    // x = getRelativeState(x0_ptr_);
-    // VectorXd u = VectorXd::Zero(u_size_);
-    // if (quaternion_mode_)
-    //   updateMatrixAB(&x, &u);
-    // else
-    //   updateEulerMatrixAB(&x, &u);
-    // std::cout << "\n\nexamine A:";
-    // for (int i = 0; i < x_size_; ++i){
-    //   std::cout << "\n";
-    //   for (int j = 0; j < x_size_; ++j){
-    //     std::cout << (*A_ptr_)(i, j) << ", ";
-    //   }
-    //   std::cout << ";";
-    // }
-    // std::cout << "\n\nexamine B:";
-    // for (int i = 0; i < x_size_; ++i){
-    //   std::cout << "\n";
-    //   for (int j = 0; j < u_size_; ++j){
-    //     std::cout << (*B_ptr_)(i, j) << ", ";
-    //   }
-    //   std::cout << ";";
-    // }
-    // std::cout << "\n\n";
   }
 
   void SlqFiniteDiscreteControlQuadrotor::updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr){
@@ -546,6 +557,8 @@ namespace lqr_discrete{
     double u = 0.0;
     for (int i = 0; i < u_size_; ++i)
       u += ((*u_ptr)[i] + (*un_ptr_)[i]);
+      // test: real u
+      // u += (*u_ptr)[i];
 
     /* u' = u / m */
     u = u / uav_mass_;
@@ -586,12 +599,12 @@ namespace lqr_discrete{
       0, 0, 0,
       0, sin((*x_ptr)[E_R]) * d_cosp, cos((*x_ptr)[E_R]) * d_cosp;
     Vector3d d_e_e_p = R_e_p * w;
-    for (int i = E_P; i <= E_Y; ++i){
-      (*A_ptr_)(i, W_X) = d_e_w_x(i - E_P);
-      (*A_ptr_)(i, W_Y) = d_e_w_y(i - E_P);
-      (*A_ptr_)(i, W_Z) = d_e_w_z(i - E_P);
-      (*A_ptr_)(i, E_R) = d_e_e_r(i - E_P);
-      (*A_ptr_)(i, E_P) = d_e_e_p(i - E_P);
+    for (int i = E_R; i <= E_Y; ++i){
+      (*A_ptr_)(i, W_X) = d_e_w_x(i - E_R);
+      (*A_ptr_)(i, W_Y) = d_e_w_y(i - E_R);
+      (*A_ptr_)(i, W_Z) = d_e_w_z(i - E_R);
+      (*A_ptr_)(i, E_R) = d_e_e_r(i - E_R);
+      (*A_ptr_)(i, E_P) = d_e_e_p(i - E_R);
     }
 
     /* w_x, w_y, w_z */
@@ -688,7 +701,9 @@ namespace lqr_discrete{
     /* v_x, v_y, v_z */
     double u = 0.0;
     for (int i = 0; i < u_size_; ++i)
-      u += ((*u_ptr)[i] + (*un_ptr_)[i]);
+       u += ((*u_ptr)[i] + (*un_ptr_)[i]);
+      // test: real u
+      // u += (*u_ptr)[i];
     /* d v_x = (sin y * sin r + cos y * sin p * cos r) * (u1 + u2 + u3 + u4) / m */
     dev_x(V_X) = (sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
                   cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
@@ -709,8 +724,8 @@ namespace lqr_discrete{
       0, cos((*x_ptr)[E_R]), -sin((*x_ptr)[E_R]),
       0, sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
     Vector3d d_e = R_e * w;
-    for (int i = E_P; i <= E_Y; ++i)
-      dev_x(i) = d_e(i - E_P);
+    for (int i = E_R; i <= E_Y; ++i)
+      dev_x(i) = d_e(i - E_R);
 
     /* w_x, w_y, w_z */
     /* d w = I^-1 * (- (w^) * (Iw) + M_para * [u1;u2;u3;u4]), w^ = [0, -w_z, w_y; w_z, 0, -w_x; -w_y, w_x, 0] */
@@ -720,6 +735,8 @@ namespace lqr_discrete{
       -(*x_ptr)[W_Y], (*x_ptr)[W_X], 0;
     Vector3d dw;
     dw = I_ptr_->inverse() * (-w_m * ((*I_ptr_) * w) + (*M_para_ptr_) * ((*u_ptr) + (*un_ptr_)));
+    // test: real u
+    // dw = I_ptr_->inverse() * (-w_m * ((*I_ptr_) * w) + (*M_para_ptr_) * (*u_ptr));
     for (int i = 0; i < 3; ++i)
       dev_x(W_X + i) = dw(i);
 
@@ -756,6 +773,8 @@ namespace lqr_discrete{
       double state_energy = x.transpose() * (*Q_ptr_) * x;
       state_energy *= 0.5;
       Vector4d u_real = u + (*un_ptr_);
+      // test: real u
+      // Vector4d u_real = u;
       double control_energy = (u_real.transpose() * (*R_ptr_) * u_real);
       control_energy *= 0.5;
       energy_sum += state_energy + control_energy;
@@ -885,6 +904,52 @@ namespace lqr_discrete{
       + K_ptr_->transpose() * (*H_ptr_) * (*l_ptr_)
       + K_ptr_->transpose() * (*g_ptr_)
       + G_ptr_->transpose() * (*l_ptr_);
+  }
+
+  void SlqFiniteDiscreteControlQuadrotor::FDLQR(){
+    *x_ptr_ = x_vec_[0];
+    *u_ptr_ = u_vec_[0];
+    if (quaternion_mode_)
+      updateMatrixAB(x_ptr_, u_ptr_);
+    else
+      updateEulerMatrixAB(x_ptr_, u_ptr_);
+
+    std::vector<MatrixXd> F_vec;
+    MatrixXd P(x_size_, x_size_);
+    P = *Q_ptr_;
+    for (int i = 0; i < iteration_times_; ++i){
+      MatrixXd F = MatrixXd::Zero(u_size_, x_size_);
+      F = ((*R_ptr_) + B_ptr_->transpose() * P * (*B_ptr_)).inverse()
+        * (B_ptr_->transpose() * P * (*A_ptr_));
+      P = A_ptr_->transpose() * P * (*A_ptr_)
+        - (A_ptr_->transpose() * P * (*B_ptr_)) * F
+        + (*Q_ptr_);
+      F_vec.push_back(F);
+    }
+
+    VectorXd x = getRelativeState(x0_ptr_);
+    for (int i = iteration_times_ - 1; i >= 0; --i){
+      VectorXd u = -F_vec[i] * x;
+      VectorXd new_x(x_size_);
+      updateEulerNewState(&new_x, &x, &u);
+      x = new_x;
+      x_vec_[iteration_times_ - i] = x;
+
+      if ((i + 1) % 100 < 2 && debug_){
+        VectorXd new_absolute_x;
+        new_absolute_x = getAbsoluteState(&x);
+        std::cout << "\n\n[debug][LQR] id[" << i << "]print current state:\n";
+        for (int j = 0; j < x_size_; ++j)
+          std::cout << new_absolute_x(j) << ", ";
+        std::cout << "\n[debug][LQR] id[" << i << "]print current u:\n";
+        for (int j = 0; j < u_size_; ++j)
+          std::cout << u(j) + (*un_ptr_)(j) << ", ";
+          // test: real u
+          // std::cout << u(j) << ", ";
+        std::cout << "\n";
+      }
+    }
+    std::cout << "[SLQ] LQR init finished\n\n";
   }
 }
 

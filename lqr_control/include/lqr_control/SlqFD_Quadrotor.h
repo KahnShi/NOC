@@ -84,6 +84,7 @@ namespace lqr_discrete{
     VectorXd getRelativeState(VectorXd *absolute_x_ptr);
     void updateQWeight(double time);
     void updateSLQEquations();
+    void FDLQR();
   };
 }
 
