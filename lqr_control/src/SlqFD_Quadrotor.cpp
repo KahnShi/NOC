@@ -47,7 +47,7 @@ namespace lqr_discrete{
     }
     std::cout << "[SLQ] Trajectory period: " << end_time_
               << ", Itetation times: " << iteration_times_ << "\n";
-    quaternion_mode_ = true;
+    quaternion_mode_ = false;
     if (quaternion_mode_)
       x_size_ = 13;
     else
@@ -125,6 +125,7 @@ namespace lqr_discrete{
     }
 
     debug_ = true;
+    std::cout << "[SLQ] Initialization finished.\n";
   }
 
   void SlqFiniteDiscreteControlQuadrotor::getRicattiH(){
@@ -144,7 +145,10 @@ namespace lqr_discrete{
 
       *x_ptr_ = x_vec_[i];
       *u_ptr_ = u_vec_[i];
-      updateMatrixAB(x_ptr_, u_ptr_);
+      if (quaternion_mode_)
+        updateMatrixAB(x_ptr_, u_ptr_);
+      else
+        updateEulerMatrixAB(x_ptr_, u_ptr_);
 
       updateSLQEquations();
 
@@ -202,13 +206,20 @@ namespace lqr_discrete{
     *u_ptr_ = u_vec_[0];
     *x_ptr_ = x_vec_[0];
     for (int i = 0; i < iteration_times_ - 1; ++i){
-      updateMatrixAB(x_ptr_, u_ptr_);
+      if (quaternion_mode_)
+        updateMatrixAB(x_ptr_, u_ptr_);
+      else
+        updateEulerMatrixAB(x_ptr_, u_ptr_);
       VectorXd new_x(x_size_);
-      updateNewState(&new_x, x_ptr_, u_ptr_);
+      if (quaternion_mode_)
+        updateNewState(&new_x, x_ptr_, u_ptr_);
+      else
+        updateEulerNewState(&new_x, x_ptr_, u_ptr_);
 
       if ((i+1) % 100 <= 2){
         if (debug_){
-          VectorXd new_absolute_x = getAbsoluteState(&new_x);
+          VectorXd new_absolute_x;
+          new_absolute_x = getAbsoluteState(&new_x);
           std::cout << "\n\n[debug] id[" << i << "]print current state:\n";
           for (int j = 0; j < x_size_; ++j)
             std::cout << new_absolute_x(j) << ", ";
@@ -225,26 +236,30 @@ namespace lqr_discrete{
     }
 
     // test output A and B
-    VectorXd x = getRelativeState(x0_ptr_);
-    VectorXd u = VectorXd::Zero(u_size_);
-    updateMatrixAB(&x, &u);
-    std::cout << "\n\nexamine A:";
-    for (int i = 0; i < x_size_; ++i){
-      std::cout << "\n";
-      for (int j = 0; j < x_size_; ++j){
-        std::cout << (*A_ptr_)(i, j) << ", ";
-      }
-      std::cout << ";";
-    }
-    std::cout << "\n\nexamine B:";
-    for (int i = 0; i < x_size_; ++i){
-      std::cout << "\n";
-      for (int j = 0; j < u_size_; ++j){
-        std::cout << (*B_ptr_)(i, j) << ", ";
-      }
-      std::cout << ";";
-    }
-    std::cout << "\n\n";
+    // VectorXd x;
+    // x = getRelativeState(x0_ptr_);
+    // VectorXd u = VectorXd::Zero(u_size_);
+    // if (quaternion_mode_)
+    //   updateMatrixAB(&x, &u);
+    // else
+    //   updateEulerMatrixAB(&x, &u);
+    // std::cout << "\n\nexamine A:";
+    // for (int i = 0; i < x_size_; ++i){
+    //   std::cout << "\n";
+    //   for (int j = 0; j < x_size_; ++j){
+    //     std::cout << (*A_ptr_)(i, j) << ", ";
+    //   }
+    //   std::cout << ";";
+    // }
+    // std::cout << "\n\nexamine B:";
+    // for (int i = 0; i < x_size_; ++i){
+    //   std::cout << "\n";
+    //   for (int j = 0; j < u_size_; ++j){
+    //     std::cout << (*B_ptr_)(i, j) << ", ";
+    //   }
+    //   std::cout << ";";
+    // }
+    // std::cout << "\n\n";
   }
 
   void SlqFiniteDiscreteControlQuadrotor::updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr){
@@ -514,6 +529,206 @@ namespace lqr_discrete{
     normalizeQuaternion(new_x_ptr);
   }
 
+  void SlqFiniteDiscreteControlQuadrotor::updateEulerMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr){
+    updateEulerMatrixA(x_ptr, u_ptr);
+    updateEulerMatrixB(x_ptr, u_ptr);
+  }
+
+  void SlqFiniteDiscreteControlQuadrotor::updateEulerMatrixA(VectorXd *x_ptr, VectorXd *u_ptr){
+    *A_ptr_ = MatrixXd::Zero(x_size_, x_size_);
+
+    /* x, y, z */
+    (*A_ptr_)(P_X, V_X) = 1;
+    (*A_ptr_)(P_Y, V_Y) = 1;
+    (*A_ptr_)(P_Z, V_Z) = 1;
+
+    /* v_x, v_y, v_z */
+    double u = 0.0;
+    for (int i = 0; i < u_size_; ++i)
+      u += ((*u_ptr)[i] + (*un_ptr_)[i]);
+
+    /* u' = u / m */
+    u = u / uav_mass_;
+    /* d v_x = (sin y * sin r + cos y * sin p * cos r) * u' */
+    (*A_ptr_)(V_X, E_R) = (sin((*x_ptr)[E_Y]) * cos((*x_ptr)[E_R]) -
+                           cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * sin((*x_ptr)[E_R])) * u;
+    (*A_ptr_)(V_X, E_P) = cos((*x_ptr)[E_Y]) * cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]) * u;
+    (*A_ptr_)(V_X, E_Y) = (cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) -
+                           sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R])) * u;
+    /* d v_y = (-cos y * sin r + sin y * sin p * cos r) * u' */
+    (*A_ptr_)(V_Y, E_R) = (-cos((*x_ptr)[E_Y]) * cos((*x_ptr)[E_R]) -
+                           sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]))* u;
+    (*A_ptr_)(V_Y, E_P) = sin((*x_ptr)[E_Y]) * cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]) * u;
+    (*A_ptr_)(V_Y, E_Y) = (sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
+                           cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))* u;
+    /* d v_z = (cos p * cos r) * u' */
+    (*A_ptr_)(V_Z, E_P) = -sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]) * u;
+    (*A_ptr_)(V_Z, E_R) = -cos((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]) * u;
+
+    /* e_r, e_p, e_y */
+    /* d e = R_e * w_b */
+    Vector3d w((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
+    MatrixXd R_e = MatrixXd::Zero(3, 3);
+    R_e << 1, tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]), tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]),
+      0, cos((*x_ptr)[E_R]), -sin((*x_ptr)[E_R]),
+      0, sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
+    Vector3d d_e_w_x = R_e * Vector3d(1.0, 0, 0);
+    Vector3d d_e_w_y = R_e * Vector3d(0, 1.0, 0);
+    Vector3d d_e_w_z = R_e * Vector3d(0, 0, 1.0);
+    MatrixXd R_e_r = MatrixXd::Zero(3, 3);
+    R_e_r << 0, tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]), -tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]),
+      0, -sin((*x_ptr)[E_R]), -cos((*x_ptr)[E_R]),
+      0, cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), -sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
+    Vector3d d_e_e_r = R_e_r * w;
+    MatrixXd R_e_p = MatrixXd::Zero(3, 3);
+    double d_cosp = sin((*x_ptr)[E_P]) / pow(cos((*x_ptr)[E_P]), 2.0);
+    R_e_p << 0, sin((*x_ptr)[E_R]) / pow(cos((*x_ptr)[E_P]), 2.0), cos((*x_ptr)[E_R]) / pow(cos((*x_ptr)[E_P]), 2.0),
+      0, 0, 0,
+      0, sin((*x_ptr)[E_R]) * d_cosp, cos((*x_ptr)[E_R]) * d_cosp;
+    Vector3d d_e_e_p = R_e_p * w;
+    for (int i = E_P; i <= E_Y; ++i){
+      (*A_ptr_)(i, W_X) = d_e_w_x(i - E_P);
+      (*A_ptr_)(i, W_Y) = d_e_w_y(i - E_P);
+      (*A_ptr_)(i, W_Z) = d_e_w_z(i - E_P);
+      (*A_ptr_)(i, E_R) = d_e_e_r(i - E_P);
+      (*A_ptr_)(i, E_P) = d_e_e_p(i - E_P);
+    }
+
+    /* w_x, w_y, w_z */
+    /* d w = I^-1 * (- (w^) * (Iw) + tau), w^ = [0, -w_z, w_y; w_z, 0, -w_x; -w_y, w_x, 0] */
+    /* d w_w = I^-1 * (- d(w^) * (Iw) - (w^) * (I * d(w))) */
+    MatrixXd w_m = MatrixXd::Zero(3, 3);
+    w_m << 0, -(*x_ptr)[W_Z], (*x_ptr)[W_Y],
+      (*x_ptr)[W_Z], 0, -(*x_ptr)[W_X],
+      -(*x_ptr)[W_Y], (*x_ptr)[W_X], 0;
+    MatrixXd dw_m = MatrixXd::Zero(3, 3);
+    dw_m(1, 2) = -1;
+    dw_m(2, 1) = 1;
+    Vector3d dw_x = I_ptr_->inverse() *
+      ((-dw_m * ((*I_ptr_) * w))
+       - w_m * ((*I_ptr_) * Vector3d(1.0, 0.0, 0.0)));
+    for (int i = 0; i < 3; ++i)
+      (*A_ptr_)(W_X + i, W_X) = dw_x(i);
+
+    dw_m = MatrixXd::Zero(3, 3);
+    dw_m(0, 2) = 1;
+    dw_m(2, 0) = -1;
+    Vector3d dw_y = I_ptr_->inverse() *
+      ((-dw_m * ((*I_ptr_) * w))
+       - w_m * ((*I_ptr_) * Vector3d(0.0, 1.0, 0.0)));
+    for (int i = 0; i < 3; ++i)
+      (*A_ptr_)(W_X + i, W_Y) = dw_y(i);
+
+    dw_m = MatrixXd::Zero(3, 3);
+    dw_m(0, 1) = -1;
+    dw_m(1, 0) = 1;
+    Vector3d dw_z = I_ptr_->inverse() *
+      ((-dw_m * ((*I_ptr_) * w))
+       - w_m * ((*I_ptr_) * Vector3d(0.0, 0.0, 1.0)));
+    for (int i = 0; i < 3; ++i)
+      (*A_ptr_)(W_X + i, W_Z) = dw_z(i);
+
+    (*A_ptr_) = (*A_ptr_) / control_freq_ + MatrixXd::Identity(x_size_, x_size_);
+  }
+
+  void SlqFiniteDiscreteControlQuadrotor::updateEulerMatrixB(VectorXd *x_ptr, VectorXd *u_ptr){
+    *B_ptr_ = MatrixXd::Zero(x_size_, u_size_);
+
+    /* x, y, z */
+    /* all 0 */
+
+    /* v_x, v_y, v_z */
+    /* d v_x = (sin y * sin r + cos y * sin p * cos r) * (u1 + u2 + u3 + u4) / m */
+    (*B_ptr_)(V_X, U_1) = (sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
+                           cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
+      / uav_mass_;
+    /* d v_y = (-cos y * sin r + sin y * sin p * cos r) * (u1 + u2 + u3 + u4) / m  */
+    (*B_ptr_)(V_Y, U_1) = (-cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
+                           sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
+      / uav_mass_;
+    /* d v_z = (cos p * cos r) * (u1 + u2 + u3 + u4) / m */
+    (*B_ptr_)(V_Z, U_1) = (cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
+      / uav_mass_;
+    for (int i = V_X; i <= V_Z; ++i)
+      for (int j = U_2; j <= U_4; ++j)
+      (*B_ptr_)(i, j) = (*B_ptr_)(i, U_1);
+
+    /* e_r, e_p, e_y */
+    /* all 0 */
+
+    /* w_x, w_y, w_z */
+    /* d w = I^-1 * (- (w^) * (Iw) + M_para * [u1;u2;u3;u4]) */
+    /* d w_u = I^-1 * M_para * d[u1;u2;u3;u4] */
+    Vector3d dw_u1 = I_ptr_->inverse() * (*M_para_ptr_) * Vector4d(1.0, 0.0, 0.0, 0.0);
+    for (int i = 0; i < 3; ++i)
+      (*B_ptr_)(W_X + i, U_1) = dw_u1(i);
+
+    Vector3d dw_u2 = I_ptr_->inverse() * (*M_para_ptr_) * Vector4d(0.0, 1.0, 0.0, 0.0);
+    for (int i = 0; i < 3; ++i)
+      (*B_ptr_)(W_X + i, U_2) = dw_u2(i);
+
+    Vector3d dw_u3 = I_ptr_->inverse() * (*M_para_ptr_) * Vector4d(0.0, 0.0, 1.0, 0.0);
+    for (int i = 0; i < 3; ++i)
+      (*B_ptr_)(W_X + i, U_3) = dw_u3(i);
+
+    Vector3d dw_u4 = I_ptr_->inverse() * (*M_para_ptr_) * Vector4d(0.0, 0.0, 0.0, 1.0);
+    for (int i = 0; i < 3; ++i)
+      (*B_ptr_)(W_X + i, U_4) = dw_u4(i);
+
+    (*B_ptr_) = (*B_ptr_) / control_freq_;
+  }
+
+  void SlqFiniteDiscreteControlQuadrotor::updateEulerNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr){
+    VectorXd dev_x = VectorXd::Zero(x_size_);
+    /* x, y, z */
+    dev_x(P_X) = (*x_ptr)(V_X);
+    dev_x(P_Y) = (*x_ptr)(V_Y);
+    dev_x(P_Z) = (*x_ptr)(V_Z);
+
+    /* v_x, v_y, v_z */
+    double u = 0.0;
+    for (int i = 0; i < u_size_; ++i)
+      u += ((*u_ptr)[i] + (*un_ptr_)[i]);
+    /* d v_x = (sin y * sin r + cos y * sin p * cos r) * (u1 + u2 + u3 + u4) / m */
+    dev_x(V_X) = (sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
+                  cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
+      * u / uav_mass_;
+    /* d v_y = (-cos y * sin r + sin y * sin p * cos r) * (u1 + u2 + u3 + u4) / m  */
+    dev_x(V_Y) = (-cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
+                  sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
+      * u / uav_mass_;
+    /* d v_z = (cos p * cos r) * (u1 + u2 + u3 + u4) / m */
+    dev_x(V_Z) = (cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
+      * u / uav_mass_ - 9.78;
+
+    /* e_r, e_p, e_y */
+    /* d e = R_e * w_b */
+    Vector3d w((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
+    MatrixXd R_e = MatrixXd::Zero(3, 3);
+    R_e << 1, tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]), tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]),
+      0, cos((*x_ptr)[E_R]), -sin((*x_ptr)[E_R]),
+      0, sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
+    Vector3d d_e = R_e * w;
+    for (int i = E_P; i <= E_Y; ++i)
+      dev_x(i) = d_e(i - E_P);
+
+    /* w_x, w_y, w_z */
+    /* d w = I^-1 * (- (w^) * (Iw) + M_para * [u1;u2;u3;u4]), w^ = [0, -w_z, w_y; w_z, 0, -w_x; -w_y, w_x, 0] */
+    MatrixXd w_m = MatrixXd::Zero(3, 3);
+    w_m << 0, -(*x_ptr)[W_Z], (*x_ptr)[W_Y],
+      (*x_ptr)[W_Z], 0, -(*x_ptr)[W_X],
+      -(*x_ptr)[W_Y], (*x_ptr)[W_X], 0;
+    Vector3d dw;
+    dw = I_ptr_->inverse() * (-w_m * ((*I_ptr_) * w) + (*M_para_ptr_) * ((*u_ptr) + (*un_ptr_)));
+    for (int i = 0; i < 3; ++i)
+      dev_x(W_X + i) = dw(i);
+
+    dev_x = dev_x / control_freq_;
+    *new_x_ptr = dev_x + *x_ptr;
+    // test
+    //*new_x_ptr = stateAddition(x_ptr, &dev_x);
+  }
+
   void SlqFiniteDiscreteControlQuadrotor::normalizeQuaternion(VectorXd *new_x_ptr){
     double q_sum = 0.0;
     for (int i = Q_W; i <= Q_Z; ++i)
@@ -545,10 +760,17 @@ namespace lqr_discrete{
       control_energy *= 0.5;
       energy_sum += state_energy + control_energy;
 
-      updateMatrixAB(&x, &u);
+      if (quaternion_mode_)
+        updateMatrixAB(&x, &u);
+      else
+        updateEulerMatrixAB(&x, &u);
       VectorXd new_x(x_size_);
-      updateNewState(&new_x, &x, &u);
-      normalizeQuaternion(&new_x);
+      if (quaternion_mode_){
+        updateNewState(&new_x, &x, &u);
+        normalizeQuaternion(&new_x);
+      }
+      else
+        updateEulerNewState(&new_x, &x, &u);
       x = new_x;
       if (i != iteration_times_ - 1)
         u = u_vec_[i+1];
@@ -625,11 +847,19 @@ namespace lqr_discrete{
   }
 
   VectorXd SlqFiniteDiscreteControlQuadrotor::getAbsoluteState(VectorXd *relative_x_ptr){
-    return stateAddition(relative_x_ptr, xn_ptr_);
+    if (quaternion_mode_)
+      return stateAddition(relative_x_ptr, xn_ptr_);
+    else
+      // todo
+      return (*relative_x_ptr + *xn_ptr_);
   }
 
   VectorXd SlqFiniteDiscreteControlQuadrotor::getRelativeState(VectorXd *absolute_x_ptr){
-    return stateSubtraction(absolute_x_ptr, xn_ptr_);
+    if (quaternion_mode_)
+      return stateSubtraction(absolute_x_ptr, xn_ptr_);
+    else
+      // todo
+      return (*absolute_x_ptr - *xn_ptr_);
   }
 
   void SlqFiniteDiscreteControlQuadrotor::updateQWeight(double time){

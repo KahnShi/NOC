@@ -66,10 +66,14 @@ namespace lqr_discrete{
     void updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr);
     void updateMatrixB(VectorXd *x_ptr, VectorXd *u_ptr);
     void updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr);
+    void updateEulerMatrixA(VectorXd *x_ptr, VectorXd *u_ptr);
+    void updateEulerMatrixB(VectorXd *x_ptr, VectorXd *u_ptr);
+    void updateEulerMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr);
     void updateAll();
     void getRicattiH();
     void iterativeOptimization();
     void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr);
+    void updateEulerNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr);
     void normalizeQuaternion(VectorXd *new_x_ptr);
     double getSystemEnergy();
     bool feedforwardConverged();
