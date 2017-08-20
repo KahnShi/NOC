@@ -48,6 +48,8 @@ namespace lqr_discrete{
     double uav_mass_;
     bool debug_;
     bool quaternion_mode_;
+    double uav_rotor_thrust_min_;
+    double uav_rotor_thrust_max_;
     /* slq */
     MatrixXd *H_ptr_;
     MatrixXd *P_ptr_;
