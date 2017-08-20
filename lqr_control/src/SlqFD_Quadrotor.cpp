@@ -244,7 +244,7 @@ namespace lqr_discrete{
 
     for (int i = iteration_times_ - 1; i >= 0; --i){
       // test: add weight for waypoint
-      // updateQWeight(i * end_time_ / iteration_times_);
+      updateQWeight(i * end_time_ / iteration_times_);
 
       *x_ptr_ = x_vec_[i];
       *u_ptr_ = u_vec_[i];
@@ -260,7 +260,7 @@ namespace lqr_discrete{
       u_fw_vec_[i] = (*l_ptr_);
       K_vec_[i] = (*K_ptr_);
 
-      if ((i + 1) % 100 < 2 && debug_){
+      if ((i % 50 == 1 || i == iteration_times_ - 1) && debug_){
         std::cout << "\n[Debug] id[" << i << "] u feedback: ";
         for (int j = 0; j < u_size_; ++j)
           std::cout << u_fb_vec_[i](j) << ", ";
@@ -343,20 +343,18 @@ namespace lqr_discrete{
       else
         updateEulerNewState(&new_x, x_ptr_, u_ptr_);
 
-      if ((i+1) % 100 <= 2){
-        if (debug_){
-          VectorXd new_absolute_x;
-          new_absolute_x = getAbsoluteState(&new_x);
-          std::cout << "\n\n[debug] id[" << i << "]print current state:\n";
-          for (int j = 0; j < x_size_; ++j)
-            std::cout << new_absolute_x(j) << ", ";
-          std::cout << "\n[debug] id[" << i << "]print current u:\n";
-          for (int j = 0; j < u_size_; ++j)
-            std::cout << (*u_ptr_)(j) + (*un_ptr_)(j) << ", ";
-            // test: real u
-            // std::cout << (*u_ptr_)(j) << ", ";
-          std::cout << "\n";
-        }
+      if ((i % 50 == 1 || i == iteration_times_ - 1) && debug_){
+        VectorXd new_absolute_x;
+        new_absolute_x = getAbsoluteState(&new_x);
+        std::cout << "\n\n[debug] id[" << i << "]print current state:\n";
+        for (int j = 0; j < x_size_; ++j)
+          std::cout << new_absolute_x(j) << ", ";
+        std::cout << "\n[debug] id[" << i << "]print current u:\n";
+        for (int j = 0; j < u_size_; ++j)
+          std::cout << (*u_ptr_)(j) + (*un_ptr_)(j) << ", ";
+        // test: real u
+        // std::cout << (*u_ptr_)(j) << ", ";
+        std::cout << "\n";
       }
 
       *u_ptr_ = u_vec_[i + 1];
@@ -1055,7 +1053,16 @@ namespace lqr_discrete{
       x = new_x;
       x_vec_[iteration_times_ - i] = x;
 
-      if ((i + 1) % 100 < 2 && debug_){
+      // Guarantee control is in bound
+      for (int j = 0; j < u_size_; ++j){
+        if (u(j) + (*un_ptr_)(j) < uav_rotor_thrust_min_)
+          u(j) = uav_rotor_thrust_min_ - (*un_ptr_)(j);
+        else if (u(j) + (*un_ptr_)(j) > uav_rotor_thrust_max_)
+          u(j) = uav_rotor_thrust_max_ - (*un_ptr_)(j);
+      }
+      u_vec_[iteration_times_ - i] = u;
+
+      if ((i % 50 == 1 || i == iteration_times_ - 1) && debug_){
         VectorXd new_absolute_x;
         new_absolute_x = getAbsoluteState(&x);
         std::cout << "\n\n[debug][LQR] id[" << i << "]print current state:\n";
@@ -1069,14 +1076,6 @@ namespace lqr_discrete{
           // std::cout << u(j) << ", ";
         std::cout << "\n";
       }
-      // Guarantee control is in bound
-      for (int j = 0; j < u_size_; ++j){
-        if (u(j) + (*un_ptr_)(j) < uav_rotor_thrust_min_)
-          u(j) = uav_rotor_thrust_min_ - (*un_ptr_)(j);
-        else if (u(j) + (*un_ptr_)(j) > uav_rotor_thrust_max_)
-          u(j) = uav_rotor_thrust_max_ - (*un_ptr_)(j);
-      }
-      u_vec_[iteration_times_ - i] = u;
     }
     std::cout << "[SLQ] LQR init finished\n\n";
   }
