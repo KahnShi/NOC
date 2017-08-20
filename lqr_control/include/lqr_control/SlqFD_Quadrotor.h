@@ -62,7 +62,7 @@ namespace lqr_discrete{
     double alpha_;
     std::vector<Vector4d> u_fw_vec_;
     std::vector<Vector4d> u_fb_vec_;
-    std::vector<MatrixXd> F_vec_;
+    std::vector<MatrixXd> K_vec_;
     LqrFiniteDiscreteControlQuadrotor *lqr_controller_ptr_;
     void initSLQ(double freq, double period, VectorXd *x0, VectorXd *xn);
     void updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr);
