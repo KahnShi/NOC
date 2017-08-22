@@ -1,0 +1,6 @@
+<launch>
+  <node pkg="lqr_control" type="dareSolver.py" name="dare_solver" output="screen">
+  </node>
+  <node pkg="lqr_control" type="quadrotor_simulator_node" name="quadrotor_simulator" output="screen">
+  </node>
+</launch>

@@ -11,6 +11,8 @@ set(PACKAGE_DEPENDENCIES
   roscpp
   rospy
   std_msgs
+  message_generation
+  message_runtime
   )
 
 find_package(catkin REQUIRED COMPONENTS ${PACKAGE_DEPENDENCIES})
@@ -18,6 +20,17 @@ find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN_INCLUDE_DIRS})
 add_definitions(${EIGEN_DEFINITIONS})
 
+add_service_files(
+  FILES
+  Dare.srv
+  )
+
+add_message_files(
+  FILES
+  float64Array.msg
+  )
+
+generate_messages(DEPENDENCIES std_msgs)
 
 catkin_package(
   INCLUDE_DIRS include
@@ -56,6 +69,8 @@ target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
 add_executable(quadrotor_simulator_node src/quadrotor_simulator_node.cpp)
 target_link_libraries(quadrotor_simulator_node ${PROJECT_NAME} ${catkin_LIBRARIES})
+add_dependencies(quadrotor_simulator_node lqr_control_gencpp)
+
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries

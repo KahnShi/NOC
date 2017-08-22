@@ -38,6 +38,12 @@
 
 #include <lqr_control/LqrFD_Quadrotor.h>
 #include <lqr_control/LqrID_Quadrotor.h>
+#include <std_msgs/Float64MultiArray.h>
+#include <std_msgs/MultiArrayDimension.h>
+#include <unistd.h>
+#include <lqr_control/Dare.h>
+#include <lqr_control/float64Array.h>
+
 namespace lqr_discrete{
   class SlqFiniteDiscreteControlQuadrotor: public LqrDiscreteControlBase{
   public:
@@ -64,6 +70,10 @@ namespace lqr_discrete{
     std::vector<Vector4d> u_fb_vec_;
     std::vector<MatrixXd> K_vec_;
     LqrFiniteDiscreteControlQuadrotor *lqr_controller_ptr_;
+
+    /* Ros service */
+    ros::ServiceClient dare_client_;
+
     void initSLQ(double freq, double period, VectorXd *x0, VectorXd *xn);
     void updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr);
     void updateMatrixB(VectorXd *x_ptr, VectorXd *u_ptr);
@@ -72,7 +82,7 @@ namespace lqr_discrete{
     void updateEulerMatrixB(VectorXd *x_ptr, VectorXd *u_ptr);
     void updateEulerMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr);
     void updateAll();
-    void getRicattiH();
+    void getRiccatiH();
     void iterativeOptimization();
     void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr);
     void updateEulerNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr);

@@ -36,6 +36,9 @@
 #include <lqr_control/SlqFD_Quadrotor.h>
 namespace lqr_discrete{
   void SlqFiniteDiscreteControlQuadrotor::initSLQ(double freq, double period, VectorXd *x0, VectorXd *xn){
+    /* Ros service */
+    dare_client_ = nh_.serviceClient<lqr_control::Dare>("dare_solver");
+
     control_freq_ = freq;
     if (floor(freq * period) < freq * period){
       end_time_ = (floor(freq * period) + 1.0) / freq;
@@ -80,7 +83,7 @@ namespace lqr_discrete{
       (*Q_ptr_)(i, i) = 10.0;
     for (int i = V_X; i <= V_Z; ++i)
       (*Q_ptr_)(i, i) = 10.0;
-    for (int i = V_Z + 1; i < x_size_; ++i)
+    for (int i = W_X; i < x_size_; ++i)
       (*Q_ptr_)(i, i) = 1.0;
 
     *R_ptr_ = 50*MatrixXd::Identity(u_size_, u_size_);
@@ -136,7 +139,7 @@ namespace lqr_discrete{
     std::cout << "[SLQ] Initialization finished.\n";
   }
 
-  void SlqFiniteDiscreteControlQuadrotor::getRicattiH(){
+  void SlqFiniteDiscreteControlQuadrotor::getRiccatiH(){
     *x_ptr_ = x_vec_[iteration_times_];
     *u_ptr_ = u_vec_[iteration_times_];
     if (debug_){
@@ -175,38 +178,56 @@ namespace lqr_discrete{
       }
       std::cout << "\n\n";
     }
-    (*P_ptr_) << 1534.26, 0.236618, 9.00329, 669.35, 0.454093, 15.0019, 39.2937, 160.699, 0.0314445, 357.082, 1468.59, -39.6074,
-      0.236618, 1534.16, 7.19554, 0.334354, 669.173, 11.993, -160.764, 39.1633, -0.147901, -1469.39, 355.855, 49.6563,
-      9.00329, 7.19554, 1808.44, 15.0051, 11.989, 1126.26, 2.92563, -6.2979, 0.00285089, 26.8081, -57.5013, -0.00258314,
-      669.35, 0.334354, 15.0051, 865.858, 0.999802, 38.0779, 59.8822, 244.9, -0.200681, 504.887, 2077.41, -56.1711,
-      0.454093, 669.173, 11.989, 0.999802, 865.408, 30.4324, -244.999, 59.6837, 0.512383, -2078.54, 503.163, 70.7133,
-      15.0019, 11.993, 1126.26, 38.0779, 30.4324, 2025.46, 4.45857, -9.59779, -0.00685342, 37.9291, -81.3333, -0.0112995,
-      39.2937, -160.764, 2.92563, 59.8822, -244.999, 4.45857, 239.758, -0.00119973, -0.0807459, 1057.6, 3.08799, -40.2458,
-      160.699, 39.1633, -6.2979, 244.9, 59.6837, -9.59779, -0.00119973, 239.763, 0.0369004, -3.10912, 1057.47, -18.6902,
-      0.0314445, -0.147901, 0.00285089, -0.200681, 0.512383, -0.00685342, -0.0807459, 0.0369004, 5327.12, -0.239784, 19.5865, 1108.76,
-      357.082, -1469.39, 26.8081, 504.887, -2078.54, 37.9291, 1057.6, -3.10912, -0.239784, 7213.82, -0.0999971, -274.299,
-      1468.59, 355.855, -57.5013, 2077.41, 503.163, -81.3333, 3.08799, 1057.47, 19.5865, -0.0999971, 7212.07, -119.424,
-      -39.6074, 49.6563, -0.00258314, -56.1711, 70.7133, -0.0112995, -40.2458, -18.6902, 1108.76, -274.299, -119.424, 494.854;
-    // (*P_ptr_) << 1.057225e+03,4.149522e-01,1.577371e+01,5.037004e+02,6.652228e-01,2.038528e+01,3.898811e+01,1.598054e+02,4.470630e-02,3.098625e+02,1.278271e+03,-3.445311e+01,
-    //   4.149522e-01,1.057039e+03,1.260658e+01,4.067847e-01,5.034601e+02,1.629918e+01,-1.598697e+02,3.885845e+01,-1.967760e-01,-1.278963e+03,3.087984e+02,4.323374e+01,
-    //   1.577371e+01,1.260658e+01,1.537589e+03,2.039206e+01,1.629070e+01,1.124606e+03,2.912221e+00,-6.260590e+00,3.679170e-03,2.336489e+01,-5.002482e+01,-3.279774e-03,
-    //   5.037004e+02,4.067847e-01,2.039206e+01,3.933735e+02,1.142471e+00,4.350419e+01,4.080891e+01,1.672695e+02,-1.971702e-01,2.853454e+02,1.178192e+03,-3.191168e+01,
-    //   6.652228e-01,5.034601e+02,1.629070e+01,1.142471e+00,3.928601e+02,3.476925e+01,-1.673370e+02,4.067370e+01,4.992133e-01,-1.178831e+03,2.843802e+02,4.035515e+01,
-    //   2.038528e+01,1.629918e+01,1.124606e+03,4.350419e+01,3.476925e+01,1.718226e+03,3.048253e+00,-6.553011e+00,-6.610636e-03,2.154406e+01,-4.610193e+01,-1.115169e-02,
-    //   3.898811e+01,-1.598697e+02,2.912221e+00,4.080891e+01,-1.673370e+02,3.048253e+00,2.086885e+02,-1.317371e-03,-8.375069e-02,7.927934e+02,2.560395e+00,-3.016571e+01,
-    //   1.598054e+02,3.885845e+01,-6.260590e+00,1.672695e+02,4.067370e+01,-6.553011e+00,-1.317371e-03,2.086928e+02,3.676955e-02,-2.580762e+00,7.927024e+02,-1.402084e+01,
-    //   4.470630e-02,-1.967760e-01,3.679170e-03,-1.971702e-01,4.992133e-01,-6.610636e-03,-8.375069e-02,3.676955e-02,5.327119e+03,-2.386748e-01,1.958607e+01,1.108764e+03,
-    //   3.098625e+02,-1.278963e+03,2.336489e+01,2.853454e+02,-1.178831e+03,2.154406e+01,7.927934e+02,-2.580762e+00,-2.386748e-01,4.671562e+03,-8.673698e-02,-1.776000e+02,
-    //   1.278271e+03,3.087984e+02,-5.002482e+01,1.178192e+03,2.843802e+02,-4.610193e+01,2.560395e+00,7.927024e+02,1.958607e+01,-8.673698e-02,4.670517e+03,-7.443355e+01,
-    //   -3.445311e+01,4.323374e+01,-3.279774e-03,-3.191168e+01,4.035515e+01,-1.115169e-02,-3.016571e+01,-1.402084e+01,1.108764e+03,-1.776000e+02,-7.443355e+01,4.903796e+02;
-    // if (debug_){
-    //   std::cout << "[Debug] print matrix P initial value:\n";
-    //   for (int i = 0; i < x_size_; ++i){
-    //     for (int j = 0; j < x_size_; ++j)
-    //       std::cout << (*P_ptr_)(i, j) << ", ";
-    //     std::cout << "\n";
-    //   }
-    // }
+
+    lqr_control::float64Array dat_A, dat_B, dat_P;
+
+    // fill out message:
+    dat_A.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    dat_A.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    dat_A.array.layout.dim[0].label = "height";
+    dat_A.array.layout.dim[1].label = "width";
+    dat_A.array.layout.dim[0].size = x_size_;
+    dat_A.array.layout.dim[1].size = x_size_;
+    dat_A.array.layout.dim[0].stride = x_size_ * x_size_;
+    dat_A.array.layout.dim[1].stride = x_size_;
+    dat_A.array.layout.data_offset = 0;
+    for (int i = 0; i < x_size_; ++i)
+      for (int j = 0; j < x_size_; ++j)
+        dat_A.array.data.push_back((*A_ptr_)(i, j));
+    dat_B.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    dat_B.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    dat_B.array.layout.dim[0].label = "height";
+    dat_B.array.layout.dim[1].label = "width";
+    dat_B.array.layout.dim[0].size = x_size_;
+    dat_B.array.layout.dim[1].size = u_size_;
+    dat_B.array.layout.dim[0].stride = x_size_ * u_size_;
+    dat_B.array.layout.dim[1].stride = u_size_;
+    dat_B.array.layout.data_offset = 0;
+    for (int i = 0; i < x_size_; ++i)
+      for (int j = 0; j < u_size_; ++j)
+        dat_B.array.data.push_back((*B_ptr_)(i, j));
+
+    lqr_control::Dare dare_srv;
+    dare_srv.request.A = dat_A;
+    dare_srv.request.B = dat_B;
+    ROS_INFO("[SLQ] Matrix AB is sent to Riccati solver.");
+    if (dare_client_.call(dare_srv))
+      dat_P = dare_srv.response.P;
+    else
+      ROS_ERROR("[SLQ] No response from dare sever.");
+    for (int i = 0; i < x_size_; ++i)
+      for (int j = 0; j < x_size_; ++j)
+        (*P_ptr_)(i, j) = dat_P.array.data[i * x_size_ + j];
+    ROS_INFO("[SLQ] Matrix P is received from Riccati solver.");
+
+    if (debug_){
+      std::cout << "[Debug] print matrix P initial value:\n";
+      for (int i = 0; i < x_size_; ++i){
+        for (int j = 0; j < x_size_; ++j)
+          std::cout << (*P_ptr_)(i, j) << ", ";
+        std::cout << "\n";
+      }
+    }
 
     // test P vector
     if (debug_){
@@ -240,7 +261,7 @@ namespace lqr_discrete{
 
     FDLQR();
 
-    getRicattiH();
+    getRiccatiH();
 
     for (int i = iteration_times_ - 1; i >= 0; --i){
       // test: add weight for waypoint
