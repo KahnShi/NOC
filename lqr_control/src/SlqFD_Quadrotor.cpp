@@ -136,12 +136,16 @@ namespace lqr_discrete{
     }
 
     debug_ = true;
-    std::cout << "[SLQ] Initialization finished.\n";
+    FDLQR();
+    getRiccatiH();
+    ROS_INFO("[SLQ] Initialization finished.");
   }
 
   void SlqFiniteDiscreteControlQuadrotor::getRiccatiH(){
     *x_ptr_ = x_vec_[iteration_times_];
     *u_ptr_ = u_vec_[iteration_times_];
+    // *x_ptr_ = VectorXd::Zero(x_size_);
+    // *u_ptr_ = VectorXd::Zero(u_size_);
     if (debug_){
       VectorXd new_absolute_x;
       new_absolute_x = getAbsoluteState(x_ptr_);
@@ -247,7 +251,7 @@ namespace lqr_discrete{
       std::cout << "\n";
     }
 
-    std::cout << "[SLQ] Get P matrice initial value from Ricatti function.\n";
+    ROS_INFO("[SLQ] Get P matrice initial value from Ricatti function.");
   }
 
   void SlqFiniteDiscreteControlQuadrotor::updateAll(){
@@ -258,10 +262,6 @@ namespace lqr_discrete{
     *r_ptr_ = (*R_ptr_) * (*un_ptr_);
     // test: real u
     // *r_ptr_ = VectorXd::Zero(u_size_);
-
-    FDLQR();
-
-    getRiccatiH();
 
     for (int i = iteration_times_ - 1; i >= 0; --i){
       // test: add weight for waypoint
@@ -295,7 +295,7 @@ namespace lqr_discrete{
     /* Update control by finding the best alpha */
     alpha_ = 1.0;
     double alpha_candidate = 1.0, energy_min = -1.0;
-    if (feedforwardConverged())
+    if (feedforwardConverged() && debug_)
       std::cout << "[SLQ] feedforward converge.";
     else{
       while (1){
@@ -335,7 +335,8 @@ namespace lqr_discrete{
       }
     }
 
-    std::cout << "\nAlpha selected: " << alpha_candidate << "\n\n";
+    if (debug_)
+      std::cout << "\nAlpha selected: " << alpha_candidate << "\n\n";
 
     for (int i = 0; i < iteration_times_; ++i){
       VectorXd u = u_vec_[i] //+ alpha_candidate * u_fw_vec_[i]
@@ -942,7 +943,8 @@ namespace lqr_discrete{
     double state_tf_energy = 0.5 * x.transpose() * (*P_ptr_) * x;
     energy_sum += state_tf_energy;
 
-    std::cout << "alpha: " << alpha_ << ",  energy: " << energy_sum << "\n";
+    if (debug_)
+      std::cout << "alpha: " << alpha_ << ",  energy: " << energy_sum << "\n";
     return energy_sum;
   }
 
@@ -1098,7 +1100,7 @@ namespace lqr_discrete{
         std::cout << "\n";
       }
     }
-    std::cout << "[SLQ] LQR init finished\n\n";
+    ROS_INFO("[SLQ] LQR init finished");
   }
 }
 

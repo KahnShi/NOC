@@ -51,7 +51,8 @@ namespace quadrotor_simulator{
     controller_freq_ = controller_freq;
     // controller_ptr_->initLQR(controller_freq_, period_, start_state_ptr_, end_state_ptr_);
     controller_ptr_->initSLQ(controller_freq_, period_, start_state_ptr_, end_state_ptr_);
-    std::cout << "[QuadrotorSimulator] init finished\n";
+    visualizeTrajectory();
+    ROS_INFO("[QuadrotorSimulator] init finished.");
   }
 
   void QuadrotorSimulator::planOptimalTrajectory(){
@@ -61,17 +62,18 @@ namespace quadrotor_simulator{
 
     // slq
     while (1){
-      controller_ptr_->iterativeOptimization();
-      visualizeTrajectory();
       std::cout << "[press 1 to continue, 2 to break]\n";
       int id;
       std::cin >> id;
       if (id == 2)
         break;
+      controller_ptr_->iterativeOptimization();
+      visualizeTrajectory();
     }
   }
 
   void QuadrotorSimulator::visualizeTrajectory(){
+    traj_.poses.clear();
     visualization_msgs::MarkerArray end_points_markers;
     visualization_msgs::Marker point_marker;
     point_marker.ns = "end_points";
@@ -84,9 +86,6 @@ namespace quadrotor_simulator{
     point_marker.pose.position.x = (*start_state_ptr_)(0);
     point_marker.pose.position.y = (*start_state_ptr_)(1);
     point_marker.pose.position.z = (*start_state_ptr_)(2);
-    std::cout << point_marker.pose.position.x << ", " <<
-      point_marker.pose.position.y << ", " <<
-      point_marker.pose.position.z << "\n";
     point_marker.pose.orientation.x = 0.0;
     point_marker.pose.orientation.y = 0.0;
     point_marker.pose.orientation.z = 0.0;
@@ -104,9 +103,6 @@ namespace quadrotor_simulator{
     point_marker.pose.position.x = (*end_state_ptr_)(0);
     point_marker.pose.position.y = (*end_state_ptr_)(1);
     point_marker.pose.position.z = (*end_state_ptr_)(2);
-    std::cout << point_marker.pose.position.x << ", " <<
-      point_marker.pose.position.y << ", " <<
-      point_marker.pose.position.z << "\n";
     point_marker.color.r = 1.0f;
     point_marker.color.g = 0.0f;
     point_marker.color.b = 0.0f;
