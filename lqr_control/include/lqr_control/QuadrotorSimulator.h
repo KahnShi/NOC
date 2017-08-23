@@ -59,6 +59,7 @@ namespace quadrotor_simulator{
     VectorXd *end_state_ptr_;
     double period_;
     double controller_freq_;
+    int oc_iteration_times_;
 
     nav_msgs::Path traj_;
     ros::Publisher pub_traj_path_;

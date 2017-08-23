@@ -41,6 +41,8 @@ namespace quadrotor_simulator{
 
     pub_traj_path_ = nh_.advertise<nav_msgs::Path>("lqr_path", 1);
     pub_traj_end_points_ = nh_.advertise<visualization_msgs::MarkerArray>("end_points_markers", 1);
+
+    oc_iteration_times_ = 0;
     sleep(1.0);
   }
 
@@ -62,12 +64,14 @@ namespace quadrotor_simulator{
 
     // slq
     while (1){
+      std::cout << "\n[QuadrotorSimulator] Iteration times: " << oc_iteration_times_ << "\n";
       std::cout << "[press 1 to continue, 2 to break]\n";
       int id;
       std::cin >> id;
       if (id == 2)
         break;
       controller_ptr_->iterativeOptimization();
+      ++oc_iteration_times_;
       visualizeTrajectory();
     }
   }
