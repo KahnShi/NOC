@@ -144,10 +144,12 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlQuadrotor::getRiccatiH(){
-    *x_ptr_ = x_vec_[iteration_times_];
-    *u_ptr_ = u_vec_[iteration_times_];
-    // *x_ptr_ = VectorXd::Zero(x_size_);
-    // *u_ptr_ = VectorXd::Zero(u_size_);
+    // method 1: use real state at time tf (get from initial LQR result)
+    // *x_ptr_ = x_vec_[iteration_times_];
+    // *u_ptr_ = u_vec_[iteration_times_];
+    // method 2: use ideal state at time tf
+    *x_ptr_ = VectorXd::Zero(x_size_);
+    *u_ptr_ = VectorXd::Zero(u_size_);
     if (debug_){
       printStateInfo(x_ptr_, iteration_times_);
       printControlInfo(u_ptr_, iteration_times_);
@@ -244,7 +246,7 @@ namespace lqr_discrete{
 
     for (int i = iteration_times_ - 1; i >= 0; --i){
       // test: add weight for waypoint
-      //updateQWeight(i * end_time_ / iteration_times_);
+      updateQWeight(i * end_time_ / iteration_times_);
 
       *x_ptr_ = x_vec_[i];
       *u_ptr_ = u_vec_[i];
