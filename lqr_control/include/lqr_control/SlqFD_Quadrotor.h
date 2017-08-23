@@ -68,6 +68,7 @@ namespace lqr_discrete{
     VectorXd *r_ptr_;
     VectorXd *q_ptr_;
     double alpha_;
+    int line_search_steps_;
     std::vector<Vector4d> u_fw_vec_;
     std::vector<Vector4d> u_fb_vec_;
     std::vector<MatrixXd> K_vec_;
@@ -89,7 +90,6 @@ namespace lqr_discrete{
     void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr);
     void updateEulerNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr);
     void normalizeQuaternion(VectorXd *new_x_ptr);
-    double getSystemEnergy();
     bool feedforwardConverged();
     VectorXd stateAddition(VectorXd *x1_ptr, VectorXd *x2_ptr);
     VectorXd stateSubtraction(VectorXd *x1_ptr, VectorXd *x2_ptr);

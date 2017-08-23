@@ -137,6 +137,8 @@ namespace lqr_discrete{
       K_vec_.push_back(MatrixXd::Zero(u_size_, x_size_));
     }
 
+    line_search_steps_ = 4;
+
     debug_ = true;
     FDLQR();
     getRiccatiH();
@@ -145,11 +147,11 @@ namespace lqr_discrete{
 
   void SlqFiniteDiscreteControlQuadrotor::getRiccatiH(){
     // method 1: use real state at time tf (get from initial LQR result)
-    // *x_ptr_ = x_vec_[iteration_times_];
-    // *u_ptr_ = u_vec_[iteration_times_];
+    *x_ptr_ = x_vec_[iteration_times_];
+    *u_ptr_ = u_vec_[iteration_times_];
     // method 2: use ideal state at time tf
-    *x_ptr_ = VectorXd::Zero(x_size_);
-    *u_ptr_ = VectorXd::Zero(u_size_);
+    //*x_ptr_ = VectorXd::Zero(x_size_);
+    //*u_ptr_ = VectorXd::Zero(u_size_);
     if (debug_){
       printStateInfo(x_ptr_, iteration_times_);
       printControlInfo(u_ptr_, iteration_times_);
@@ -281,83 +283,40 @@ namespace lqr_discrete{
     /* Update control by finding the best alpha */
     alpha_ = 1.0;
     double alpha_candidate = 1.0, energy_min = -1.0;
-    // if (feedforwardConverged() && debug_)
-    //   std::cout << "[SLQ] feedforward converge.";
-    // else{
-    //   while (1){
-    //     bool u_dynamic_flag = true;
-    //     for (int i = 0; i < iteration_times_; ++i){
-    //       VectorXd new_u = u_vec_[i] + (*un_ptr_)
-    //         + alpha_ * u_fw_vec_[i] + u_fb_vec_[i];
-    //       // test: real u
-    //       //VectorXd new_u = u_vec_[i]
-    //       // + alpha_ * u_fw_vec_[i] + u_fb_vec_[i];
+    double search_rate = 2.0;
+    if (feedforwardConverged() && debug_)
+      std::cout << "[SLQ] feedforward converge.";
+    else{
+      for (int factor = 0; factor < line_search_steps_; ++factor){
+        double energy_sum = 0.0;
+        alpha_ = alpha_ / search_rate;
+        VectorXd cur_u(u_size_);
+        VectorXd cur_x = x_vec_[0];
+        for (int i = 0; i < iteration_times_; ++i){
+          VectorXd cur_u(u_size_);
+          cur_u = u_vec_[i] + alpha_candidate * u_fw_vec_[i]
+            + K_vec_[i] * (cur_x - x_vec_[i]);
+          checkControlInputFeasible(&cur_u);
+          // calculate energy
+          updateQWeight(i * end_time_ / iteration_times_);
+          energy_sum += (cur_x.transpose() * (*Q_ptr_) * cur_x
+                         + cur_u.transpose() * (*R_ptr_) * cur_u)(0);
+          VectorXd new_x(x_size_);
+          updateEulerNewState(&new_x, &cur_x, &cur_u);
+          cur_x = new_x;
+        }
+        energy_sum += (cur_x.transpose() * (*Riccati_P_ptr_) * cur_x)(0);
 
-    //       for (int j = 0; j < u_size_; ++j){
-    //         if (new_u(j) < uav_rotor_thrust_min_
-    //             || new_u(j) > uav_rotor_thrust_max_){
-    //           u_dynamic_flag = false;
-    //           break;
-    //         }
-    //       }
-    //       if (!u_dynamic_flag){
-    //         std::cout << "alpha: " << alpha_ << ", out of dynamic limitation\n";
-    //         break;
-    //       }
-    //     }
-    //     // maximum line search steps reached
-    //     if (alpha_ < 1.0/32.0){
-    //       alpha_ = 0.0;
-    //       break;
-    //     }
-    //     else if (u_dynamic_flag){
-    //       double energy = getSystemEnergy();
-    //       if (energy_min < 0 || energy < energy_min){
-    //         energy_min = energy;
-    //         alpha_candidate = alpha_;
-    //       }
-    //     }
-    //     alpha_ /= 2.0;
-    //   }
-    // }
-
+        if (energy_sum < energy_min || energy_min < 0){
+          energy_min = energy_sum;
+          alpha_candidate = alpha_;
+        }
+      }
+    }
     if (debug_)
       std::cout << "\nAlpha selected: " << alpha_candidate << "\n\n";
 
-    // for (int i = 0; i < iteration_times_; ++i){
-    //   VectorXd u = u_vec_[i] + alpha_candidate * u_fw_vec_[i]
-    //     + u_fb_vec_[i];
-    //   // Guarantee control is in bound
-    //   checkControlInputFeasible(&u);
-    //   u_vec_[i] = u;
-    // }
-
-    // *u_ptr_ = u_vec_[0];
-    // *x_ptr_ = x_vec_[0];
-    // for (int i = 0; i < iteration_times_; ++i){
-    //   if (quaternion_mode_)
-    //     updateMatrixAB(x_ptr_, u_ptr_);
-    //   else
-    //     updateEulerMatrixAB(x_ptr_, u_ptr_);
-    //   VectorXd new_x(x_size_);
-    //   if (quaternion_mode_)
-    //     updateNewState(&new_x, x_ptr_, u_ptr_);
-    //   else
-    //     updateEulerNewState(&new_x, x_ptr_, u_ptr_);
-
-    //   if ((i % 10 == 0 || i == iteration_times_ - 1) && debug_){
-    //     printStateInfo(&new_x, i);
-    //     printControlInfo(u_ptr_, i);
-    //   }
-
-    //   *u_ptr_ = u_vec_[i + 1];
-    //   x_vec_[i + 1] = new_x;
-    //   *x_ptr_ = new_x;
-    // }
-
-
     // test K with every new state
-    alpha_candidate = 0.5; // test
     VectorXd cur_x(x_size_);
     cur_x = x_vec_[0];
     for (int i = 0; i < iteration_times_; ++i){
@@ -367,7 +326,7 @@ namespace lqr_discrete{
       checkControlInputFeasible(&cur_u);
       VectorXd new_x(x_size_);
       updateEulerNewState(&new_x, &cur_x, &cur_u);
-      if ((i % 10 == 0 || i == iteration_times_ - 1) && debug_){
+      if ((i % 50 == 0 || i == iteration_times_ - 1) && debug_){
         printStateInfo(&cur_x, i);
         printControlInfo(&cur_u, i);
       }
@@ -868,52 +827,6 @@ namespace lqr_discrete{
     }
   }
 
-  double SlqFiniteDiscreteControlQuadrotor::getSystemEnergy(){
-    double energy_sum = 0.0;
-    VectorXd u = u_vec_[0];
-    VectorXd x = x_vec_[0];
-    for (int i = 0; i < iteration_times_; ++i){
-      // test: add weight for waypoint
-      updateQWeight(i * end_time_ / iteration_times_);
-
-      double state_energy = x.transpose() * (*Q_ptr_) * x;
-      state_energy *= 0.5;
-      Vector4d u_real = u + (*un_ptr_);
-      // test: real u
-      // Vector4d u_real = u;
-      double control_energy = (u_real.transpose() * (*R_ptr_) * u_real);
-      control_energy *= 0.5;
-      energy_sum += state_energy + control_energy;
-
-      if (quaternion_mode_)
-        updateMatrixAB(&x, &u);
-      else
-        updateEulerMatrixAB(&x, &u);
-      VectorXd new_x(x_size_);
-      if (quaternion_mode_){
-        updateNewState(&new_x, &x, &u);
-        normalizeQuaternion(&new_x);
-      }
-      else
-        updateEulerNewState(&new_x, &x, &u);
-      x = new_x;
-      if (i != iteration_times_ - 1)
-        u = u_vec_[i+1];
-    }
-    // tf
-    (*P_ptr_) = MatrixXd::Zero(x_size_, x_size_);
-    for (int i = 0; i < 3; ++i)
-      (*P_ptr_)(i, i) = 100.0;
-    for (int i = 3; i < x_size_; ++i)
-      (*P_ptr_)(i, i) = 1.0;
-    double state_tf_energy = 0.5 * x.transpose() * (*P_ptr_) * x;
-    energy_sum += state_tf_energy;
-
-    if (debug_)
-      std::cout << "alpha: " << alpha_ << ",  energy: " << energy_sum << "\n";
-    return energy_sum;
-  }
-
   bool SlqFiniteDiscreteControlQuadrotor::feedforwardConverged(){
     double fw_max = 0.0;
     for (int i = 0; i < iteration_times_; ++i){
@@ -921,11 +834,11 @@ namespace lqr_discrete{
       for (int j = 0; j < u_size_; ++j){
         control_sum += pow((u_fw_vec_[i])(j), 2.0);
       }
-      control_sum = sqrt(control_sum);
       if (control_sum > fw_max)
         fw_max = control_sum;
     }
-    if (fw_max < 0.1)
+    double fw_converge_threshold = (uav_mass_ * 9.78 / 4.0) * 0.1;
+    if (fw_max < pow(fw_converge_threshold, 2))
       return true;
     else
       return false;
