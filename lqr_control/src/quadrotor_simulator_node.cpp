@@ -55,9 +55,9 @@ int main(int argc, char **argv)
   // start_state(Q_Y) = 0.5;
   // start_state(Q_Z) = 0.5;
   VectorXd end_state = VectorXd::Zero(12);
-  end_state(0) = 0.0;
-  end_state(1) = 0.0;
-  end_state(2) = 0.0;
+  end_state(0) = 5.0;
+  end_state(1) = -5.0;
+  end_state(2) = 6.0;
   // end_state(E_R) = 3.14 / 6.0;
   // end_state(E_P) = 3.14 / 6.0;
   // end_state(E_P) = 3.14 / 6.0;

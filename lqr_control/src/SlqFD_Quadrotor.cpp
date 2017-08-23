@@ -244,7 +244,7 @@ namespace lqr_discrete{
 
     for (int i = iteration_times_ - 1; i >= 0; --i){
       // test: add weight for waypoint
-      updateQWeight(i * end_time_ / iteration_times_);
+      //updateQWeight(i * end_time_ / iteration_times_);
 
       *x_ptr_ = x_vec_[i];
       *u_ptr_ = u_vec_[i];
@@ -279,101 +279,102 @@ namespace lqr_discrete{
     /* Update control by finding the best alpha */
     alpha_ = 1.0;
     double alpha_candidate = 1.0, energy_min = -1.0;
-    if (feedforwardConverged() && debug_)
-      std::cout << "[SLQ] feedforward converge.";
-    else{
-      while (1){
-        bool u_dynamic_flag = true;
-        for (int i = 0; i < iteration_times_; ++i){
-          VectorXd new_u = u_vec_[i] + (*un_ptr_)
-            + alpha_ * u_fw_vec_[i] + u_fb_vec_[i];
-          // test: real u
-          //VectorXd new_u = u_vec_[i]
-          // + alpha_ * u_fw_vec_[i] + u_fb_vec_[i];
+    // if (feedforwardConverged() && debug_)
+    //   std::cout << "[SLQ] feedforward converge.";
+    // else{
+    //   while (1){
+    //     bool u_dynamic_flag = true;
+    //     for (int i = 0; i < iteration_times_; ++i){
+    //       VectorXd new_u = u_vec_[i] + (*un_ptr_)
+    //         + alpha_ * u_fw_vec_[i] + u_fb_vec_[i];
+    //       // test: real u
+    //       //VectorXd new_u = u_vec_[i]
+    //       // + alpha_ * u_fw_vec_[i] + u_fb_vec_[i];
 
-          for (int j = 0; j < u_size_; ++j){
-            if (new_u(j) < uav_rotor_thrust_min_
-                || new_u(j) > uav_rotor_thrust_max_){
-              u_dynamic_flag = false;
-              break;
-            }
-          }
-          if (!u_dynamic_flag){
-            std::cout << "alpha: " << alpha_ << ", out of dynamic limitation\n";
-            break;
-          }
-        }
-        // maximum line search steps reached
-        if (alpha_ < 1.0/32.0){
-          alpha_ = 0.0;
-          break;
-        }
-        else if (u_dynamic_flag){
-          double energy = getSystemEnergy();
-          if (energy_min < 0 || energy < energy_min){
-            energy_min = energy;
-            alpha_candidate = alpha_;
-          }
-        }
-        alpha_ /= 2.0;
-      }
-    }
+    //       for (int j = 0; j < u_size_; ++j){
+    //         if (new_u(j) < uav_rotor_thrust_min_
+    //             || new_u(j) > uav_rotor_thrust_max_){
+    //           u_dynamic_flag = false;
+    //           break;
+    //         }
+    //       }
+    //       if (!u_dynamic_flag){
+    //         std::cout << "alpha: " << alpha_ << ", out of dynamic limitation\n";
+    //         break;
+    //       }
+    //     }
+    //     // maximum line search steps reached
+    //     if (alpha_ < 1.0/32.0){
+    //       alpha_ = 0.0;
+    //       break;
+    //     }
+    //     else if (u_dynamic_flag){
+    //       double energy = getSystemEnergy();
+    //       if (energy_min < 0 || energy < energy_min){
+    //         energy_min = energy;
+    //         alpha_candidate = alpha_;
+    //       }
+    //     }
+    //     alpha_ /= 2.0;
+    //   }
+    // }
 
     if (debug_)
       std::cout << "\nAlpha selected: " << alpha_candidate << "\n\n";
 
-    for (int i = 0; i < iteration_times_; ++i){
-      VectorXd u = u_vec_[i] + alpha_candidate * u_fw_vec_[i]
-        + u_fb_vec_[i];
-      // Guarantee control is in bound
-      checkControlInputFeasible(&u);
-      u_vec_[i] = u;
-    }
+    // for (int i = 0; i < iteration_times_; ++i){
+    //   VectorXd u = u_vec_[i] + alpha_candidate * u_fw_vec_[i]
+    //     + u_fb_vec_[i];
+    //   // Guarantee control is in bound
+    //   checkControlInputFeasible(&u);
+    //   u_vec_[i] = u;
+    // }
 
-    *u_ptr_ = u_vec_[0];
-    *x_ptr_ = x_vec_[0];
-    for (int i = 0; i < iteration_times_; ++i){
-      if (quaternion_mode_)
-        updateMatrixAB(x_ptr_, u_ptr_);
-      else
-        updateEulerMatrixAB(x_ptr_, u_ptr_);
-      VectorXd new_x(x_size_);
-      if (quaternion_mode_)
-        updateNewState(&new_x, x_ptr_, u_ptr_);
-      else
-        updateEulerNewState(&new_x, x_ptr_, u_ptr_);
+    // *u_ptr_ = u_vec_[0];
+    // *x_ptr_ = x_vec_[0];
+    // for (int i = 0; i < iteration_times_; ++i){
+    //   if (quaternion_mode_)
+    //     updateMatrixAB(x_ptr_, u_ptr_);
+    //   else
+    //     updateEulerMatrixAB(x_ptr_, u_ptr_);
+    //   VectorXd new_x(x_size_);
+    //   if (quaternion_mode_)
+    //     updateNewState(&new_x, x_ptr_, u_ptr_);
+    //   else
+    //     updateEulerNewState(&new_x, x_ptr_, u_ptr_);
 
-      if ((i % 10 == 0 || i == iteration_times_ - 1) && debug_){
-        printStateInfo(&new_x, i);
-        printControlInfo(u_ptr_, i);
-      }
+    //   if ((i % 10 == 0 || i == iteration_times_ - 1) && debug_){
+    //     printStateInfo(&new_x, i);
+    //     printControlInfo(u_ptr_, i);
+    //   }
 
-      *u_ptr_ = u_vec_[i + 1];
-      x_vec_[i + 1] = new_x;
-      *x_ptr_ = new_x;
-    }
+    //   *u_ptr_ = u_vec_[i + 1];
+    //   x_vec_[i + 1] = new_x;
+    //   *x_ptr_ = new_x;
+    // }
 
 
     // test K with every new state
-    // VectorXd cur_x(x_size_);
-    // cur_x = x_vec_[0];
-    // for (int i = 0; i < iteration_times_; ++i){
-    //   VectorXd cur_u(u_size_);
-    //   cur_u = u_vec_[i] + alpha_candidate * u_fw_vec_[i]
-    //     + K_vec_[i] * (cur_x - x_vec_[i]);
-    //   checkControlInputFeasible(&cur_u);
-    //   VectorXd new_x(x_size_);
-    //   updateEulerNewState(&new_x, &cur_x, &cur_u);
-    //   if ((i % 10 == 0 || i == iteration_times_ - 1) && debug_){
-    //     printStateInfo(&cur_x, i);
-    //     printControlInfo(&cur_u, i);
-    //   }
-    //   x_vec_[i] = cur_x;
-    //   u_vec_[i] = cur_u;
-    //   cur_x = new_x;
-    //   if (i == iteration_times_ - 1)
-    //     x_vec_[iteration_times_] = new_x;
-    // }
+    alpha_candidate = 0.5; // test
+    VectorXd cur_x(x_size_);
+    cur_x = x_vec_[0];
+    for (int i = 0; i < iteration_times_; ++i){
+      VectorXd cur_u(u_size_);
+      cur_u = u_vec_[i] + alpha_candidate * u_fw_vec_[i]
+        + K_vec_[i] * (cur_x - x_vec_[i]);
+      checkControlInputFeasible(&cur_u);
+      VectorXd new_x(x_size_);
+      updateEulerNewState(&new_x, &cur_x, &cur_u);
+      if ((i % 10 == 0 || i == iteration_times_ - 1) && debug_){
+        printStateInfo(&cur_x, i);
+        printControlInfo(&cur_u, i);
+      }
+      x_vec_[i] = cur_x;
+      u_vec_[i] = cur_u;
+      cur_x = new_x;
+      if (i == iteration_times_ - 1)
+        x_vec_[iteration_times_] = new_x;
+    }
   }
 
   void SlqFiniteDiscreteControlQuadrotor::updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr){
