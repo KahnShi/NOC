@@ -59,6 +59,9 @@ class dareSolver:
         Q = np.matlib.eye(x_size, dtype=float)
         for i in range(0, 6):
             Q[i, i] = 10.0
+        ## test: weight on z
+        # Q[2, 2] = 20.0
+        # Q[5, 5] = 20.0
         A = np.matlib.zeros((x_size, x_size))
         B = np.matlib.zeros((x_size, u_size))
 
@@ -67,7 +70,6 @@ class dareSolver:
                 A[i, j] = req.A.array.data[i * x_size + j]
 
         for i in range(0, x_size):
-            print()
             for j in range(0, u_size):
                 B[i, j] = req.B.array.data[i * u_size + j]
 

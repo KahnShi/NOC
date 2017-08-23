@@ -87,6 +87,8 @@ namespace lqr_discrete{
       (*Q_ptr_)(i, i) = 10.0;
     for (int i = W_X; i < x_size_; ++i)
       (*Q_ptr_)(i, i) = 1.0;
+    // test: weight on z
+    // (*Q_ptr_)(2, 2) = (*Q_ptr_)(5, 5) = 20.0;
 
     *R_ptr_ = 50*MatrixXd::Identity(u_size_, u_size_);
 
@@ -160,9 +162,11 @@ namespace lqr_discrete{
       updateMatrixAB(x_ptr_, u_ptr_);
     else
       updateEulerMatrixAB(x_ptr_, u_ptr_);
-    if (debug_){
-      printMatrixAB();
-    }
+
+    /* debug: print matrix A and B */
+    // if (debug_){
+    //   printMatrixAB();
+    // }
 
     lqr_control::float64Array dat_A, dat_B, dat_P;
 
@@ -205,32 +209,15 @@ namespace lqr_discrete{
         (*Riccati_P_ptr_)(i, j) = dat_P.array.data[i * x_size_ + j];
     ROS_INFO("[SLQ] Matrix P is received from Riccati solver.");
 
-    if (debug_){
-      std::cout << "[Debug] print matrix P initial value:\n";
-      for (int i = 0; i < x_size_; ++i){
-        for (int j = 0; j < x_size_; ++j)
-          std::cout << (*Riccati_P_ptr_)(i, j) << ", ";
-        std::cout << "\n";
-      }
-    }
-
-    // test P vector
+    /* debug: output matrix result from riccati eqation */
     // if (debug_){
-      // MatrixXd F = ((*R_ptr_) + B_ptr_->transpose() * (*Riccati_P_ptr_) * (*B_ptr_)).inverse() * (B_ptr_->transpose() * (*Riccati_P_ptr_) * (*A_ptr_));
-      // VectorXd u = -F * (*x_ptr_);
-      // std::cout << "[Debug] Test P's performance:\n";
-      // VectorXd new_x(x_size_);
-      // updateEulerNewState(&new_x, x_ptr_, &u);
-      // VectorXd new_absolute_x;
-      // new_absolute_x = getAbsoluteState(&new_x);
-      // std::cout << "\n\n[debug] print current state:\n";
-      // for (int j = 0; j < x_size_; ++j)
-      //   std::cout << new_absolute_x(j) << ", ";
-      // std::cout << "\n[debug] print current u:\n";
-      // for (int j = 0; j < u_size_; ++j)
-      //   std::cout << u(j) + (*un_ptr_)(j) << ", ";
-      // std::cout << "\n";
-      // }
+    //   std::cout << "[Debug] print matrix P initial value:\n";
+    //   for (int i = 0; i < x_size_; ++i){
+    //     for (int j = 0; j < x_size_; ++j)
+    //       std::cout << (*Riccati_P_ptr_)(i, j) << ", ";
+    //     std::cout << "\n";
+    //   }
+    // }
 
     ROS_INFO("[SLQ] Get P matrice initial value from Ricatti function.");
   }
@@ -267,17 +254,18 @@ namespace lqr_discrete{
       u_fw_vec_[i] = (*l_ptr_);
       K_vec_[i] = (*K_ptr_);
 
-      if ((i % 50 == 0 || i == iteration_times_ - 1) && debug_){
-        printStateInfo(x_ptr_, i);
-        printControlInfo(u_ptr_, i);
-        std::cout << "\n[Debug] id[" << i << "] u feedback: ";
-        for (int j = 0; j < u_size_; ++j)
-          std::cout << u_fb_vec_[i](j) << ", ";
-        std::cout << "\n[Debug] id[" << i << "] u feedforward: ";
-        for (int j = 0; j < u_size_; ++j)
-          std::cout << u_fw_vec_[i](j) << ", ";
-        std::cout << "\n\n";
-      }
+      /* debug: output feedback and feedforward result */
+      // if ((i % 100 == 0 || i == iteration_times_ - 1) && debug_){
+      //   printStateInfo(x_ptr_, i);
+      //   printControlInfo(u_ptr_, i);
+      //   std::cout << "\n[Debug] id[" << i << "] u feedback: ";
+      //   for (int j = 0; j < u_size_; ++j)
+      //     std::cout << u_fb_vec_[i](j) << ", ";
+      //   std::cout << "\n[Debug] id[" << i << "] u feedforward: ";
+      //   for (int j = 0; j < u_size_; ++j)
+      //     std::cout << u_fw_vec_[i](j) << ", ";
+      //   std::cout << "\n\n";
+      // }
     }
 
     /* Update control by finding the best alpha */
@@ -326,7 +314,7 @@ namespace lqr_discrete{
       checkControlInputFeasible(&cur_u);
       VectorXd new_x(x_size_);
       updateEulerNewState(&new_x, &cur_x, &cur_u);
-      if ((i % 50 == 0 || i == iteration_times_ - 1) && debug_){
+      if ((i % 100 == 0 || i == iteration_times_ - 1) && debug_){
         printStateInfo(&cur_x, i);
         printControlInfo(&cur_u, i);
       }
@@ -910,6 +898,8 @@ namespace lqr_discrete{
     for (int j = 6; j < x_size_; ++j)
       // (*Q_ptr_)(j, j) = weight + 1;
       (*Q_ptr_)(j, j) = weight;
+    // test: weight on z
+    // (*Q_ptr_)(2, 2) = (*Q_ptr_)(5, 5) = 20.0 * weight;
   }
 
   void SlqFiniteDiscreteControlQuadrotor::updateSLQEquations(){
@@ -961,7 +951,7 @@ namespace lqr_discrete{
       checkControlInputFeasible(&u);
       u_vec_[iteration_times_ - i] = u;
 
-      if ((i % 50 == 0 || i == iteration_times_ - 1) && debug_){
+      if ((i % 100 == 0 || i == iteration_times_ - 1) && debug_){
         printStateInfo(&x, i);
         printControlInfo(&u, i);
       }
