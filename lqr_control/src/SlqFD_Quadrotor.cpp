@@ -88,9 +88,9 @@ namespace lqr_discrete{
     for (int i = W_X; i < x_size_; ++i)
       (*Q_ptr_)(i, i) = 1.0;
     // test: weight on z
-    // (*Q_ptr_)(2, 2) = (*Q_ptr_)(5, 5) = 20.0;
+    (*Q_ptr_)(2, 2) = (*Q_ptr_)(5, 5) = 100.0;
 
-    *R_ptr_ = 50*MatrixXd::Identity(u_size_, u_size_);
+    *R_ptr_ = 200*MatrixXd::Identity(u_size_, u_size_);
 
     /* uav property from paper eth15-slq-window */
     I_ptr_ = new MatrixXd(3, 3);
@@ -277,28 +277,36 @@ namespace lqr_discrete{
     else{
       for (int factor = 0; factor < line_search_steps_; ++factor){
         double energy_sum = 0.0;
-        alpha_ = alpha_ / search_rate;
         VectorXd cur_u(u_size_);
         VectorXd cur_x = x_vec_[0];
         for (int i = 0; i < iteration_times_; ++i){
           VectorXd cur_u(u_size_);
-          cur_u = u_vec_[i] + alpha_candidate * u_fw_vec_[i]
+          cur_u = u_vec_[i] + alpha_ * u_fw_vec_[i]
             + K_vec_[i] * (cur_x - x_vec_[i]);
           checkControlInputFeasible(&cur_u);
           // calculate energy
           updateQWeight(i * end_time_ / iteration_times_);
+          VectorXd real_u = cur_u + (*un_ptr_);
+          // method 1: use "relative" u when calculting whole energy
+          // energy_sum += (cur_x.transpose() * (*Q_ptr_) * cur_x
+          //                + cur_u.transpose() * (*R_ptr_) * cur_u)(0);
+          // method 2: use real u when calculting whole energy
           energy_sum += (cur_x.transpose() * (*Q_ptr_) * cur_x
-                         + cur_u.transpose() * (*R_ptr_) * cur_u)(0);
+                         + real_u.transpose() * (*R_ptr_) * real_u)(0);
           VectorXd new_x(x_size_);
           updateEulerNewState(&new_x, &cur_x, &cur_u);
           cur_x = new_x;
         }
         energy_sum += (cur_x.transpose() * (*Riccati_P_ptr_) * cur_x)(0);
 
+        // energy and alpha' relationships
+        // std::cout << "[SLQ] Energy: " << energy_sum << ", alpha: " << alpha_ << "\n";
+
         if (energy_sum < energy_min || energy_min < 0){
           energy_min = energy_sum;
           alpha_candidate = alpha_;
         }
+        alpha_ = alpha_ / search_rate;
       }
     }
     if (debug_)
@@ -899,7 +907,7 @@ namespace lqr_discrete{
       // (*Q_ptr_)(j, j) = weight + 1;
       (*Q_ptr_)(j, j) = weight;
     // test: weight on z
-    // (*Q_ptr_)(2, 2) = (*Q_ptr_)(5, 5) = 20.0 * weight;
+    (*Q_ptr_)(2, 2) = (*Q_ptr_)(5, 5) = 100.0 * weight;
   }
 
   void SlqFiniteDiscreteControlQuadrotor::updateSLQEquations(){
