@@ -67,6 +67,7 @@ namespace lqr_discrete{
     VectorXd *l_ptr_;
     VectorXd *r_ptr_;
     VectorXd *q_ptr_;
+    MatrixXd *Q0_ptr_;
     double alpha_;
     int line_search_steps_;
     std::vector<Vector4d> u_fw_vec_;
@@ -96,7 +97,7 @@ namespace lqr_discrete{
     Vector4d quationAddition(Vector4d q1, Vector4d q2);
     VectorXd getAbsoluteState(VectorXd *relative_x_ptr);
     VectorXd getRelativeState(VectorXd *absolute_x_ptr);
-    void updateQWeight(double time);
+    void updateWaypointWeightMatrix(double time, MatrixXd *W_ptr);
     void updateSLQEquations();
     void FDLQR();
     void checkControlInputFeasible(VectorXd *u);

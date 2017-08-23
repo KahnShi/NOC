@@ -58,6 +58,7 @@ namespace lqr_discrete{
     u_size_ = 4;
     A_ptr_ = new MatrixXd(x_size_, x_size_);
     B_ptr_ = new MatrixXd(x_size_, u_size_);
+    Q0_ptr_ = new MatrixXd(x_size_, x_size_);
     Q_ptr_ = new MatrixXd(x_size_, x_size_);
     R_ptr_ = new MatrixXd(u_size_, u_size_);
     x0_ptr_ = new VectorXd(x_size_);
@@ -80,17 +81,18 @@ namespace lqr_discrete{
     *xn_ptr_ = (*xn);
 
     /* init Q and R matrice */
-    *Q_ptr_ = MatrixXd::Zero(x_size_, x_size_);
+    *Q0_ptr_ = MatrixXd::Zero(x_size_, x_size_);
     for (int i = 0; i <= P_Z; ++i)
-      (*Q_ptr_)(i, i) = 10.0;
+      (*Q0_ptr_)(i, i) = 10.0;
     for (int i = V_X; i <= V_Z; ++i)
-      (*Q_ptr_)(i, i) = 10.0;
+      (*Q0_ptr_)(i, i) = 10.0;
     for (int i = W_X; i < x_size_; ++i)
-      (*Q_ptr_)(i, i) = 1.0;
+      (*Q0_ptr_)(i, i) = 1.0;
     // test: weight on z
-    (*Q_ptr_)(2, 2) = (*Q_ptr_)(5, 5) = 100.0;
+    (*Q0_ptr_)(2, 2) = (*Q0_ptr_)(5, 5) = 100.0;
+    *Q_ptr_ = (*Q0_ptr_);
 
-    *R_ptr_ = 200*MatrixXd::Identity(u_size_, u_size_);
+    *R_ptr_ = 400*MatrixXd::Identity(u_size_, u_size_);
 
     /* uav property from paper eth15-slq-window */
     I_ptr_ = new MatrixXd(3, 3);
@@ -234,8 +236,9 @@ namespace lqr_discrete{
     // *r_ptr_ = VectorXd::Zero(u_size_);
 
     for (int i = iteration_times_ - 1; i >= 0; --i){
-      // test: add weight for waypoint
-      updateQWeight(i * end_time_ / iteration_times_);
+      // add weight for goal point
+      updateWaypointWeightMatrix(i * end_time_ / iteration_times_, Q_ptr_);
+      *Q_ptr_ = (*Q0_ptr_) + (*Q_ptr_);
 
       *x_ptr_ = x_vec_[i];
       *u_ptr_ = u_vec_[i];
@@ -245,6 +248,7 @@ namespace lqr_discrete{
         updateEulerMatrixAB(x_ptr_, u_ptr_);
 
       *q_ptr_ = (*Q_ptr_) * (x_vec_[i]);
+
       *r_ptr_ = (*R_ptr_) * (u_vec_[i]);
       // *r_ptr_ = (*R_ptr_) * ((u_vec_[i]) + (*un_ptr_));
       updateSLQEquations();
@@ -285,7 +289,8 @@ namespace lqr_discrete{
             + K_vec_[i] * (cur_x - x_vec_[i]);
           checkControlInputFeasible(&cur_u);
           // calculate energy
-          updateQWeight(i * end_time_ / iteration_times_);
+          updateWaypointWeightMatrix(i * end_time_ / iteration_times_, Q_ptr_);
+          *Q_ptr_ = (*Q0_ptr_) + (*Q_ptr_);
           VectorXd real_u = cur_u + (*un_ptr_);
           // method 1: use "relative" u when calculting whole energy
           // energy_sum += (cur_x.transpose() * (*Q_ptr_) * cur_x
@@ -897,17 +902,17 @@ namespace lqr_discrete{
       return (*absolute_x_ptr - *xn_ptr_);
   }
 
-  void SlqFiniteDiscreteControlQuadrotor::updateQWeight(double time){
+  void SlqFiniteDiscreteControlQuadrotor::updateWaypointWeightMatrix(double time, MatrixXd *W_ptr){
     double rho = 1.0;
     double weight = exp(-rho / 2 * pow(time - end_time_, 2.0));
     for (int j = 0; j < 6; ++j)
-      // (*Q_ptr_)(j, j) = 10.0 * weight + 1;
-      (*Q_ptr_)(j, j) = 10.0 * weight;
+      // (*W_ptr)(j, j) = 10.0 * weight + 1;
+      (*W_ptr)(j, j) = 10.0 * weight;
     for (int j = 6; j < x_size_; ++j)
-      // (*Q_ptr_)(j, j) = weight + 1;
-      (*Q_ptr_)(j, j) = weight;
+      // (*W_ptr)(j, j) = weight + 1;
+      (*W_ptr)(j, j) = weight;
     // test: weight on z
-    (*Q_ptr_)(2, 2) = (*Q_ptr_)(5, 5) = 100.0 * weight;
+    (*W_ptr)(2, 2) = (*W_ptr)(5, 5) = 100.0 * weight;
   }
 
   void SlqFiniteDiscreteControlQuadrotor::updateSLQEquations(){
