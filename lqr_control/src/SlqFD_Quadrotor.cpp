@@ -60,6 +60,7 @@ namespace lqr_discrete{
     B_ptr_ = new MatrixXd(x_size_, u_size_);
     Q0_ptr_ = new MatrixXd(x_size_, x_size_);
     Q_ptr_ = new MatrixXd(x_size_, x_size_);
+    R0_ptr_ = new MatrixXd(u_size_, u_size_);
     R_ptr_ = new MatrixXd(u_size_, u_size_);
     x0_ptr_ = new VectorXd(x_size_);
     xn_ptr_ = new VectorXd(x_size_);
@@ -92,7 +93,8 @@ namespace lqr_discrete{
     (*Q0_ptr_)(2, 2) = (*Q0_ptr_)(5, 5) = 100.0;
     *Q_ptr_ = (*Q0_ptr_);
 
-    *R_ptr_ = 400*MatrixXd::Identity(u_size_, u_size_);
+    *R0_ptr_ = 200 * MatrixXd::Identity(u_size_, u_size_);
+    *R_ptr_ = (*R0_ptr_);
 
     /* uav property from paper eth15-slq-window */
     I_ptr_ = new MatrixXd(3, 3);
@@ -239,6 +241,7 @@ namespace lqr_discrete{
       // add weight for goal point
       updateWaypointWeightMatrix(i * end_time_ / iteration_times_, Q_ptr_);
       *Q_ptr_ = (*Q0_ptr_) + (*Q_ptr_);
+      *R_ptr_ = 2.0 * (*R0_ptr_);
 
       *x_ptr_ = x_vec_[i];
       *u_ptr_ = u_vec_[i];
@@ -291,6 +294,7 @@ namespace lqr_discrete{
           // calculate energy
           updateWaypointWeightMatrix(i * end_time_ / iteration_times_, Q_ptr_);
           *Q_ptr_ = (*Q0_ptr_) + (*Q_ptr_);
+          *R_ptr_ = 2.0 * (*R0_ptr_);
           VectorXd real_u = cur_u + (*un_ptr_);
           // method 1: use "relative" u when calculting whole energy
           // energy_sum += (cur_x.transpose() * (*Q_ptr_) * cur_x

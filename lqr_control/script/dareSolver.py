@@ -55,7 +55,7 @@ class dareSolver:
         rospy.loginfo("[Dare Solver]Receive and start to solve Riccati equation.")
         x_size = req.A.array.layout.dim[0].size
         u_size = req.B.array.layout.dim[1].size
-        R = 400.0 * np.matlib.eye(u_size, dtype=float)
+        R = 200.0 * np.matlib.eye(u_size, dtype=float)
         Q = np.matlib.eye(x_size, dtype=float)
         for i in range(0, 6):
             Q[i, i] = 10.0
