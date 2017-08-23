@@ -65,6 +65,7 @@ namespace lqr_discrete{
     x_ptr_ = new VectorXd(x_size_);
     u_ptr_ = new VectorXd(u_size_);
     M_para_ptr_ = new MatrixXd(3, 4);
+    Riccati_P_ptr_ = new MatrixXd(x_size_, x_size_);
     P_ptr_ = new MatrixXd(x_size_, x_size_);
     p_ptr_ = new VectorXd(x_size_);
     H_ptr_ = new MatrixXd(u_size_, u_size_);
@@ -73,6 +74,7 @@ namespace lqr_discrete{
     g_ptr_ = new VectorXd(u_size_);
     l_ptr_ = new VectorXd(u_size_);
     r_ptr_ = new VectorXd(u_size_);
+    q_ptr_ = new VectorXd(x_size_);
 
     *x0_ptr_ = (*x0);
     *xn_ptr_ = (*xn);
@@ -147,40 +149,15 @@ namespace lqr_discrete{
     // *x_ptr_ = VectorXd::Zero(x_size_);
     // *u_ptr_ = VectorXd::Zero(u_size_);
     if (debug_){
-      VectorXd new_absolute_x;
-      new_absolute_x = getAbsoluteState(x_ptr_);
-      std::cout << "\n\n[debug][Ricatti] print tf state:\n";
-      for (int j = 0; j < x_size_; ++j)
-        std::cout << new_absolute_x(j) << ", ";
-      std::cout << "\n[debug][LQR] print current u:\n";
-      for (int j = 0; j < u_size_; ++j)
-        std::cout << (*u_ptr_)(j) + (*un_ptr_)(j) << ", ";
-      // test: real u
-      // std::cout << u(j) << ", ";
-      std::cout << "\n";
+      printStateInfo(x_ptr_, iteration_times_);
+      printControlInfo(u_ptr_, iteration_times_);
     }
     if (quaternion_mode_)
       updateMatrixAB(x_ptr_, u_ptr_);
     else
       updateEulerMatrixAB(x_ptr_, u_ptr_);
     if (debug_){
-      std::cout << "\n\n[Ricatti]examine A:";
-      for (int i = 0; i < x_size_; ++i){
-        std::cout << "\n";
-        for (int j = 0; j < x_size_; ++j){
-          std::cout << (*A_ptr_)(i, j) << ", ";
-        }
-        std::cout << ";";
-      }
-      std::cout << "\n\nexamine B:";
-      for (int i = 0; i < x_size_; ++i){
-        std::cout << "\n";
-        for (int j = 0; j < u_size_; ++j){
-          std::cout << (*B_ptr_)(i, j) << ", ";
-        }
-        std::cout << ";";
-      }
-      std::cout << "\n\n";
+      printMatrixAB();
     }
 
     lqr_control::float64Array dat_A, dat_B, dat_P;
@@ -221,35 +198,35 @@ namespace lqr_discrete{
       ROS_ERROR("[SLQ] No response from dare sever.");
     for (int i = 0; i < x_size_; ++i)
       for (int j = 0; j < x_size_; ++j)
-        (*P_ptr_)(i, j) = dat_P.array.data[i * x_size_ + j];
+        (*Riccati_P_ptr_)(i, j) = dat_P.array.data[i * x_size_ + j];
     ROS_INFO("[SLQ] Matrix P is received from Riccati solver.");
 
     if (debug_){
       std::cout << "[Debug] print matrix P initial value:\n";
       for (int i = 0; i < x_size_; ++i){
         for (int j = 0; j < x_size_; ++j)
-          std::cout << (*P_ptr_)(i, j) << ", ";
+          std::cout << (*Riccati_P_ptr_)(i, j) << ", ";
         std::cout << "\n";
       }
     }
 
     // test P vector
-    if (debug_){
-      MatrixXd F = ((*R_ptr_) + B_ptr_->transpose() * (*P_ptr_) * (*B_ptr_)).inverse() * (B_ptr_->transpose() * (*P_ptr_) * (*A_ptr_));
-      VectorXd u = -F * (*x_ptr_);
-      std::cout << "[Debug] Test P's performance:\n";
-      VectorXd new_x(x_size_);
-      updateEulerNewState(&new_x, x_ptr_, &u);
-      VectorXd new_absolute_x;
-      new_absolute_x = getAbsoluteState(&new_x);
-      std::cout << "\n\n[debug] print current state:\n";
-      for (int j = 0; j < x_size_; ++j)
-        std::cout << new_absolute_x(j) << ", ";
-      std::cout << "\n[debug] print current u:\n";
-      for (int j = 0; j < u_size_; ++j)
-        std::cout << u(j) + (*un_ptr_)(j) << ", ";
-      std::cout << "\n";
-    }
+    // if (debug_){
+      // MatrixXd F = ((*R_ptr_) + B_ptr_->transpose() * (*Riccati_P_ptr_) * (*B_ptr_)).inverse() * (B_ptr_->transpose() * (*Riccati_P_ptr_) * (*A_ptr_));
+      // VectorXd u = -F * (*x_ptr_);
+      // std::cout << "[Debug] Test P's performance:\n";
+      // VectorXd new_x(x_size_);
+      // updateEulerNewState(&new_x, x_ptr_, &u);
+      // VectorXd new_absolute_x;
+      // new_absolute_x = getAbsoluteState(&new_x);
+      // std::cout << "\n\n[debug] print current state:\n";
+      // for (int j = 0; j < x_size_; ++j)
+      //   std::cout << new_absolute_x(j) << ", ";
+      // std::cout << "\n[debug] print current u:\n";
+      // for (int j = 0; j < u_size_; ++j)
+      //   std::cout << u(j) + (*un_ptr_)(j) << ", ";
+      // std::cout << "\n";
+      // }
 
     ROS_INFO("[SLQ] Get P matrice initial value from Ricatti function.");
   }
@@ -258,8 +235,10 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlQuadrotor::iterativeOptimization(){
-    *p_ptr_ = VectorXd::Zero(x_size_);
-    *r_ptr_ = (*R_ptr_) * (*un_ptr_);
+    // *p_ptr_ = VectorXd::Zero(x_size_);
+    // *r_ptr_ = (*R_ptr_) * (*un_ptr_);
+    *P_ptr_ = *Riccati_P_ptr_;
+    *p_ptr_ = (*P_ptr_) * (x_vec_[iteration_times_]);
     // test: real u
     // *r_ptr_ = VectorXd::Zero(u_size_);
 
@@ -274,6 +253,9 @@ namespace lqr_discrete{
       else
         updateEulerMatrixAB(x_ptr_, u_ptr_);
 
+      *q_ptr_ = (*Q_ptr_) * (x_vec_[i]);
+      *r_ptr_ = (*R_ptr_) * (u_vec_[i]);
+      // *r_ptr_ = (*R_ptr_) * ((u_vec_[i]) + (*un_ptr_));
       updateSLQEquations();
 
       Vector4d u_fb = (*K_ptr_) * (*x_ptr_);
@@ -281,7 +263,9 @@ namespace lqr_discrete{
       u_fw_vec_[i] = (*l_ptr_);
       K_vec_[i] = (*K_ptr_);
 
-      if ((i % 50 == 1 || i == iteration_times_ - 1) && debug_){
+      if ((i % 50 == 0 || i == iteration_times_ - 1) && debug_){
+        printStateInfo(x_ptr_, i);
+        printControlInfo(u_ptr_, i);
         std::cout << "\n[Debug] id[" << i << "] u feedback: ";
         for (int j = 0; j < u_size_; ++j)
           std::cout << u_fb_vec_[i](j) << ", ";
@@ -339,19 +323,13 @@ namespace lqr_discrete{
       std::cout << "\nAlpha selected: " << alpha_candidate << "\n\n";
 
     for (int i = 0; i < iteration_times_; ++i){
-      VectorXd u = u_vec_[i] //+ alpha_candidate * u_fw_vec_[i]
+      VectorXd u = u_vec_[i] + alpha_candidate * u_fw_vec_[i]
         + u_fb_vec_[i];
       // Guarantee control is in bound
-      for (int j = 0; j < u_size_; ++j){
-        if (u(j) + (*un_ptr_)(j) < uav_rotor_thrust_min_)
-          u(j) = uav_rotor_thrust_min_ - (*un_ptr_)(j);
-        else if (u(j) + (*un_ptr_)(j) > uav_rotor_thrust_max_)
-          u(j) = uav_rotor_thrust_max_ - (*un_ptr_)(j);
-      }
+      checkControlInputFeasible(&u);
       u_vec_[i] = u;
     }
 
-    // u is updated in backward way
     *u_ptr_ = u_vec_[0];
     *x_ptr_ = x_vec_[0];
     for (int i = 0; i < iteration_times_; ++i){
@@ -365,52 +343,37 @@ namespace lqr_discrete{
       else
         updateEulerNewState(&new_x, x_ptr_, u_ptr_);
 
-      if ((i % 50 == 1 || i == iteration_times_ - 1) && debug_){
-        VectorXd new_absolute_x;
-        new_absolute_x = getAbsoluteState(&new_x);
-        std::cout << "\n\n[debug] id[" << i << "]print current state:\n";
-        for (int j = 0; j < x_size_; ++j)
-          std::cout << new_absolute_x(j) << ", ";
-        std::cout << "\n[debug] id[" << i << "]print current u:\n";
-        for (int j = 0; j < u_size_; ++j)
-          std::cout << (*u_ptr_)(j) + (*un_ptr_)(j) << ", ";
-        // test: real u
-        // std::cout << (*u_ptr_)(j) << ", ";
-        std::cout << "\n";
+      if ((i % 10 == 0 || i == iteration_times_ - 1) && debug_){
+        printStateInfo(&new_x, i);
+        printControlInfo(u_ptr_, i);
       }
 
       *u_ptr_ = u_vec_[i + 1];
       x_vec_[i + 1] = new_x;
       *x_ptr_ = new_x;
     }
-    // test: real u
-    // *r_ptr_ = VectorXd::Zero(u_size_);
 
-    // test output A and B
-    // VectorXd x;
-    // x = getRelativeState(x0_ptr_);
-    // VectorXd u = VectorXd::Zero(u_size_);
-    // if (quaternion_mode_)
-    //   updateMatrixAB(&x, &u);
-    // else
-    //   updateEulerMatrixAB(&x, &u);
-    // std::cout << "\n\nexamine A:";
-    // for (int i = 0; i < x_size_; ++i){
-    //   std::cout << "\n";
-    //   for (int j = 0; j < x_size_; ++j){
-    //     std::cout << (*A_ptr_)(i, j) << ", ";
+
+    // test K with every new state
+    // VectorXd cur_x(x_size_);
+    // cur_x = x_vec_[0];
+    // for (int i = 0; i < iteration_times_; ++i){
+    //   VectorXd cur_u(u_size_);
+    //   cur_u = u_vec_[i] + alpha_candidate * u_fw_vec_[i]
+    //     + K_vec_[i] * (cur_x - x_vec_[i]);
+    //   checkControlInputFeasible(&cur_u);
+    //   VectorXd new_x(x_size_);
+    //   updateEulerNewState(&new_x, &cur_x, &cur_u);
+    //   if ((i % 10 == 0 || i == iteration_times_ - 1) && debug_){
+    //     printStateInfo(&cur_x, i);
+    //     printControlInfo(&cur_u, i);
     //   }
-    //   std::cout << ";";
+    //   x_vec_[i] = cur_x;
+    //   u_vec_[i] = cur_u;
+    //   cur_x = new_x;
+    //   if (i == iteration_times_ - 1)
+    //     x_vec_[iteration_times_] = new_x;
     // }
-    // std::cout << "\n\nexamine B:";
-    // for (int i = 0; i < x_size_; ++i){
-    //   std::cout << "\n";
-    //   for (int j = 0; j < u_size_; ++j){
-    //     std::cout << (*B_ptr_)(i, j) << ", ";
-    //   }
-    //   std::cout << ";";
-    // }
-    // std::cout << "\n\n";
   }
 
   void SlqFiniteDiscreteControlQuadrotor::updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr){
@@ -1026,9 +989,11 @@ namespace lqr_discrete{
     double rho = 1.0;
     double weight = exp(-rho / 2 * pow(time - end_time_, 2.0));
     for (int j = 0; j < 6; ++j)
-      (*Q_ptr_)(j, j) = 10.0 * weight + 1;
+      // (*Q_ptr_)(j, j) = 10.0 * weight + 1;
+      (*Q_ptr_)(j, j) = 10.0 * weight;
     for (int j = 6; j < x_size_; ++j)
-      (*Q_ptr_)(j, j) = weight + 1;
+      // (*Q_ptr_)(j, j) = weight + 1;
+      (*Q_ptr_)(j, j) = weight;
   }
 
   void SlqFiniteDiscreteControlQuadrotor::updateSLQEquations(){
@@ -1041,7 +1006,7 @@ namespace lqr_discrete{
       + K_ptr_->transpose() * (*H_ptr_) * (*K_ptr_)
       + K_ptr_->transpose() * (*G_ptr_)
       + G_ptr_->transpose() * (*K_ptr_);
-    (*p_ptr_) = VectorXd::Zero(x_size_) + A_ptr_->transpose() * (*p_ptr_)
+    (*p_ptr_) = (*q_ptr_) + A_ptr_->transpose() * (*p_ptr_)
       + K_ptr_->transpose() * (*H_ptr_) * (*l_ptr_)
       + K_ptr_->transpose() * (*g_ptr_)
       + G_ptr_->transpose() * (*l_ptr_);
@@ -1077,31 +1042,62 @@ namespace lqr_discrete{
       x_vec_[iteration_times_ - i] = x;
 
       // Guarantee control is in bound
-      for (int j = 0; j < u_size_; ++j){
-        if (u(j) + (*un_ptr_)(j) < uav_rotor_thrust_min_)
-          u(j) = uav_rotor_thrust_min_ - (*un_ptr_)(j);
-        else if (u(j) + (*un_ptr_)(j) > uav_rotor_thrust_max_)
-          u(j) = uav_rotor_thrust_max_ - (*un_ptr_)(j);
-      }
+      checkControlInputFeasible(&u);
       u_vec_[iteration_times_ - i] = u;
 
-      if ((i % 50 == 1 || i == iteration_times_ - 1) && debug_){
-        VectorXd new_absolute_x;
-        new_absolute_x = getAbsoluteState(&x);
-        std::cout << "\n\n[debug][LQR] id[" << i << "]print current state:\n";
-        for (int j = 0; j < x_size_; ++j)
-          std::cout << new_absolute_x(j) << ", ";
-        std::cout << "\n[debug][LQR] id[" << i << "]print current u:\n";
-        for (int j = 0; j < u_size_; ++j){
-          std::cout << u(j) + (*un_ptr_)(j) << ", ";
-        }
-          // test: real u
-          // std::cout << u(j) << ", ";
-        std::cout << "\n";
+      if ((i % 50 == 0 || i == iteration_times_ - 1) && debug_){
+        printStateInfo(&x, i);
+        printControlInfo(&u, i);
       }
     }
     ROS_INFO("[SLQ] LQR init finished");
   }
+
+  void SlqFiniteDiscreteControlQuadrotor::checkControlInputFeasible(VectorXd *u){
+    for (int j = 0; j < u_size_; ++j){
+      if ((*u)(j) + (*un_ptr_)(j) < uav_rotor_thrust_min_)
+        (*u)(j) = uav_rotor_thrust_min_ - (*un_ptr_)(j);
+      else if ((*u)(j) + (*un_ptr_)(j) > uav_rotor_thrust_max_)
+        (*u)(j) = uav_rotor_thrust_max_ - (*un_ptr_)(j);
+    }
+  }
+
+  void SlqFiniteDiscreteControlQuadrotor::printStateInfo(VectorXd *x, int id){
+    VectorXd new_absolute_x;
+    new_absolute_x = getAbsoluteState(x);
+    std::cout << "[debug] id[" << id << "]print current state:\n";
+    for (int j = 0; j < x_size_; ++j)
+      std::cout << new_absolute_x(j) << ", ";
+    std::cout << "\n";
+  }
+
+  void SlqFiniteDiscreteControlQuadrotor::printControlInfo(VectorXd *u, int id){
+    std::cout << "[debug] id[" << id << "]print current u:\n";
+    for (int j = 0; j < u_size_; ++j)
+      std::cout << (*u)(j) + (*un_ptr_)(j) << ", ";
+    std::cout << "\n";
+  }
+
+  void SlqFiniteDiscreteControlQuadrotor::printMatrixAB(){
+    std::cout << "examine A:";
+    for (int i = 0; i < x_size_; ++i){
+      std::cout << "\n";
+      for (int j = 0; j < x_size_; ++j){
+        std::cout << (*A_ptr_)(i, j) << ", ";
+      }
+      std::cout << ";";
+    }
+    std::cout << "\n\nexamine B:";
+    for (int i = 0; i < x_size_; ++i){
+      std::cout << "\n";
+      for (int j = 0; j < u_size_; ++j){
+        std::cout << (*B_ptr_)(i, j) << ", ";
+      }
+      std::cout << ";";
+    }
+    std::cout << "\n\n";
+  }
+
 }
 
 

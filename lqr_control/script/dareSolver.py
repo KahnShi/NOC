@@ -70,7 +70,6 @@ class dareSolver:
             print()
             for j in range(0, u_size):
                 B[i, j] = req.B.array.data[i * u_size + j]
-                print(B[i, j], ', ', end='')
 
         P = linalg.solve_discrete_are(A, B, Q, R)
 

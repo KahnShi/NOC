@@ -58,6 +58,7 @@ namespace lqr_discrete{
     double uav_rotor_thrust_max_;
     /* slq */
     MatrixXd *H_ptr_;
+    MatrixXd *Riccati_P_ptr_;
     MatrixXd *P_ptr_;
     VectorXd *p_ptr_;
     MatrixXd *K_ptr_;
@@ -65,6 +66,7 @@ namespace lqr_discrete{
     VectorXd *g_ptr_;
     VectorXd *l_ptr_;
     VectorXd *r_ptr_;
+    VectorXd *q_ptr_;
     double alpha_;
     std::vector<Vector4d> u_fw_vec_;
     std::vector<Vector4d> u_fb_vec_;
@@ -97,6 +99,10 @@ namespace lqr_discrete{
     void updateQWeight(double time);
     void updateSLQEquations();
     void FDLQR();
+    void checkControlInputFeasible(VectorXd *u);
+    void printStateInfo(VectorXd *x, int id);
+    void printControlInfo(VectorXd *u, int id);
+    void printMatrixAB();
   };
 }
 
