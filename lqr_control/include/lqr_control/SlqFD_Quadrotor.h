@@ -53,7 +53,6 @@ namespace lqr_discrete{
     MatrixXd *M_para_ptr_;
     double uav_mass_;
     bool debug_;
-    bool quaternion_mode_;
     double uav_rotor_thrust_min_;
     double uav_rotor_thrust_max_;
     /* slq */
@@ -85,19 +84,12 @@ namespace lqr_discrete{
     void updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr);
     void updateMatrixB(VectorXd *x_ptr, VectorXd *u_ptr);
     void updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr);
-    void updateEulerMatrixA(VectorXd *x_ptr, VectorXd *u_ptr);
-    void updateEulerMatrixB(VectorXd *x_ptr, VectorXd *u_ptr);
-    void updateEulerMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr);
-    void updateAll();
     void getRiccatiH();
     void iterativeOptimization();
     void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr);
-    void updateEulerNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr);
-    void normalizeQuaternion(VectorXd *new_x_ptr);
     bool feedforwardConverged();
     VectorXd stateAddition(VectorXd *x1_ptr, VectorXd *x2_ptr);
     VectorXd stateSubtraction(VectorXd *x1_ptr, VectorXd *x2_ptr);
-    Vector4d quationAddition(Vector4d q1, Vector4d q2);
     VectorXd getAbsoluteState(VectorXd *relative_x_ptr);
     VectorXd getRelativeState(VectorXd *absolute_x_ptr);
     void updateWaypointWeightMatrix(double time, double end_time, MatrixXd *W_ptr, bool goal_flag);
