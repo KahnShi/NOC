@@ -43,28 +43,42 @@ int main(int argc, char **argv)
   ros::NodeHandle nh_private("~");
   QuadrotorSimulator* quadrotor_sim_node = new QuadrotorSimulator(nh, nh_private);
 
+  std::vector<VectorXd> way_pts_vec;
+  std::vector<double> period_vec;
   VectorXd start_state = VectorXd::Zero(12);
   start_state(0) = 10.0;
   start_state(1) = 5.0;
   start_state(2) = 3.0;
-  start_state(E_R) = 0.0;
-  start_state(E_P) = 0.0;
-  start_state(E_Y) = 0.0;
-  // start_state(Q_W) = 1.0;
-  // start_state(Q_X) = 0.5;
-  // start_state(Q_Y) = 0.5;
-  // start_state(Q_Z) = 0.5;
+  // start_state(E_R) = 0.0;
+  // start_state(E_P) = 0.0;
+  // start_state(E_Y) = 0.0;
+  //start_state(Q_W) = 1.0;
+  way_pts_vec.push_back(start_state);
+  period_vec.push_back(0.0);
+
+  VectorXd mid_state = VectorXd::Zero(12);
+  mid_state(0) = 8.0;
+  mid_state(1) = 0.0;
+  mid_state(2) = 2.0;
+  mid_state(3) = -2.0;
+  mid_state(4) = -2.0;
+  mid_state(5) = -1.0;
+  way_pts_vec.push_back(mid_state);
+  period_vec.push_back(3.0);
+
   VectorXd end_state = VectorXd::Zero(12);
   end_state(0) = 5.0;
   end_state(1) = -5.0;
-  end_state(2) = 6.0;
+  end_state(2) = 0.0;
   // end_state(E_R) = 3.14 / 6.0;
   // end_state(E_P) = 3.14 / 6.0;
   // end_state(E_P) = 3.14 / 6.0;
   // end_state(E_R) = 3.14 / 6.0;
   //end_state(Q_W) = 1.0;
-  quadrotor_sim_node->initQuadrotorSimulator(&start_state, &end_state, 5.0, 100.0);
-  //quadrotor_sim_node->initQuadrotorSimulator(&end_state, &start_state, 5.0, 100.0);
+  way_pts_vec.push_back(end_state);
+  period_vec.push_back(6.0);
+
+  quadrotor_sim_node->initQuadrotorSimulator(&way_pts_vec, &period_vec, 100.0);
   quadrotor_sim_node->planOptimalTrajectory();
   quadrotor_sim_node->visualizeTrajectory();
 

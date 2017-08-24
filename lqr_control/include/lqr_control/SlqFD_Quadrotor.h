@@ -74,12 +74,14 @@ namespace lqr_discrete{
     std::vector<Vector4d> u_fw_vec_;
     std::vector<Vector4d> u_fb_vec_;
     std::vector<MatrixXd> K_vec_;
+    std::vector<VectorXd> *waypoints_ptr_;
+    std::vector<double> *time_ptr_;
     LqrFiniteDiscreteControlQuadrotor *lqr_controller_ptr_;
 
     /* Ros service */
     ros::ServiceClient dare_client_;
 
-    void initSLQ(double freq, double period, VectorXd *x0, VectorXd *xn);
+    void initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr);
     void updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr);
     void updateMatrixB(VectorXd *x_ptr, VectorXd *u_ptr);
     void updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr);
@@ -98,7 +100,7 @@ namespace lqr_discrete{
     Vector4d quationAddition(Vector4d q1, Vector4d q2);
     VectorXd getAbsoluteState(VectorXd *relative_x_ptr);
     VectorXd getRelativeState(VectorXd *absolute_x_ptr);
-    void updateWaypointWeightMatrix(double time, double end_time, MatrixXd *W_ptr);
+    void updateWaypointWeightMatrix(double time, double end_time, MatrixXd *W_ptr, bool goal_flag);
     void updateSLQEquations();
     void FDLQR();
     void checkControlInputFeasible(VectorXd *u);
