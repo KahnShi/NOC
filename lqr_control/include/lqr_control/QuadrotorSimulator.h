@@ -55,17 +55,17 @@ namespace quadrotor_simulator{
     ros::NodeHandle nhp_;
     // LqrFiniteDiscreteControlQuadrotor *controller_ptr_;
     SlqFiniteDiscreteControlQuadrotor *controller_ptr_;
-    VectorXd *start_state_ptr_;
-    VectorXd *end_state_ptr_;
+    std::vector<VectorXd> *waypoints_ptr_;
+    std::vector<double> *time_ptr_;
     double period_;
     double controller_freq_;
     int oc_iteration_times_;
 
     nav_msgs::Path traj_;
     ros::Publisher pub_traj_path_;
-    ros::Publisher pub_traj_end_points_;
+    ros::Publisher pub_traj_way_points_;
 
-    void initQuadrotorSimulator(VectorXd *start_state_ptr, VectorXd *end_state_ptr, double period, double controller_freq);
+    void initQuadrotorSimulator(std::vector<VectorXd> *waypoints_ptr, std::vector<double> *time_ptr, double controller_freq);
     void planOptimalTrajectory();
     void visualizeTrajectory();
   };

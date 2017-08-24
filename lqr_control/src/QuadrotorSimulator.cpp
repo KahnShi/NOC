@@ -40,19 +40,19 @@ namespace quadrotor_simulator{
     controller_ptr_ = new SlqFiniteDiscreteControlQuadrotor(nh_, nhp_);
 
     pub_traj_path_ = nh_.advertise<nav_msgs::Path>("lqr_path", 1);
-    pub_traj_end_points_ = nh_.advertise<visualization_msgs::MarkerArray>("end_points_markers", 1);
+    pub_traj_way_points_ = nh_.advertise<visualization_msgs::MarkerArray>("end_points_markers", 1);
 
     oc_iteration_times_ = 0;
     sleep(1.0);
   }
 
-  void QuadrotorSimulator::initQuadrotorSimulator(VectorXd *start_state_ptr, VectorXd *end_state_ptr, double period, double controller_freq){
-    start_state_ptr_ = start_state_ptr;
-    end_state_ptr_ = end_state_ptr;
-    period_ = period;
+  void QuadrotorSimulator::initQuadrotorSimulator(std::vector<VectorXd> *waypoints_ptr, std::vector<double> *time_ptr, double controller_freq){
+    waypoints_ptr_ = waypoints_ptr;
+    time_ptr_ = time_ptr;
+    period_ = (*time_ptr)[time_ptr->size() - 1] - (*time_ptr)[0];
     controller_freq_ = controller_freq;
     // controller_ptr_->initLQR(controller_freq_, period_, start_state_ptr_, end_state_ptr_);
-    controller_ptr_->initSLQ(controller_freq_, period_, start_state_ptr_, end_state_ptr_);
+    controller_ptr_->initSLQ(controller_freq_, time_ptr_, waypoints_ptr_);
     visualizeTrajectory();
     ROS_INFO("[QuadrotorSimulator] init finished.");
   }
@@ -77,42 +77,54 @@ namespace quadrotor_simulator{
   }
 
   void QuadrotorSimulator::visualizeTrajectory(){
+    int n_waypoints = waypoints_ptr_->size();
     traj_.poses.clear();
-    visualization_msgs::MarkerArray end_points_markers;
+    visualization_msgs::MarkerArray waypoints_markers;
     visualization_msgs::Marker point_marker;
-    point_marker.ns = "end_points";
+    point_marker.ns = "waypoints";
     point_marker.header.frame_id = std::string("/world");
     point_marker.header.stamp = ros::Time().now();
     point_marker.action = visualization_msgs::Marker::ADD;
     point_marker.type = visualization_msgs::Marker::SPHERE;
 
     point_marker.id = 0;
-    point_marker.pose.position.x = (*start_state_ptr_)(0);
-    point_marker.pose.position.y = (*start_state_ptr_)(1);
-    point_marker.pose.position.z = (*start_state_ptr_)(2);
+    point_marker.pose.position.x = (*waypoints_ptr_)[0](0);
+    point_marker.pose.position.y = (*waypoints_ptr_)[0](1);
+    point_marker.pose.position.z = (*waypoints_ptr_)[0](2);
     point_marker.pose.orientation.x = 0.0;
     point_marker.pose.orientation.y = 0.0;
     point_marker.pose.orientation.z = 0.0;
     point_marker.pose.orientation.w = 1.0;
-    point_marker.scale.x = 0.7;
-    point_marker.scale.y = 0.7;
-    point_marker.scale.z = 0.7;
+    point_marker.scale.x = 0.3;
+    point_marker.scale.y = 0.3;
+    point_marker.scale.z = 0.3;
     point_marker.color.a = 1;
     point_marker.color.r = 0.0f;
     point_marker.color.g = 1.0f;
     point_marker.color.b = 0.0f;
-    end_points_markers.markers.push_back(point_marker);
+    waypoints_markers.markers.push_back(point_marker);
 
     point_marker.id = 1;
-    point_marker.pose.position.x = (*end_state_ptr_)(0);
-    point_marker.pose.position.y = (*end_state_ptr_)(1);
-    point_marker.pose.position.z = (*end_state_ptr_)(2);
+    point_marker.pose.position.x = (*waypoints_ptr_)[n_waypoints-1](0);
+    point_marker.pose.position.y = (*waypoints_ptr_)[n_waypoints-1](1);
+    point_marker.pose.position.z = (*waypoints_ptr_)[n_waypoints-1](2);
     point_marker.color.r = 1.0f;
     point_marker.color.g = 0.0f;
     point_marker.color.b = 0.0f;
-    end_points_markers.markers.push_back(point_marker);
+    waypoints_markers.markers.push_back(point_marker);
 
-    pub_traj_end_points_.publish(end_points_markers);
+    for (int i = 1; i <= n_waypoints - 2; ++i){
+      point_marker.id += 1;
+      point_marker.pose.position.x = (*waypoints_ptr_)[i](0);
+      point_marker.pose.position.y = (*waypoints_ptr_)[i](1);
+      point_marker.pose.position.z = (*waypoints_ptr_)[i](2);
+      point_marker.color.r = 1.0f;
+      point_marker.color.g = 1.0f;
+      point_marker.color.b = 0.0f;
+      waypoints_markers.markers.push_back(point_marker);
+    }
+
+    pub_traj_way_points_.publish(waypoints_markers);
 
     traj_.header.frame_id = std::string("/world");
     traj_.header.stamp = ros::Time().now();
