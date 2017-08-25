@@ -61,7 +61,6 @@ namespace lqr_discrete{
     B_ptr_ = new MatrixXd(x_size_, u_size_);
     Q0_ptr_ = new MatrixXd(x_size_, x_size_);
     Q_ptr_ = new MatrixXd(x_size_, x_size_);
-    R0_ptr_ = new MatrixXd(u_size_, u_size_);
     R_ptr_ = new MatrixXd(u_size_, u_size_);
     x0_ptr_ = new VectorXd(x_size_);
     xn_ptr_ = new VectorXd(x_size_);
@@ -94,8 +93,7 @@ namespace lqr_discrete{
     (*Q0_ptr_)(P_Z, P_Z) = (*Q0_ptr_)(V_Z, V_Z) = 100.0;
     *Q_ptr_ = (*Q0_ptr_);
 
-    *R0_ptr_ = 200 * MatrixXd::Identity(u_size_, u_size_);
-    *R_ptr_ = (*R0_ptr_);
+    *R_ptr_ = 200 * MatrixXd::Identity(u_size_, u_size_);
 
     /* uav property from paper eth15-slq-window */
     I_ptr_ = new MatrixXd(3, 3);
@@ -170,7 +168,7 @@ namespace lqr_discrete{
     //   printMatrixAB();
     // }
 
-    lqr_control::float64Array dat_A, dat_B, dat_P;
+    lqr_control::float64Array dat_A, dat_B, dat_Q, dat_R, dat_P;
 
     // fill out message:
     dat_A.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
@@ -197,10 +195,36 @@ namespace lqr_discrete{
     for (int i = 0; i < x_size_; ++i)
       for (int j = 0; j < u_size_; ++j)
         dat_B.array.data.push_back((*B_ptr_)(i, j));
+    dat_Q.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    dat_Q.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    dat_Q.array.layout.dim[0].label = "height";
+    dat_Q.array.layout.dim[1].label = "width";
+    dat_Q.array.layout.dim[0].size = x_size_;
+    dat_Q.array.layout.dim[1].size = x_size_;
+    dat_Q.array.layout.dim[0].stride = x_size_ * x_size_;
+    dat_Q.array.layout.dim[1].stride = x_size_;
+    dat_Q.array.layout.data_offset = 0;
+    for (int i = 0; i < x_size_; ++i)
+      for (int j = 0; j < x_size_; ++j)
+        dat_Q.array.data.push_back((*Q_ptr_)(i, j));
+    dat_R.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    dat_R.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    dat_R.array.layout.dim[0].label = "height";
+    dat_R.array.layout.dim[1].label = "width";
+    dat_R.array.layout.dim[0].size = u_size_;
+    dat_R.array.layout.dim[1].size = u_size_;
+    dat_R.array.layout.dim[0].stride = u_size_ * u_size_;
+    dat_R.array.layout.dim[1].stride = u_size_;
+    dat_R.array.layout.data_offset = 0;
+    for (int i = 0; i < u_size_; ++i)
+      for (int j = 0; j < u_size_; ++j)
+        dat_R.array.data.push_back((*R_ptr_)(i, j));
 
     lqr_control::Dare dare_srv;
     dare_srv.request.A = dat_A;
     dare_srv.request.B = dat_B;
+    dare_srv.request.Q = dat_Q;
+    dare_srv.request.R = dat_R;
     ROS_INFO("[SLQ] Matrix AB is sent to Riccati solver.");
     if (dare_client_.call(dare_srv))
       dat_P = dare_srv.response.P;
@@ -245,7 +269,6 @@ namespace lqr_discrete{
       *Q_ptr_ = (*Q0_ptr_);
       for (int j = 1; j < waypoints_ptr_->size(); ++j)
         *Q_ptr_ = *Q_ptr_ + W_vec[j-1];
-      *R_ptr_ = 2.0 * (*R0_ptr_);
 
       *x_ptr_ = x_vec_[i];
       *u_ptr_ = u_vec_[i];
@@ -291,7 +314,6 @@ namespace lqr_discrete{
             W_vec.push_back(W);
           }
 
-          *R_ptr_ = 2.0 * (*R0_ptr_);
           VectorXd real_u = cur_u + (*un_ptr_);
           // method 1: use "relative" u when calculting whole energy
           // energy_sum += (cur_x.transpose() * (*Q_ptr_) * cur_x

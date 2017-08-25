@@ -66,7 +66,6 @@ namespace lqr_discrete{
     VectorXd *l_ptr_;
     VectorXd *r_ptr_;
     VectorXd *q_ptr_;
-    MatrixXd *R0_ptr_;
     MatrixXd *Q0_ptr_;
     double alpha_;
     int line_search_steps_;
