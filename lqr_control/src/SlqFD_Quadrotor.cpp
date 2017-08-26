@@ -93,7 +93,7 @@ namespace lqr_discrete{
     (*Q0_ptr_)(P_Z, P_Z) = (*Q0_ptr_)(V_Z, V_Z) = 100.0;
     *Q_ptr_ = (*Q0_ptr_);
 
-    *R_ptr_ = 200 * MatrixXd::Identity(u_size_, u_size_);
+    *R_ptr_ = 400 * MatrixXd::Identity(u_size_, u_size_);
 
     /* uav property from paper eth15-slq-window */
     I_ptr_ = new MatrixXd(3, 3);
