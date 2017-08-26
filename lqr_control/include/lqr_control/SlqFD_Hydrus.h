@@ -76,6 +76,21 @@ namespace lqr_discrete{
     std::vector<double> *time_ptr_;
     LqrFiniteDiscreteControlQuadrotor *lqr_controller_ptr_;
 
+    /* Hydrus */
+    int x_full_size_;
+    int u_full_size_;
+    MatrixXd *D_ptr_;
+    double link_length_;
+    std::vector<double> link_weight_vec_;
+    Matrix3d *R_local_ptr_;
+    double weight_sum_;
+    int n_links_;
+    std::vector<Vector3d> link_end_pos_local_vec_;
+    std::vector<Vector3d> link_center_pos_local_vec_;
+    Matrix3d *T_local_ptr_;
+    std::vector<MatrixXd> Jacobian_P_vec_;
+    std::vector<MatrixXd> Jacobian_W_vec_;
+
     /* Ros service */
     ros::ServiceClient dare_client_;
 
@@ -83,6 +98,7 @@ namespace lqr_discrete{
     void updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr);
     void updateMatrixB(VectorXd *x_ptr, VectorXd *u_ptr);
     void updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr);
+    void updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *q_ptr);
     void getRiccatiH();
     void iterativeOptimization();
     void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr);
@@ -98,6 +114,9 @@ namespace lqr_discrete{
     void printStateInfo(VectorXd *x, int id);
     void printControlInfo(VectorXd *u, int id);
     void printMatrixAB();
+    void updateHydrusLinks(VectorXd *u_ptr, VectorXd *q_ptr);
+    void updateMatrixD(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *q_ptr);
+    Matrix3d S_operation(Vector3d v);
   };
 }
 
