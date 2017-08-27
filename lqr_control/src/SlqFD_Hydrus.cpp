@@ -427,12 +427,11 @@ namespace lqr_discrete{
     }
     // update Jacobian matrix
     for (int i = 0; i < n_links_; ++i){
-      Vector3d z_axis = (*R_local_ptr_) * Vector3d(0, 0, 1); // todo: z axis should be different for each link
+      Vector3d z_axis = Vector3d(0, 0, 1); // todo: z axis should be different for each link
       Vector3d prev_link_end_pos(0, 0, 0);
       MatrixXd J_P = MatrixXd::Zero(3, n_links_);
       for (int j = 0; j <= i; ++j){
-        Vector3d val = z_axis.cross((*R_local_ptr_) *
-                                    link_center_pos_local_vec_[i] - prev_link_end_pos);
+        Vector3d val = z_axis.cross(link_center_pos_local_vec_[i] - prev_link_end_pos);
         prev_link_end_pos = link_end_pos_local_vec_[j];
         for (int k = 0; k < 3; ++k)
           J_P(k, j) = val(k);
