@@ -820,6 +820,41 @@ namespace lqr_discrete{
     return s_mat;
   }
 
+  void SlqFiniteDiscreteControlHydrus::printMatrix(MatrixXd *mat_ptr, std::string mat_name){
+    std::cout << "print " << mat_name << "\n";
+    for (int i = 0; i < mat_ptr->rows(); ++i){
+      for (int j = 0; j < mat_ptr->rows(); ++j){
+        std::cout << (*mat_ptr)(i, j) << ", ";
+      }
+      std::cout << "\n";
+    }
+  }
+
+  void SlqFiniteDiscreteControlHydrus::printMatrix(Matrix3d *mat_ptr, std::string mat_name){
+    std::cout << "print " << mat_name << "\n";
+    for (int i = 0; i < 3; ++i){
+      for (int j = 0; j < 3; ++j){
+        std::cout << (*mat_ptr)(i, j) << ", ";
+      }
+      std::cout << "\n";
+    }
+  }
+
+  void SlqFiniteDiscreteControlHydrus::printVector(VectorXd *vec_ptr, std::string vec_name){
+    std::cout << "print " << vec_name << "\n";
+    for (int i = 0; i < vec_ptr->size(); ++i){
+        std::cout << (*vec_ptr)(i) << ", ";
+    }
+    std::cout << "\n";
+  }
+
+  void SlqFiniteDiscreteControlHydrus::printVector(Vector3d *vec_ptr, std::string vec_name){
+    std::cout << "print " << vec_name << "\n";
+    for (int i = 0; i < 3; ++i){
+        std::cout << (*vec_ptr)(i) << ", ";
+    }
+    std::cout << "\n";
+  }
 
 }
 

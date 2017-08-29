@@ -115,6 +115,10 @@ namespace lqr_discrete{
     void updateHydrusLinks(VectorXd *u_ptr, VectorXd *q_ptr);
     void updateMatrixD(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *q_ptr);
     Matrix3d S_operation(Vector3d v);
+    void printMatrix(MatrixXd *mat_ptr, std::string mat_name=std::string("matrix"));
+    void printMatrix(Matrix3d *mat_ptr, std::string mat_name=std::string("matrix"));
+    void printVector(VectorXd *vec_ptr, std::string mat_name=std::string("vector"));
+    void printVector(Vector3d *vec_ptr, std::string mat_name=std::string("vector"));
   };
 }
 
