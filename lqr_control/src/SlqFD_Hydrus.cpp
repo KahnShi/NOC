@@ -97,8 +97,8 @@ namespace lqr_discrete{
     R_local_ptr_ = new Matrix3d();
     T_local_ptr_ = new Matrix3d();
     for (int i = 0; i < n_links_; ++i){
-      Jacobian_P_vec_.push_back(MatrixXd(3, n_links_));
-      Jacobian_W_vec_.push_back(MatrixXd(3, n_links_));
+      Jacobian_P_vec_.push_back(MatrixXd(3, n_links_-1));
+      Jacobian_W_vec_.push_back(MatrixXd(3, n_links_-1));
     }
 
     /* init Q and R matrice */
@@ -165,8 +165,8 @@ namespace lqr_discrete{
     line_search_steps_ = 4;
 
     debug_ = true;
-    FDLQR();
-    getRiccatiH();
+    // FDLQR();
+    // getRiccatiH();
     ROS_INFO("[SLQ] Initialization finished.");
   }
 
@@ -407,8 +407,8 @@ namespace lqr_discrete{
     *T_local_ptr_ << 1.0, 0.0, -sin((*x_ptr)(E_P)),
       0.0, cos((*x_ptr)(E_R)), cos((*x_ptr)(E_P)) * sin((*x_ptr)(E_R)),
       0.0, -sin((*x_ptr)(E_R)), cos((*x_ptr)(E_P)) * cos((*x_ptr)(E_R));
-    link_center_pos_local_vec_[0](1) = link_length_ / 2.0;
-    link_end_pos_local_vec_[0](1) = link_length_;
+    link_center_pos_local_vec_[0](0) = link_length_ / 2.0;
+    link_end_pos_local_vec_[0](0) = link_length_;
     Vector3d previous_end_pt(link_length_, 0, 0);
     Matrix3d previous_rot = Matrix3d::Zero();
     for (int i = 0; i < 3; ++i)
@@ -423,18 +423,16 @@ namespace lqr_discrete{
       previous_end_pt = previous_end_pt + previous_rot * Vector3d(link_length_, 0, 0);
       link_end_pos_local_vec_[i] = previous_end_pt;
     }
-    // update Jacobian matrix
-    for (int i = 0; i < n_links_; ++i){
+    // update Jacobian matrix with (n_links_ - 1) joints
+    for (int i = 1; i < n_links_; ++i){ // no joint before first link
       Vector3d z_axis = Vector3d(0, 0, 1); // todo: z axis should be different for each link
-      Vector3d prev_link_end_pos(0, 0, 0);
-      MatrixXd J_P = MatrixXd::Zero(3, n_links_);
-      MatrixXd J_W = MatrixXd::Zero(3, n_links_);
-      for (int j = 0; j <= i; ++j){
-        Vector3d val = z_axis.cross(link_center_pos_local_vec_[i] - prev_link_end_pos);
-        prev_link_end_pos = link_end_pos_local_vec_[j];
+      MatrixXd J_P = MatrixXd::Zero(3, n_links_-1);
+      MatrixXd J_W = MatrixXd::Zero(3, n_links_-1);
+      for (int j = 1; j <= i; ++j){ // no joint before first link
+        Vector3d val = z_axis.cross(link_center_pos_local_vec_[i] - link_end_pos_local_vec_[j-1]);
         for (int k = 0; k < 3; ++k){
-          J_P(k, j) = val(k);
-          J_W(k, j) = z_axis(k);
+          J_P(k, j-1) = val(k);
+          J_W(k, j-1) = z_axis(k);
         }
       }
       Jacobian_P_vec_[i] = J_P;

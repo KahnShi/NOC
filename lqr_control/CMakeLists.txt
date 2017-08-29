@@ -68,6 +68,10 @@ add_library(${PROJECT_NAME}
   )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
+add_executable(hydrus_test_node src/hydrus_test_node.cpp)
+target_link_libraries(hydrus_test_node ${PROJECT_NAME} ${catkin_LIBRARIES})
+add_dependencies(hydrus_test_node lqr_control_gencpp)
+
 add_executable(quadrotor_simulator_node src/quadrotor_simulator_node.cpp)
 target_link_libraries(quadrotor_simulator_node ${PROJECT_NAME} ${catkin_LIBRARIES})
 add_dependencies(quadrotor_simulator_node lqr_control_gencpp)
