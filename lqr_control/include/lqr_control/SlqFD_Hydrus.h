@@ -81,6 +81,7 @@ namespace lqr_discrete{
     double link_length_;
     std::vector<double> link_weight_vec_;
     Matrix3d *R_local_ptr_;
+    std::vector<Matrix3d> R_link_local_vec_;
     double weight_sum_;
     int n_links_;
     std::vector<Vector3d> link_end_pos_local_vec_;

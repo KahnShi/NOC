@@ -120,9 +120,9 @@ namespace lqr_discrete{
     for (int i = 0; i < 3; ++i)
       for (int j = 0; j < 3; ++j)
         (*I_ptr_)(i, j) = 0.0;
-    (*I_ptr_)(0, 0) = 0.03;
-    (*I_ptr_)(1, 1) = 0.03;
-    (*I_ptr_)(2, 2) = 0.05;
+    (*I_ptr_)(0, 0) = 0.0001;
+    (*I_ptr_)(1, 1) = 0.0001;
+    (*I_ptr_)(2, 2) = 0.0002;
 
     uav_mass_ = 1.0;
 
@@ -411,6 +411,7 @@ namespace lqr_discrete{
     link_end_pos_local_vec_[0](0) = link_length_;
     Vector3d previous_end_pt(link_length_, 0, 0);
     Matrix3d previous_rot = Matrix3d::Zero();
+    R_link_local_vec_.push_back(previous_rot); // R_l0_b
     for (int i = 0; i < 3; ++i)
       previous_rot(i, i) = 1.0;
     for (int i = 1; i < n_links_; ++i){
@@ -419,6 +420,7 @@ namespace lqr_discrete{
         sin((*q_ptr)(i-1)), cos((*q_ptr)(i-1)), 0,
         0, 0, 1;
       previous_rot = previous_rot * rot;
+      R_link_local_vec_.push_back(previous_rot); // R_li_b
       link_center_pos_local_vec_[i] = previous_end_pt + previous_rot * Vector3d(link_length_ / 2.0, 0, 0);
       previous_end_pt = previous_end_pt + previous_rot * Vector3d(link_length_, 0, 0);
       link_end_pos_local_vec_[i] = previous_end_pt;
@@ -441,17 +443,34 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlHydrus::updateMatrixD(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *q_ptr){
+    std::vector<MatrixXd> S_operation_vec;
+    for (int i = 0; i < n_links_; ++i){
+      MatrixXd S_mat = S_operation((*R_local_ptr_) * link_center_pos_local_vec_[i]);
+      S_operation_vec.push_back(S_mat);
+    }
     *Ds_ptr_ = MatrixXd::Zero(x_size_, x_size_);
-    for (int i = 0; i < 3; ++i)
+    for (int i = 0; i < 3; ++i) // D11
       (*Ds_ptr_)(i, i) = weight_sum_;
     Matrix3d D12 = Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i)
-      D12 = D12 + link_weight_vec_[i] * S_operation((*R_local_ptr_) * link_center_pos_local_vec_[i]);
-    D12 = -D12 * (*T_local_ptr_);
-    MatrixXd D13 = MatrixXd::Zero(3, n_links_);
+      D12 = D12 - link_weight_vec_[i] * S_operation_vec[i];
+    D12 = D12 * (*T_local_ptr_);
+    MatrixXd D13 = MatrixXd::Zero(3, n_links_-1);
     for (int i = 0; i < n_links_; ++i)
       D13 = D13 + link_weight_vec_[i] * Jacobian_P_vec_[i];
     D13 = (*R_local_ptr_) * D13;
+    MatrixXd D22 = MatrixXd::Zero(3, 3);
+    for (int i = 0; i < n_links_; ++i)
+      D22 = D22 + link_weight_vec_[i] * T_local_ptr_->transpose() * S_operation_vec[i].transpose()
+        * S_operation_vec[i] * (*T_local_ptr_)
+        + (*R_local_ptr_) * R_link_local_vec_[i] * (*I_ptr_) *
+        R_link_local_vec_[i].transpose() * R_local_ptr_->transpose();
+    MatrixXd D23 = MatrixXd::Zero(3, 3);
+    for (int i = 0; i < n_links_; ++i)
+      D23 = D23 + T_local_ptr_->transpose() * (*R_local_ptr_) * R_link_local_vec_[i].transpose() *
+        (*I_ptr_) * R_link_local_vec_[i] * Jacobian_W_vec_[i]
+        - link_weight_vec_[i] * T_local_ptr_->transpose() * S_operation_vec[i].transpose() *
+        (*R_local_ptr_) * Jacobian_W_vec_[i];
   }
 
   void SlqFiniteDiscreteControlHydrus::updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr){
