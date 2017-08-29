@@ -428,13 +428,17 @@ namespace lqr_discrete{
       Vector3d z_axis = Vector3d(0, 0, 1); // todo: z axis should be different for each link
       Vector3d prev_link_end_pos(0, 0, 0);
       MatrixXd J_P = MatrixXd::Zero(3, n_links_);
+      MatrixXd J_W = MatrixXd::Zero(3, n_links_);
       for (int j = 0; j <= i; ++j){
         Vector3d val = z_axis.cross(link_center_pos_local_vec_[i] - prev_link_end_pos);
         prev_link_end_pos = link_end_pos_local_vec_[j];
-        for (int k = 0; k < 3; ++k)
+        for (int k = 0; k < 3; ++k){
           J_P(k, j) = val(k);
+          J_W(k, j) = z_axis(k);
+        }
       }
       Jacobian_P_vec_[i] = J_P;
+      Jacobian_W_vec_[i] = J_W;
     }
   }
 
