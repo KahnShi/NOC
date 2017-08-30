@@ -125,12 +125,13 @@ namespace hydrus_dynamics{
     MatrixXd R_local_;
     std::vector<MatrixXd> R_local_d_vec_; // d er, ep, eq
     std::vector<MatrixXd> R_link_local_vec_;
+    std::vector<MatrixXd> R_link_local_d_vec_; // (d R_l0 er, ep, eq), ..., (d R_l3 er, ep, eq)
     MatrixXd T_local_;
     std::vector<MatrixXd> T_local_d_vec_; // d er, ep, eq
     MatrixXd link_center_pos_local_;
     std::vector<MatrixXd> link_center_pos_local_d_vec_; // d q1, q2, q3
     std::vector<MatrixXd> Jacobian_P_vec_;
-    std::vector<MatrixXd> Jacobian_P_d_vec_; // (JacoP[0] d q1, q2, q3), ..., (JacoP[4] d q1, q2, q3)
+    std::vector<MatrixXd> Jacobian_P_d_vec_; // (JacoP[0] d q1, q2, q3), ..., (JacoP[3] d q1, q2, q3)
     std::vector<MatrixXd> Jacobian_W_vec_;
     MatrixXd S_operation_result_;
     std::vector<MatrixXd> S_operation_d_vec_; // d er, ep, eq, q1, q2, q3
@@ -143,7 +144,7 @@ namespace hydrus_dynamics{
     std::vector<MatrixXd> D_d_vec_;
 
     void getCurrentState(VectorXd *s, VectorXd *q);
-    MatrixXd vectorSkewToMatrix(Vector3d s);
+    MatrixXd vectorToSkewMatrix(VectorXd s);
     void updateMatrixD();
   };
 }
