@@ -68,7 +68,7 @@ namespace hydrus_dynamics{
     for (int i = 0; i < 6; ++i){
       S_operation_d_vec_.push_back(MatrixXd::Zero(3, 4));
     }
-    for (int i = 0; i < 12; ++i){
+    for (int i = 0; i <= Q_3; ++i){
       D_d_vec_.push_back(MatrixXd::Zero(9, 9));
     }
   }
@@ -270,7 +270,7 @@ namespace hydrus_dynamics{
     Ds3_.block<3, 3>(3, 0) = D23_;
 
     // D_d
-    for (int i = 0; i < 12; ++i) // init
+    for (int i = 0; i <= Q_3; ++i) // init
       D_d_vec_[i] = MatrixXd::Zero(9, 9);
     // D12_d
     for (int i = 0; i < n_links_; ++i){
@@ -280,7 +280,13 @@ namespace hydrus_dynamics{
         D_d_vec_[j].block<3, 3>(0, 3) = D_d_vec_[j].block<3, 3>(0, 3) + D12_d;
         D_d_vec_[j].block<3, 3>(3, 0) = D_d_vec_[j].block<3, 3>(3, 0) + D12_d.transpose();
       }
-      for (int j = E_R; j <= Q_3; ++j){
+      for (int j = E_R; j <= E_Y; ++j){
+        MatrixXd D12_d = -link_weight_vec_[i] * vectorToSkewMatrix(S_operation_d_vec_[j-E_R].col(i))
+          * T_local_;
+        D_d_vec_[j].block<3, 3>(0, 3) = D_d_vec_[j].block<3, 3>(0, 3) + D12_d;
+        D_d_vec_[j].block<3, 3>(3, 0) = D_d_vec_[j].block<3, 3>(3, 0) + D12_d.transpose();
+      }
+      for (int j = Q_1; j <= Q_3; ++j){
         MatrixXd D12_d = -link_weight_vec_[i] * vectorToSkewMatrix(S_operation_d_vec_[j-E_R].col(i))
           * T_local_;
         D_d_vec_[j].block<3, 3>(0, 3) = D_d_vec_[j].block<3, 3>(0, 3) + D12_d;
@@ -322,7 +328,17 @@ namespace hydrus_dynamics{
           R_link_local_vec_[i].transpose() * R_local_d_vec_[j-E_R].transpose() * T_local_;
         D_d_vec_[j].block<3, 3>(3, 3) = D_d_vec_[j].block<3, 3>(3, 3) + D22_d;
       }
-      for (int j = E_R; j <= Q_3; ++j){
+      for (int j = E_R; j <= E_Y; ++j){
+        // left part: d S(R_b * P_bli_b) & d S(R_b * P_bli_b)'
+        MatrixXd D22_d = link_weight_vec_[i] * T_local_.transpose() *
+          vectorToSkewMatrix(S_operation_d_vec_[j-E_R].col(i)).transpose() *
+          vectorToSkewMatrix(S_operation_result_.col(i)) * T_local_;
+        D22_d = D22_d + link_weight_vec_[i] * T_local_.transpose() *
+          vectorToSkewMatrix(S_operation_result_.col(i)).transpose() *
+          vectorToSkewMatrix(S_operation_d_vec_[j-E_R].col(i)) * T_local_;
+        D_d_vec_[j].block<3, 3>(3, 3) = D_d_vec_[j].block<3, 3>(3, 3) + D22_d;
+      }
+      for (int j = Q_1; j <= Q_3; ++j){
         // left part: d S(R_b * P_bli_b) & d S(R_b * P_bli_b)'
         MatrixXd D22_d = link_weight_vec_[i] * T_local_.transpose() *
           vectorToSkewMatrix(S_operation_d_vec_[j-E_R].col(i)).transpose() *
@@ -372,7 +388,15 @@ namespace hydrus_dynamics{
         D_d_vec_[j].block<3, 3>(3, 6) = D_d_vec_[j].block<3, 3>(3, 6) + D23_d;
         D_d_vec_[j].block<3, 3>(6, 3) = D_d_vec_[j].block<3, 3>(6, 3) + D23_d.transpose();
       }
-      for (int j = E_R; j <= Q_3; ++j){
+      for (int j = E_R; j <= E_Y; ++j){
+        // right part: d S(R_b * P_bli_b)
+        MatrixXd D23_d = - link_weight_vec_[i] * T_local_.transpose() *
+          vectorToSkewMatrix(S_operation_d_vec_[j-E_R].col(i)).transpose()
+          * R_local_ * Jacobian_P_vec_[i];
+        D_d_vec_[j].block<3, 3>(3, 6) = D_d_vec_[j].block<3, 3>(3, 6) + D23_d;
+        D_d_vec_[j].block<3, 3>(6, 3) = D_d_vec_[j].block<3, 3>(6, 3) + D23_d.transpose();
+      }
+      for (int j = Q_1; j <= Q_3; ++j){
         // right part: d S(R_b * P_bli_b)
         MatrixXd D23_d = - link_weight_vec_[i] * T_local_.transpose() *
           vectorToSkewMatrix(S_operation_d_vec_[j-E_R].col(i)).transpose()
@@ -399,8 +423,25 @@ namespace hydrus_dynamics{
           Jacobian_P_d_vec_[i*3+j-Q_1];
         D_d_vec_[j].block<3, 3>(6, 6) = D_d_vec_[j].block<3, 3>(6, 6) + D33_d;
       }
-
     }
+
+    // C
+    Cs_ = MatrixXd::Zero(6, 6);
+    Cs3_ = MatrixXd::Zero(6, 3);
+    for (int k = 0; k <= E_Y; ++k)
+      for (int j = 0; j <= E_Y; ++j)
+        for (int i = 0; i <= Q_3; ++i){
+          double x_d;
+          if (i < 6) x_d = x_vec_[6+i]; // d s
+          else x_d = q_vec_[3+(i-6)]; // d q
+          Cs_(k, j) = Cs_(k, j) + 0.5 * (D_d_vec_[i](k, j) + D_d_vec_[j](k, i)
+                                         + D_d_vec_[k](i, j)) * ;
+        }
+    for (int k = 0; k <= E_Y; ++k)
+      for (int j = Q_1; j <= Q_3; ++j)
+        for (int i = 0; i <= Q_3; ++i)
+          Cs3_(k, j-Q_1) = Cs_(k, j-Q_1) + 0.5 * (D_d_vec_[i](k, j) + D_d_vec_[j](k, i)
+                                         + D_d_vec_[k](i, j)) * ;
 
   }
 }
