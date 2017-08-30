@@ -101,6 +101,7 @@ namespace lqr_discrete{
     }
     Ds_ptr_ = new MatrixXd(6, 6);
     Ds3_ptr_ = new MatrixXd(6, 3);
+    Cs_ptr_ = new MatrixXd(6, 6);
 
     /* init Q and R matrice */
     *Q0_ptr_ = MatrixXd::Zero(x_size_, x_size_);
@@ -468,10 +469,15 @@ namespace lqr_discrete{
         R_link_local_vec_[i].transpose() * R_local_ptr_->transpose();
     MatrixXd D23 = MatrixXd::Zero(3, 3);
     for (int i = 0; i < n_links_; ++i)
-      D23 = D23 + T_local_ptr_->transpose() * (*R_local_ptr_) * R_link_local_vec_[i].transpose() *
-        (*I_ptr_) * R_link_local_vec_[i] * Jacobian_W_vec_[i]
+      D23 = D23 + T_local_ptr_->transpose() * (*R_local_ptr_) * R_link_local_vec_[i] *
+        (*I_ptr_) * R_link_local_vec_[i].transpose() * Jacobian_W_vec_[i]
         - link_weight_vec_[i] * T_local_ptr_->transpose() * S_operation_vec[i].transpose() *
         (*R_local_ptr_) * Jacobian_W_vec_[i];
+    MatrixXd D33 = MatrixXd::Zero(3, 3);
+    for (int i = 0; i < n_links_; ++i)
+      D33 = D33 + link_weight_vec_[i] * Jacobian_P_vec_[i].transpose() * Jacobian_P_vec_[i]
+        + Jacobian_W_vec_[i].transpose() * R_link_local_vec_[i] * (*I_ptr_) *
+        R_link_local_vec_[i].transpose() * Jacobian_W_vec_[i];
 
     Ds_ptr_->block<3, 3>(3, 0) = D12;
     Ds_ptr_->block<3, 3>(0, 3) = D12.transpose();

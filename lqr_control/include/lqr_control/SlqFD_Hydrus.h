@@ -90,6 +90,7 @@ namespace lqr_discrete{
     Matrix3d *T_local_ptr_;
     std::vector<MatrixXd> Jacobian_P_vec_;
     std::vector<MatrixXd> Jacobian_W_vec_;
+    MatrixXd *Cs_ptr_;
 
     /* Ros service */
     ros::ServiceClient dare_client_;
