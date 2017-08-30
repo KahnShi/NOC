@@ -60,6 +60,8 @@ namespace hydrus_dynamics{
       R_link_local_vec_.push_back(MatrixXd::Zero(3, 3));
       Jacobian_P_vec_.push_back(MatrixXd::Zero(3, 3));
       Jacobian_W_vec_.push_back(MatrixXd::Zero(3, 3));
+      for (int j = 0; j < 3; ++j)
+        Jacobian_P_d_vec_.push_back(MatrixXd::Zero(3, 3));
     }
     for (int i = 0; i < 6; ++i){
       S_operation_d_vec_.push_back(MatrixXd::Zero(3, 4));
@@ -171,6 +173,28 @@ namespace hydrus_dynamics{
     Jacobian_W_vec_[1](2, 0) = 1.0;
     Jacobian_W_vec_[2] = Jacobian_W_vec_[1]; Jacobian_W_vec_[2](2, 1) = 1.0;
     Jacobian_W_vec_[3] = Jacobian_W_vec_[2]; Jacobian_W_vec_[3](2, 2) = 1.0;
+    // d Jacobian_P
+      // d q1
+    Jacobian_P_d_vec_[1*3+0] << -(link_length_*cos(q1_))/2, 0, 0,
+      -(link_length_*sin(q1_))/2, 0, 0,
+      0, 0, 0;
+    Jacobian_P_d_vec_[2*3+0] << -(link_length_*(cos(q1_ + q2_) + 2*cos(q1_)))/2, -(link_length_*cos(q1_ + q2_))/2, 0,
+      -(link_length_*(sin(q1_ + q2_) + 2*sin(q1_)))/2, -(link_length_*sin(q1_ + q2_))/2, 0,
+      0,                             0, 0;
+    Jacobian_P_d_vec_[3*3+0] << -(link_length_*(cos(q1_ + q2_ + q3_) + 2*cos(q1_ + q2_) + 2*cos(q1_)))/2, -(link_length_*(cos(q1_ + q2_ + q3_) + 2*cos(q1_ + q2_)))/2, -(link_length_*cos(q1_ + q2_ + q3_))/2,
+      -(link_length_*(sin(q1_ + q2_ + q3_) + 2*sin(q1_ + q2_) + 2*sin(q1_)))/2, -(link_length_*(sin(q1_ + q2_ + q3_) + 2*sin(q1_ + q2_)))/2, -(link_length_*sin(q1_ + q2_ + q3_))/2,
+      0, 0, 0;
+      // d q2_
+    Jacobian_P_d_vec_[2*3+1] << -(link_length_*cos(q1_ + q2_))/2, -(link_length_*cos(q1_ + q2_))/2, 0,
+      -(link_length_*sin(q1_ + q2_))/2, -(link_length_*sin(q1_ + q2_))/2, 0,
+      0,                             0, 0;
+    Jacobian_P_d_vec_[3*3+1] << -(link_length_*(cos(q1_ + q2_ + q3_) + 2*cos(q1_ + q2_)))/2, -(link_length_*(cos(q1_ + q2_ + q3_) + 2*cos(q1_ + q2_)))/2, -(link_length_*cos(q1_ + q2_ + q3_))/2,
+      -(link_length_*(sin(q1_ + q2_ + q3_) + 2*sin(q1_ + q2_)))/2, -(link_length_*(sin(q1_ + q2_ + q3_) + 2*sin(q1_ + q2_)))/2, -(link_length_*sin(q1_ + q2_ + q3_))/2,
+      0, 0, 0;
+      // d q3_
+    Jacobian_P_d_vec_[3*3+2] << -(link_length_*cos(q1_ + q2_ + q3_))/2, -(link_length_*cos(q1_ + q2_ + q3_))/2, -(link_length_*cos(q1_ + q2_ + q3_))/2,
+      -(link_length_*sin(q1_ + q2_ + q3_))/2, -(link_length_*sin(q1_ + q2_ + q3_))/2, -(link_length_*sin(q1_ + q2_ + q3_))/2,
+      0, 0, 0;
 
     // S(R_b * P_bli_b)
     S_operation_result_ = MatrixXd::Zero(3, 4);
@@ -242,6 +266,20 @@ namespace hydrus_dynamics{
         D_d_vec_[j].block<3, 3>(3, 0) = D_d_vec_[j].block<3, 3>(3, 0) + D12_d.transpose();
       }
     }
+    // D13_d
+    for (int i = 0; i < n_links_; ++i){
+      for (int j = E_R; j <= E_Y; ++j){
+        MatrixXd D13_d = link_weight_vec_[i] * R_local_d_vec_[j-E_R] * Jacobian_P_vec_[i];
+        D_d_vec_[j].block<3, 3>(0, 6) = D_d_vec_[j].block<3, 3>(0, 6) + D13_d;
+        D_d_vec_[j].block<3, 3>(6, 0) = D_d_vec_[j].block<3, 3>(6, 0) + D13_d.transpose();
+      }
+      for (int j = Q_1; j <= Q3; ++j){
+        MatrixXd D13_d = link_weight_vec_[i] * R_local_ * Jacobian_P_d_vec_[i*3+j-Q_1];
+        D_d_vec_[j].block<3, 3>(0, 6) = D_d_vec_[j].block<3, 3>(0, 6) + D13_d;
+        D_d_vec_[j].block<3, 3>(6, 0) = D_d_vec_[j].block<3, 3>(6, 0) + D13_d.transpose();
+      }
+    }
+
   }
 }
 
