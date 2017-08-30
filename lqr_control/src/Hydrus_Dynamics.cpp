@@ -255,8 +255,8 @@ namespace hydrus_dynamics{
     for (int i = 0; i < n_links_; ++i)
       D23_ = D23_ + T_local_.transpose() * R_local_ * R_link_local_vec_[i] *
         Inertial_ * R_link_local_vec_[i].transpose() * Jacobian_W_vec_[i]
-        - link_weight_vec_[i] * T_local_.transpose() * S_operation_result_.col(i).transpose() *
-        R_local_ * Jacobian_W_vec_[i];
+        - link_weight_vec_[i] * T_local_.transpose() *
+        vectorToSkewMatrix(S_operation_result_.col(i)).transpose() * R_local_ * Jacobian_P_vec_[i];
     D33_ = MatrixXd::Zero(3, 3);
     for (int i = 0; i < n_links_; ++i)
       D33_ = D33_ + link_weight_vec_[i] * Jacobian_P_vec_[i].transpose() * Jacobian_P_vec_[i]
@@ -339,6 +339,46 @@ namespace hydrus_dynamics{
         D22_d = D22_d + T_local_.transpose() * R_local_ * R_link_local_vec_[i] * Inertial_ *
           R_link_local_d_vec_[3*i+j-Q_1].transpose() * R_local_.transpose() * T_local_;
         D_d_vec_[j].block<3, 3>(3, 3) = D_d_vec_[j].block<3, 3>(3, 3) + D22_d;
+      }
+    }
+    // D23_d
+    for (int i = 0; i < n_links_; ++i){
+      for (int j = E_R; j <= E_Y; ++j){
+        // left part: d T_local d R_local
+        MatrixXd D23_d = T_local_d_vec_[j-E_R].transpose() * R_local_ * R_link_local_vec_[i] *
+          Inertial_ * R_link_local_vec_[i].transpose() * Jacobian_W_vec_[i];
+        D23_d = D23_d + T_local_.transpose() * R_local_d_vec_[j-E_R] * R_link_local_vec_[i] *
+          Inertial_ * R_link_local_vec_[i].transpose() * Jacobian_W_vec_[i];
+        // right part: d T_local R_local_
+        D23_d = D23_d - link_weight_vec_[i] * T_local_d_vec_[j-E_R].transpose() *
+          vectorToSkewMatrix(S_operation_result_.col(i)).transpose() * R_local_
+          * Jacobian_P_vec_[i];
+        D23_d = D23_d - link_weight_vec_[i] * T_local_.transpose() *
+          vectorToSkewMatrix(S_operation_result_.col(i)).transpose() * R_local_d_vec_[j-E_R]
+          * Jacobian_P_vec_[i];
+        D_d_vec_[j].block<3, 3>(3, 6) = D_d_vec_[j].block<3, 3>(3, 6) + D23_d;
+        D_d_vec_[j].block<3, 3>(6, 3) = D_d_vec_[j].block<3, 3>(6, 3) + D23_d.transpose();
+      }
+      for (int j = Q_1; j <= Q_3; ++j){
+        // left part: R_link_local & R_link_local'
+        MatrixXd D23_d = T_local_.transpose() * R_local_ * R_link_local_d_vec_[3*i+j-Q_1] *
+          Inertial_ * R_link_local_vec_[i].transpose() * Jacobian_W_vec_[i];
+        D23_d = D23_d + T_local_.transpose() * R_local_ * R_link_local_vec_[i] *
+          Inertial_ * R_link_local_d_vec_[3*i+j-Q_1].transpose() * Jacobian_W_vec_[i];
+        // right part: Jacobian_P
+        D23_d = D23_d -link_weight_vec_[i] * T_local_.transpose() *
+          vectorToSkewMatrix(S_operation_result_.col(i)).transpose() * R_local_ *
+          Jacobian_P_d_vec_[i*3+j-Q_1];
+        D_d_vec_[j].block<3, 3>(3, 6) = D_d_vec_[j].block<3, 3>(3, 6) + D23_d;
+        D_d_vec_[j].block<3, 3>(6, 3) = D_d_vec_[j].block<3, 3>(6, 3) + D23_d.transpose();
+      }
+      for (int j = E_R; j <= Q_3; ++j){
+        // right part: d S(R_b * P_bli_b)
+        MatrixXd D23_d = - link_weight_vec_[i] * T_local_.transpose() *
+          vectorToSkewMatrix(S_operation_d_vec_[j-E_R].col(i)).transpose()
+          * R_local_ * Jacobian_P_vec_[i];
+        D_d_vec_[j].block<3, 3>(3, 6) = D_d_vec_[j].block<3, 3>(3, 6) + D23_d;
+        D_d_vec_[j].block<3, 3>(6, 3) = D_d_vec_[j].block<3, 3>(6, 3) + D23_d.transpose();
       }
     }
 
