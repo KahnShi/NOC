@@ -37,6 +37,7 @@
 #define HYDRUS_DYNAMICS_H
 
 #include <iostream>
+#include <vector>
 /* linear algebra */
 #include <math.h>
 #include <eigen3/Eigen/Core>
@@ -50,57 +51,79 @@ using namespace Eigen;
 namespace hydrus_dynamics{
   class HydrusDynamics{
   public:
-    HydrusDynamics(double l_length, double l_weight_1, double l_weight_2, double l_weight_3, double l_weight_4);
+    HydrusDynamics(int n_links, double l_length, std::vector<double> *link_weight_vec_ptr, MatrixXd *I_ptr);
     ~HydrusDynamics();
-    double link_length;
-    double link_weight_1;
-    double link_weight_2;
-    double link_weight_3;
-    double link_weight_4;
+    int n_links_;
+    double link_length_;
+    std::vector<double> link_weight_vec_;
+    double weight_sum_;
+    MatrixXd Inertial_;
     /* state */
-    double px;
-    double py;
-    double pz;
-    double er;
-    double ep;
-    double ey;
-    double d_px;
-    double d_py;
-    double d_pz;
-    double d_er;
-    double d_ep;
-    double d_ey;
+    double px_;
+    double py_;
+    double pz_;
+    double er_;
+    double ep_;
+    double ey_;
+    double d_px_;
+    double d_py_;
+    double d_pz_;
+    double d_er_;
+    double d_ep_;
+    double d_ey_;
     /* control */
-    double q1;
-    double q2;
-    double q3;
-    double f1;
-    double f2;
-    double f3;
-    double f4;
+    double q1_;
+    double q2_;
+    double q3_;
+    double f1_;
+    double f2_;
+    double f3_;
+    double f4_;
     /* matrix */
-    VectorXd *x_ptr_;
-    VectorXd *u_ptr_;
-    MatrixXd *Ds_ptr_;
-    MatrixXd *C_ptr_;
-    VectorXd *Bs_ptr_;
-    VectorXd *Csds_ptr_;
-    VectorXd *gs_ptr_;
-    MatrixXd *Ds3_ptr_;
-    MatrixXd *Cs3_ptr_;
-    VectorXd *dds2_ptr_;
+    VectorXd x_vec_;
+    VectorXd q_vec_;
+    VectorXd u_vec_;
+    MatrixXd Ds_;
+    MatrixXd Cs_;
+    VectorXd Bs_;
+    VectorXd Csds_;
+    VectorXd gs_;
+    MatrixXd Ds3_;
+    MatrixXd Cs3_;
+    VectorXd dds2_;
     // Ds_x Bs_x Bs_u Csds_x Csds_dx gs_x Ds3_x Cs3_x Cs3_dx
-    MatrixXd *Ds_x;
-    MatrixXd *Bs_x;
-    MatrixXd *Bs_u;
-    MatrixXd *Csds_x;
-    MatrixXd *Csds_dx;
-    MatrixXd *gs_x;
-    MatrixXd *Ds3_x;
-    MatrixXd *Cs3_x;
-    MatrixXd *Cs3_dx;
+    MatrixXd Ds_x_;
+    MatrixXd Bs_x_;
+    MatrixXd Bs_u_;
+    MatrixXd Csds_x_;
+    MatrixXd Csds_dx_;
+    MatrixXd gs_x_;
+    MatrixXd Ds3_x_;
+    MatrixXd Cs3_x_;
+    MatrixXd Cs3_dx_;
 
-    voidcalculateSkewOperation(std::vector<MatrixXd> *S_vec_ptr);
+    // mid result
+    MatrixXd R_local_;
+    std::vector<MatrixXd> R_local_d_vec_; // d er, ep, eq
+    std::vector<MatrixXd> R_link_local_vec_;
+    MatrixXd T_local_;
+    std::vector<MatrixXd> T_local_d_vec_; // d er, ep, eq
+    MatrixXd link_center_pos_local_;
+    std::vector<MatrixXd> link_center_pos_local_d_vec_; // d q1, q2, q3
+    std::vector<MatrixXd> Jacobian_P_vec_;
+    std::vector<MatrixXd> Jacobian_W_vec_;
+    MatrixXd S_operation_result_;
+    MatrixXd D11_;
+    MatrixXd D12_;
+    MatrixXd D13_;
+    MatrixXd D22_;
+    MatrixXd D23_;
+    MatrixXd D33_;
+
+    void getCurrentState(VectorXd *s, VectorXd *q);
+    MatrixXd vectorSkewToMatrix(Vector3d s);
+    void calculateSkewOperation(std::vector<MatrixXd> *S_vec_ptr);
+    void updateMatrixD();
   };
 }
 

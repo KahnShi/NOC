@@ -65,6 +65,7 @@ add_library(${PROJECT_NAME}
   src/SlqFD_Quadrotor.cpp
   src/SlqFD_Hydrus.cpp
   src/QuadrotorSimulator.cpp
+  src/Hydrus_Dynamics.cpp
   )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
