@@ -471,6 +471,10 @@ namespace lqr_discrete{
         (*I_ptr_) * R_link_local_vec_[i] * Jacobian_W_vec_[i]
         - link_weight_vec_[i] * T_local_ptr_->transpose() * S_operation_vec[i].transpose() *
         (*R_local_ptr_) * Jacobian_W_vec_[i];
+
+    Ds_ptr_->block<3, 3>(3, 0) = D12;
+    Ds_ptr_->block<3, 3>(0, 3) = D12.transpose();
+    Ds_ptr_->block<3, 3>(3, 3) = D22;
   }
 
   void SlqFiniteDiscreteControlHydrus::updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr){
