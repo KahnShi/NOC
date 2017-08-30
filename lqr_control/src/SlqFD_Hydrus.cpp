@@ -102,6 +102,7 @@ namespace lqr_discrete{
     Ds_ptr_ = new MatrixXd(6, 6);
     Ds3_ptr_ = new MatrixXd(6, 3);
     Cs_ptr_ = new MatrixXd(6, 6);
+    Cs3_ptr_ = new MatrixXd(6, 3);
 
     /* init Q and R matrice */
     *Q0_ptr_ = MatrixXd::Zero(x_size_, x_size_);
@@ -479,11 +480,34 @@ namespace lqr_discrete{
         + Jacobian_W_vec_[i].transpose() * R_link_local_vec_[i] * (*I_ptr_) *
         R_link_local_vec_[i].transpose() * Jacobian_W_vec_[i];
 
-    Ds_ptr_->block<3, 3>(3, 0) = D12;
-    Ds_ptr_->block<3, 3>(0, 3) = D12.transpose();
+    Ds_ptr_->block<3, 3>(0, 3) = D12;
+    Ds_ptr_->block<3, 3>(3, 0) = D12.transpose();
     Ds_ptr_->block<3, 3>(3, 3) = D22;
     Ds3_ptr_->block<3, 3>(0, 0) = D13;
-    Ds3_ptr_->block<3, 3>(0, 3) = D23;
+    Ds3_ptr_->block<3, 3>(3, 0) = D23;
+
+    std::vector<MatrixXd> T_local_d_vec;
+    MatrixXd T_local_d_r; T_local_d_r << 0.0, 0.0, 0.0,
+      0.0, -sin((*x_ptr)(E_R)), cos((*x_ptr)(E_P)) * cos((*x_ptr)(E_R)),
+      0.0, -cos((*x_ptr)(E_R)), -cos((*x_ptr)(E_P)) * sin((*x_ptr)(E_R));
+    T_local_d_vec.push_back(T_local_d_r);
+    MatrixXd T_local_d_p; T_local_d_p << 0.0, 0.0, -cos((*x_ptr)(E_P)),
+      0.0, 0.0, -sin((*x_ptr)(E_P)) * sin((*x_ptr)(E_R)),
+      0.0, 0.0, -sin((*x_ptr)(E_P)) * cos((*x_ptr)(E_R));
+    T_local_d_vec.push_back(T_local_d_p);
+    T_local_d_vec.push_back(MatrixXd::Zero(3, 3));
+
+    std::vector<MatrixXd> D_d_vec;
+    for (int i = 0; i < 6+3; ++i)
+      D_d_vec.push_back(MatrixXd::Zero(9, 9));
+    // D11 all 0
+    // D12
+    for (int i = 0; i < n_links_; ++i){ // d_T_local
+      for (int j = 0; j < 3; ++j){
+        MatrixXd D12_d  = -link_weight_vec_[i] * S_operation_vec[i] * T_local_d_vec[j];
+        D_d_vec[E_R + j].block<3, 3>(0, 3) = D_d_vec[E_R + j].block<3, 3>(0, 3) + D12_d;
+      }}
+    
   }
 
   void SlqFiniteDiscreteControlHydrus::updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr){
