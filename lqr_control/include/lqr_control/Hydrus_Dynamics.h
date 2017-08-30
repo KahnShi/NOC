@@ -99,8 +99,8 @@ namespace hydrus_dynamics{
     double f3_;
     double f4_;
     /* matrix */
-    VectorXd x_vec_;
-    VectorXd q_vec_;
+    VectorXd x_vec_; // size 12, s, ds
+    VectorXd q_vec_; // size 9, q, dq, ddq
     VectorXd u_vec_;
     MatrixXd Ds_;
     MatrixXd Cs_;

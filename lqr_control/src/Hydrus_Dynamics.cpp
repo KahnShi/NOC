@@ -435,13 +435,17 @@ namespace hydrus_dynamics{
           if (i < 6) x_d = x_vec_[6+i]; // d s
           else x_d = q_vec_[3+(i-6)]; // d q
           Cs_(k, j) = Cs_(k, j) + 0.5 * (D_d_vec_[i](k, j) + D_d_vec_[j](k, i)
-                                         + D_d_vec_[k](i, j)) * ;
+                                         + D_d_vec_[k](i, j)) * x_d;
         }
     for (int k = 0; k <= E_Y; ++k)
       for (int j = Q_1; j <= Q_3; ++j)
-        for (int i = 0; i <= Q_3; ++i)
+        for (int i = 0; i <= Q_3; ++i){
+          double x_d;
+          if (i < 6) x_d = x_vec_[6+i]; // d s
+          else x_d = q_vec_[3+(i-6)]; // d q
           Cs3_(k, j-Q_1) = Cs_(k, j-Q_1) + 0.5 * (D_d_vec_[i](k, j) + D_d_vec_[j](k, i)
-                                         + D_d_vec_[k](i, j)) * ;
+                                         + D_d_vec_[k](i, j)) * x_d;
+        }
 
   }
 }
