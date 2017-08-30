@@ -49,6 +49,25 @@
 using namespace Eigen;
 
 namespace hydrus_dynamics{
+  #define P_X 0
+  #define P_Y 1
+  #define P_Z 2
+  #define E_R 3
+  #define E_P 4
+  #define E_Y 5
+  #define V_X 6
+  #define V_Y 7
+  #define V_Z 8
+  #define W_X 9
+  #define W_Y 10
+  #define W_Z 11
+  #define Q_1 6
+  #define Q_2 7
+  #define Q_3 8
+  #define U_1 0
+  #define U_2 1
+  #define U_3 2
+  #define U_4 3
   class HydrusDynamics{
   public:
     HydrusDynamics(int n_links, double l_length, std::vector<double> *link_weight_vec_ptr, MatrixXd *I_ptr);
@@ -113,16 +132,17 @@ namespace hydrus_dynamics{
     std::vector<MatrixXd> Jacobian_P_vec_;
     std::vector<MatrixXd> Jacobian_W_vec_;
     MatrixXd S_operation_result_;
+    std::vector<MatrixXd> S_operation_d_vec_; // d er, ep, eq, q1, q2, q3
     MatrixXd D11_;
     MatrixXd D12_;
     MatrixXd D13_;
     MatrixXd D22_;
     MatrixXd D23_;
     MatrixXd D33_;
+    std::vector<MatrixXd> D_d_vec_;
 
     void getCurrentState(VectorXd *s, VectorXd *q);
     MatrixXd vectorSkewToMatrix(Vector3d s);
-    void calculateSkewOperation(std::vector<MatrixXd> *S_vec_ptr);
     void updateMatrixD();
   };
 }

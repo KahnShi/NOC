@@ -61,6 +61,12 @@ namespace hydrus_dynamics{
       Jacobian_P_vec_.push_back(MatrixXd::Zero(3, 3));
       Jacobian_W_vec_.push_back(MatrixXd::Zero(3, 3));
     }
+    for (int i = 0; i < 6; ++i){
+      S_operation_d_vec_.push_back(MatrixXd::Zero(3, 4));
+    }
+    for (int i = 0; i < 12; ++i){
+      D_d_vec_.push_back(MatrixXd::Zero(9, 9));
+    }
   }
 
   HydrusDynamics::~HydrusDynamics(){
@@ -169,6 +175,11 @@ namespace hydrus_dynamics{
     // S(R_b * P_bli_b)
     S_operation_result_ = MatrixXd::Zero(3, 4);
     S_operation_result_ = R_local_ * link_center_pos_local_;
+    // d S(R_b * P_bli_b)
+    for (int i = 0; i < 3; ++i) // d er,ep,ey
+      S_operation_d_vec_[i] = R_local_d_vec_[i] * link_center_pos_local_;
+    for (int i = 0; i < 3; ++i) // d q1_,q2_,q3_
+      S_operation_d_vec_[i+3] = R_local_ * link_center_pos_local_d_vec_[i];
   }
 
   MatrixXd HydrusDynamics::vectorSkewToMatrix(Vector3d s){
@@ -213,13 +224,24 @@ namespace hydrus_dynamics{
     Ds_.block<3, 3>(3, 3) = D22_;
     Ds3_.block<3, 3>(0, 0) = D13_;
     Ds3_.block<3, 3>(3, 0) = D23_;
-  }
 
-  void HydrusDynamics::calculateSkewOperation(std::vector<MatrixXd> *S_vec_ptr){
-    for (int i = 0; i < 3; ++i) // d er,ep,ey
-      S_vec_ptr->push_back(R_local_d_vec_[i] * link_center_pos_local_);
-    for (int i = 0; i < 3; ++i) // d q1_,q2_,q3_
-      S_vec_ptr->push_back(R_local_ * link_center_pos_local_d_vec_[i]);
+    // D_d
+    for (int i = 0; i < 12; ++i) // init
+      D_d_vec_[i] = MatrixXd::Zero(9, 9);
+    // D12_d
+    for (int i = 0; i < n_links_; ++i){
+      for (int j = E_R; j <= E_Y; ++j){
+        MatrixXd D12_d = -link_weight_vec_[i] * S_operation_result_.col(i)
+          * T_local_d_vec_[j - E_R];
+        D_d_vec_[j].block<3, 3>(0, 3) = D_d_vec_[j].block<3, 3>(0, 3) + D12_d;
+        D_d_vec_[j].block<3, 3>(3, 0) = D_d_vec_[j].block<3, 3>(3, 0) + D12_d.transpose();
+      }
+      for (int j = E_R; j <= Q_3; ++j){
+        MatrixXd D12_d = -link_weight_vec_[i] * S_operation_d_vec_[j-E_R].col(i) * T_local_;
+        D_d_vec_[j].block<3, 3>(0, 3) = D_d_vec_[j].block<3, 3>(0, 3) + D12_d;
+        D_d_vec_[j].block<3, 3>(3, 0) = D_d_vec_[j].block<3, 3>(3, 0) + D12_d.transpose();
+      }
+    }
   }
 }
 
