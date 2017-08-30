@@ -381,6 +381,26 @@ namespace hydrus_dynamics{
         D_d_vec_[j].block<3, 3>(6, 3) = D_d_vec_[j].block<3, 3>(6, 3) + D23_d.transpose();
       }
     }
+    // D33_d
+    for (int i = 0; i < n_links_; ++i){
+      for (int j = E_R; j <= E_Y; ++j){
+        // right part: d R_link_local
+        MatrixXd D33_d = Jacobian_W_vec_[i].transpose() * R_link_local_d_vec_[3*i+j-Q_1] *
+          Inertial_ * R_link_local_vec_[i].transpose() * Jacobian_W_vec_[i];
+        D33_d = D33_d + Jacobian_W_vec_[i].transpose() * R_link_local_vec_[i] * Inertial_ *
+          R_link_local_d_vec_[3*i+j-Q_1].transpose() * Jacobian_W_vec_[i];
+        D_d_vec_[j].block<3, 3>(6, 6) = D_d_vec_[j].block<3, 3>(6, 6) + D33_d;
+      }
+      for (int j = Q_1; j <= Q_3; ++j){
+        // left part: d Jacobian_P
+        MatrixXd D33_d = link_weight_vec_[i] * Jacobian_P_d_vec_[i*3+j-Q_1].transpose() *
+          Jacobian_P_vec_[i];
+        D33_d = D33_d + link_weight_vec_[i] * Jacobian_P_vec_[i].transpose() *
+          Jacobian_P_d_vec_[i*3+j-Q_1];
+        D_d_vec_[j].block<3, 3>(6, 6) = D_d_vec_[j].block<3, 3>(6, 6) + D33_d;
+      }
+
+    }
 
   }
 }
