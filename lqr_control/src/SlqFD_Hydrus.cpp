@@ -82,7 +82,6 @@ namespace lqr_discrete{
     *xn_ptr_ = (*waypoints_ptr)[waypoints_ptr->size() - 1];
 
     /* Hydrus */
-    Ds_ptr_ = new MatrixXd(x_size_, x_size_);
     n_links_ = 4;
     link_length_ = 0.44;
     for (int i = 0; i < n_links_; ++i)
@@ -100,6 +99,8 @@ namespace lqr_discrete{
       Jacobian_P_vec_.push_back(MatrixXd(3, n_links_-1));
       Jacobian_W_vec_.push_back(MatrixXd(3, n_links_-1));
     }
+    Ds_ptr_ = new MatrixXd(6, 6);
+    Ds3_ptr_ = new MatrixXd(6, 3);
 
     /* init Q and R matrice */
     *Q0_ptr_ = MatrixXd::Zero(x_size_, x_size_);
@@ -475,6 +476,8 @@ namespace lqr_discrete{
     Ds_ptr_->block<3, 3>(3, 0) = D12;
     Ds_ptr_->block<3, 3>(0, 3) = D12.transpose();
     Ds_ptr_->block<3, 3>(3, 3) = D22;
+    Ds3_ptr_->block<3, 3>(0, 0) = D13;
+    Ds3_ptr_->block<3, 3>(0, 3) = D23;
   }
 
   void SlqFiniteDiscreteControlHydrus::updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr){

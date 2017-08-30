@@ -77,7 +77,6 @@ namespace lqr_discrete{
     LqrFiniteDiscreteControlQuadrotor *lqr_controller_ptr_;
 
     /* Hydrus */
-    MatrixXd *Ds_ptr_;
     double link_length_;
     std::vector<double> link_weight_vec_;
     Matrix3d *R_local_ptr_;
@@ -86,6 +85,8 @@ namespace lqr_discrete{
     int n_links_;
     std::vector<Vector3d> link_end_pos_local_vec_;
     std::vector<Vector3d> link_center_pos_local_vec_;
+    MatrixXd *Ds_ptr_;
+    MatrixXd *Ds3_ptr_;
     Matrix3d *T_local_ptr_;
     std::vector<MatrixXd> Jacobian_P_vec_;
     std::vector<MatrixXd> Jacobian_W_vec_;
