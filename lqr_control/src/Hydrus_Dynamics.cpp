@@ -521,6 +521,19 @@ namespace hydrus_dynamics{
           gs_x_(j, k) = gs_x_(j, k) + mid_result.dot(R_local_dd_vec_[3*(j-E_R)+k-E_R]
                                                      * link_center_pos_local_.col(i));
     }
+    // Bs
+    Bs_ = VectorXd::Zero(6);
+    double f_sum = 0;
+    for (int i = 0; i < 4; ++i)
+      f_sum += u_vec_(i);
+    VectorXd Bs_f = R_local_ * Vector3d(0, 0, f_sum);
+    VectorXd Bs_m = VectorXd::Zero(3);
+    for (int i = 0; i < n_links_; ++i){
+      Vector3d p_lci_b(link_center_pos_local_.col(i)(0), link_center_pos_local_.col(i)(1),
+                       link_center_pos_local_.col(i)(2));
+      Bs_m = Bs_m + p_lci_b.cross(Vector3d(0, 0, u_vec_(i)));
+    }
+    Bs_m = T_local_.transpose() * R_local_ * Bs_m;
   }
 }
 
