@@ -137,6 +137,7 @@ namespace hydrus_dynamics{
     std::vector<MatrixXd> link_center_pos_local_ddx_vec_; // d q1, q2, q3
     std::vector<MatrixXd> Jacobian_P_vec_;
     std::vector<MatrixXd> Jacobian_P_dq_vec_; // (JacoP[0] d q1, q2, q3), ..., (JacoP[3] d q1, q2, q3)
+    std::vector<MatrixXd> Jacobian_P_ddq_vec_; // (JacoP[0] d q1, q2, q3), ..., (JacoP[3] d q1, q2, q3)
     std::vector<MatrixXd> Jacobian_W_vec_;
     MatrixXd S_operation_result_;
     std::vector<MatrixXd> S_operation_dx_vec_; // d er, ep, eq, q1, q2, q3
