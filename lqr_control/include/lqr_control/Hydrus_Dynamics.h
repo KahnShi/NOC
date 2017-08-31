@@ -148,6 +148,7 @@ namespace hydrus_dynamics{
     MatrixXd D23_;
     MatrixXd D33_;
     std::vector<MatrixXd> D_dx_vec_;
+    std::vector<MatrixXd> D_ddx_vec_;
 
     VectorXd getStateDerivative();
     void getCurrentState(VectorXd *s, VectorXd *q);
