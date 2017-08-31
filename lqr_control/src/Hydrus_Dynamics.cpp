@@ -526,14 +526,18 @@ namespace hydrus_dynamics{
     double f_sum = 0;
     for (int i = 0; i < 4; ++i)
       f_sum += u_vec_(i);
-    VectorXd Bs_f = R_local_ * Vector3d(0, 0, f_sum);
-    VectorXd Bs_m = VectorXd::Zero(3);
+    VectorXd Bs_f = R_local_ * Vector3d(0, 0, f_sum); // force
+    VectorXd Bs_tau = VectorXd::Zero(3); // torque
     for (int i = 0; i < n_links_; ++i){
       Vector3d p_lci_b(link_center_pos_local_.col(i)(0), link_center_pos_local_.col(i)(1),
                        link_center_pos_local_.col(i)(2));
-      Bs_m = Bs_m + p_lci_b.cross(Vector3d(0, 0, u_vec_(i)));
+      Bs_tau = Bs_tau + p_lci_b.cross(Vector3d(0, 0, u_vec_(i)));
     }
-    Bs_m = T_local_.transpose() * R_local_ * Bs_m;
+    Bs_tau = T_local_.transpose() * R_local_ * Bs_tau;
+    for (int i = 0; i < 3; ++i){
+      Bs_(i) = Bs_f(i);
+      Bs_(i+3) = Bs_tau(i);
+    }
   }
 }
 
