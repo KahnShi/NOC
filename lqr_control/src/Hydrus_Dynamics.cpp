@@ -55,6 +55,9 @@ namespace hydrus_dynamics{
       R_local_d_vec_.push_back(MatrixXd::Zero(3, 3));
       T_local_d_vec_.push_back(MatrixXd::Zero(3, 3));
       link_center_pos_local_d_vec_.push_back(MatrixXd::Zero(3, 4));
+      for (int j = 0; j < 3; ++j){
+        R_local_dd_vec_.push_back(MatrixXd::Zero(3, 3));
+      }
     }
     for (int i = 0; i < 4; ++i){
       R_link_local_vec_.push_back(MatrixXd::Zero(3, 3));
@@ -101,21 +104,47 @@ namespace hydrus_dynamics{
     R_local_ << cos(ep_)*cos(ey_), cos(ey_)*sin(ep_)*sin(er_) - cos(er_)*sin(ey_), sin(er_)*sin(ey_) + cos(er_)*cos(ey_)*sin(ep_),
       cos(ep_)*sin(ey_), cos(er_)*cos(ey_) + sin(ep_)*sin(er_)*sin(ey_), cos(er_)*sin(ep_)*sin(ey_) - cos(ey_)*sin(er_),
       -sin(ep_), cos(ey_)*sin(er_), cos(er_)*cos(ey_);
-    MatrixXd rot_d = MatrixXd::Zero(3, 3); // d er, ep_, ey
-    rot_d << 0, sin(er_)*sin(ey_) + cos(er_)*cos(ey_)*sin(ep_),   cos(er_)*sin(ey_) - cos(ey_)*sin(ep_)*sin(er_),
+    // d er, ep_, ey
+    R_local_d_vec_[0] << 0, sin(er_)*sin(ey_) + cos(er_)*cos(ey_)*sin(ep_),   cos(er_)*sin(ey_) - cos(ey_)*sin(ep_)*sin(er_),
       0, cos(er_)*sin(ep_)*sin(ey_) - cos(ey_)*sin(er_), - cos(er_)*cos(ey_) - sin(ep_)*sin(er_)*sin(ey_),
       0, cos(er_)*cos(ey_), -cos(ey_)*sin(er_);
-    R_local_d_vec_[0] = rot_d;
 
-    rot_d << -cos(ey_)*sin(ep_), cos(ep_)*cos(ey_)*sin(er_), cos(ep_)*cos(er_)*cos(ey_),
+    R_local_d_vec_[1] << -cos(ey_)*sin(ep_), cos(ep_)*cos(ey_)*sin(er_), cos(ep_)*cos(er_)*cos(ey_),
       -sin(ep_)*sin(ey_), cos(ep_)*sin(er_)*sin(ey_), cos(ep_)*cos(er_)*sin(ey_),
       -cos(ep_), 0, 0;
-    R_local_d_vec_[1] = rot_d;
 
-    rot_d << -cos(ep_)*sin(ey_), - cos(er_)*cos(ey_) - sin(ep_)*sin(er_)*sin(ey_), cos(ey_)*sin(er_) - cos(er_)*sin(ep_)*sin(ey_),
+    R_local_d_vec_[2] << -cos(ep_)*sin(ey_), - cos(er_)*cos(ey_) - sin(ep_)*sin(er_)*sin(ey_), cos(ey_)*sin(er_) - cos(er_)*sin(ep_)*sin(ey_),
       cos(ep_)*cos(ey_),   cos(ey_)*sin(ep_)*sin(er_) - cos(er_)*sin(ey_), sin(er_)*sin(ey_) + cos(er_)*cos(ey_)*sin(ep_),
       0, -sin(er_)*sin(ey_), -cos(er_)*sin(ey_);
-    R_local_d_vec_[2] = rot_d;
+
+    // dd er, ep, ey
+    R_local_dd_vec_[0] << 0,   cos(er_)*sin(ey_) - cos(ey_)*sin(ep_)*sin(er_), - sin(er_)*sin(ey_) - cos(er_)*cos(ey_)*sin(ep_),
+      0, - cos(er_)*cos(ey_) - sin(ep_)*sin(er_)*sin(ey_),   cos(ey_)*sin(er_) - cos(er_)*sin(ep_)*sin(ey_),
+      0,                            -cos(ey_)*sin(er_),                            -cos(er_)*cos(ey_);
+    R_local_dd_vec_[1] << 0, cos(ep_)*cos(er_)*cos(ey_), -cos(ep_)*cos(ey_)*sin(er_),
+      0, cos(ep_)*cos(er_)*sin(ey_), -cos(ep_)*sin(er_)*sin(ey_),
+      0,                       0,                        0;
+    R_local_dd_vec_[2] << 0, cos(ey_)*sin(er_) - cos(er_)*sin(ep_)*sin(ey_), cos(er_)*cos(ey_) + sin(ep_)*sin(er_)*sin(ey_),
+      0, sin(er_)*sin(ey_) + cos(er_)*cos(ey_)*sin(ep_), cos(er_)*sin(ey_) - cos(ey_)*sin(ep_)*sin(er_),
+      0,                          -cos(er_)*sin(ey_),                           sin(er_)*sin(ey_);
+    R_local_dd_vec_[3] << 0, cos(ep_)*cos(er_)*cos(ey_), -cos(ep_)*cos(ey_)*sin(er_),
+      0, cos(ep_)*cos(er_)*sin(ey_), -cos(ep_)*sin(er_)*sin(ey_),
+      0,                       0,                        0;
+    R_local_dd_vec_[4] << -cos(ep_)*cos(ey_), -cos(ey_)*sin(ep_)*sin(er_), -cos(er_)*cos(ey_)*sin(ep_),
+      -cos(ep_)*sin(ey_), -sin(ep_)*sin(er_)*sin(ey_), -cos(er_)*sin(ep_)*sin(ey_),
+      sin(ep_),                        0,                        0;
+    R_local_dd_vec_[5] << sin(ep_)*sin(ey_), -cos(ep_)*sin(er_)*sin(ey_), -cos(ep_)*cos(er_)*sin(ey_),
+      -cos(ey_)*sin(ep_),  cos(ep_)*cos(ey_)*sin(er_),  cos(ep_)*cos(er_)*cos(ey_),
+      0,                        0,                        0;
+    R_local_dd_vec_[6] << 0, cos(ey_)*sin(er_) - cos(er_)*sin(ep_)*sin(ey_), cos(er_)*cos(ey_) + sin(ep_)*sin(er_)*sin(ey_),
+      0, sin(er_)*sin(ey_) + cos(er_)*cos(ey_)*sin(ep_), cos(er_)*sin(ey_) - cos(ey_)*sin(ep_)*sin(er_),
+      0,                          -cos(er_)*sin(ey_),                           sin(er_)*sin(ey_);
+    R_local_dd_vec_[7] << sin(ep_)*sin(ey_), -cos(ep_)*sin(er_)*sin(ey_), -cos(ep_)*cos(er_)*sin(ey_),
+      -cos(ey_)*sin(ep_),  cos(ep_)*cos(ey_)*sin(er_),  cos(ep_)*cos(er_)*cos(ey_),
+      0,                        0,                        0;
+    R_local_dd_vec_[8] << -cos(ep_)*cos(ey_),   cos(er_)*sin(ey_) - cos(ey_)*sin(ep_)*sin(er_), - sin(er_)*sin(ey_) - cos(er_)*cos(ey_)*sin(ep_),
+      -cos(ep_)*sin(ey_), - cos(er_)*cos(ey_) - sin(ep_)*sin(er_)*sin(ey_),   cos(ey_)*sin(er_) - cos(er_)*sin(ep_)*sin(ey_),
+      0,                            -cos(ey_)*sin(er_),                            -cos(er_)*cos(ey_);
 
     // R_link_local_vec_
     R_link_local_vec_[0] = MatrixXd::Identity(3, 3);
@@ -449,8 +478,8 @@ namespace hydrus_dynamics{
     // gs
     gs_ = VectorXd::Zero(6);
     for (int i = 0; i < n_links_; ++i){
-      // P_X P_Y P_Z
       Vector3d mid_result = link_weight_vec_[i] * 9.78 * Vector3d(0, 0, 1.0);
+      // P_X P_Y P_Z
       gs_(P_X) = gs_(P_X) + mid_result.dot(Vector3d(1.0, 0, 0));
       gs_(P_Y) = gs_(P_Y) + mid_result.dot(Vector3d(0, 1.0, 0));
       gs_(P_Z) = gs_(P_Z) + mid_result.dot(Vector3d(0, 0, 1.0));
@@ -462,6 +491,16 @@ namespace hydrus_dynamics{
       //   for (int j = Q_1; j <= Q_3; ++j)
       //     gs_(j) = gs_(j) + mid_result.dot(R_local_
       //                                      * link_center_pos_local_d_vec_[j-Q_1].col(i));
+    }
+
+    gs_x_ = MatrixXd::Zero(6, 12);
+    for (int i = 0; i < n_links_; ++i){
+      Vector3d mid_result = link_weight_vec_[i] * 9.78 * Vector3d(0, 0, 1.0);
+      // dd E_R E_P E_Y
+      for (int j = E_R; j <= E_Y; ++j)
+        for (int k = E_R; k <= E_Y; ++k)
+          gs_x_(j, k) = gs_x_(j, k) + mid_result.dot(R_local_dd_vec_[3*(j-E_R)+k-E_R]
+                                                     * link_center_pos_local_.col(i));
     }
   }
 }
