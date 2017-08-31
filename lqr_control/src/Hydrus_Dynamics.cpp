@@ -54,10 +54,12 @@ namespace hydrus_dynamics{
     for (int i = 0; i < 3; ++i){
       R_local_d_vec_.push_back(MatrixXd::Zero(3, 3));
       T_local_d_vec_.push_back(MatrixXd::Zero(3, 3));
+      Q_local_d_vec_.push_back(MatrixXd::Zero(3, 3));
       link_center_pos_local_d_vec_.push_back(MatrixXd::Zero(3, 4));
       for (int j = 0; j < 3; ++j){
         R_local_dd_vec_.push_back(MatrixXd::Zero(3, 3));
       }
+      Bs_dx_vec_.push_back(VectorXd::Zero(3));
     }
     for (int i = 0; i < 4; ++i){
       R_link_local_vec_.push_back(MatrixXd::Zero(3, 3));
@@ -208,8 +210,11 @@ namespace hydrus_dynamics{
     T_d = MatrixXd::Zero(3, 3);
     T_local_d_vec_[2] = T_d;
 
-    // Q_local
+    // Q_local and its derivative
     Q_local_ = R_local_.transpose() * T_local_;
+    for (int i = 0; i < 3; ++i)
+      Q_local_d_vec_[i] = R_link_local_d_vec_[i].transpose() * T_local_
+        + R_local_.transpose() * T_local_d_vec_[i];
 
     // link_center and its derivative
     link_center_pos_local_ << link_length_/2, link_length_ + (link_length_*cos(q1_))/2, link_length_ + (link_length_*cos(q1_ + q2_))/2 + link_length_*cos(q1_), link_length_ + link_length_*cos(q1_ + q2_) + link_length_*cos(q1_) + (link_length_*cos(q1_ + q2_ + q3_))/2,
@@ -530,26 +535,34 @@ namespace hydrus_dynamics{
     double f_sum = 0;
     for (int i = 0; i < 4; ++i)
       f_sum += u_vec_(i);
-    VectorXd Bs_f = R_local_ * Vector3d(0, 0, f_sum); // force
+    Bs_.head(3) = R_local_ * Vector3d(0, 0, f_sum); // force
     VectorXd Bs_tau = VectorXd::Zero(3); // torque
     for (int i = 0; i < n_links_; ++i){
       Vector3d p_lci_b(link_center_pos_local_.col(i)(0), link_center_pos_local_.col(i)(1),
                        link_center_pos_local_.col(i)(2));
-      Bs_tau = Bs_tau + p_lci_b.cross(Vector3d(0, 0, u_vec_(i)));
+      Bs_.tail(3) = Bs_.tail(3) + p_lci_b.cross(Vector3d(0, 0, u_vec_(i)));
     }
-    Bs_tau = Q_local_.transpose() * Bs_tau;
-    for (int i = 0; i < 3; ++i){
-      Bs_(i) = Bs_f(i);
-      Bs_(i+3) = Bs_tau(i);
-    }
+    Bs_.tail(3) = Q_local_.transpose() * Bs_.tail(3);
     // Bs_du
     VectorXd Bs_du = R_local_ * Vector3d(0, 0, 1.0);
     for (int i = 0; i < 4; ++i)
-      Bs_du_vec_[i].head(3) = Bs_du.head(3);
+      Bs_du_vec_[i].head(3) = Bs_du;
     for (int i = 0; i < n_links_; ++i){
       Vector3d p_lci_b(link_center_pos_local_.col(i)(0), link_center_pos_local_.col(i)(1),
                        link_center_pos_local_.col(i)(2));
       Bs_du_vec_[i].tail(3) = Q_local_.transpose() * p_lci_b.cross(Vector3d(0, 0, 1));
+    }
+    // Bs_dx
+    for (int i = 0; i < 3; ++i)
+      Bs_dx_vec_[i] = VectorXd::Zero(6);
+    for (int i = E_R; i <= E_Y; ++i)
+      Bs_dx_vec_[i-E_R].head(3) = R_local_d_vec_[i-E_R] * Vector3d(0, 0, f_sum);
+    for (int i = 0; i < n_links_; ++i){
+      Vector3d p_lci_b(link_center_pos_local_.col(i)(0), link_center_pos_local_.col(i)(1),
+                       link_center_pos_local_.col(i)(2));
+      for (int j = E_R; j <= E_Y; ++j)
+        Bs_dx_vec_[j-E_R].tail(3) = Bs_dx_vec_[j-E_R].tail(3) +
+          Q_local_d_vec_[j-E_R].transpose() * p_lci_b.cross(Vector3d(0, 0, u_vec_(i)));
     }
   }
 }
