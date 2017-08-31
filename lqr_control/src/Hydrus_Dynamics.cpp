@@ -305,11 +305,11 @@ namespace hydrus_dynamics{
       D22_ = D22_ + link_weight_vec_[i] * T_local_.transpose() *
         vectorToSkewMatrix(S_operation_result_.col(i)).transpose() *
         vectorToSkewMatrix(S_operation_result_.col(i)) * T_local_
-        + T_local_.transpose() * R_local_ * R_link_local_vec_[i] * Inertial_ *
-        R_link_local_vec_[i].transpose() * R_local_.transpose() * T_local_;
+        + Q_local_.transpose() * R_link_local_vec_[i] * Inertial_ *
+        R_link_local_vec_[i].transpose() * Q_local_;
     D23_ = MatrixXd::Zero(3, 3);
     for (int i = 0; i < n_links_; ++i)
-      D23_ = D23_ + T_local_.transpose() * R_local_ * R_link_local_vec_[i] *
+      D23_ = D23_ + Q_local_.transpose() * R_link_local_vec_[i] *
         Inertial_ * R_link_local_vec_[i].transpose() * Jacobian_W_vec_[i]
         - link_weight_vec_[i] * T_local_.transpose() *
         vectorToSkewMatrix(S_operation_result_.col(i)).transpose() * R_local_ * Jacobian_P_vec_[i];
@@ -375,14 +375,10 @@ namespace hydrus_dynamics{
           vectorToSkewMatrix(S_operation_result_.col(i)) *
           T_local_dx_vec_[j-E_R];
         // right part: d T_local, d R_local and their transpose
-        D22_d = D22_d + T_local_dx_vec_[j-E_R].transpose() * R_local_ * R_link_local_vec_[i] *
-          Inertial_ * R_link_local_vec_[i].transpose() * R_local_.transpose() * T_local_;
-        D22_d = D22_d + T_local_.transpose() * R_local_ * R_link_local_vec_[i] * Inertial_ *
-          R_link_local_vec_[i].transpose() * R_local_.transpose() * T_local_dx_vec_[j-E_R];
-        D22_d = D22_d + T_local_.transpose() * R_local_dx_vec_[j-E_R] *R_link_local_vec_[i] *
-          Inertial_ * R_link_local_vec_[i].transpose() * R_local_.transpose() * T_local_;
-        D22_d = D22_d + T_local_.transpose() * R_local_ * R_link_local_vec_[i] * Inertial_ *
-          R_link_local_vec_[i].transpose() * R_local_dx_vec_[j-E_R].transpose() * T_local_;
+        D22_d = D22_d + Q_local_dx_vec_[j-E_R].transpose() * R_link_local_vec_[i] *
+          Inertial_ * R_link_local_vec_[i].transpose() * Q_local_;
+        D22_d = D22_d + Q_local_.transpose() * R_link_local_vec_[i] * Inertial_ *
+          R_link_local_vec_[i].transpose() * Q_local_dx_vec_[j-E_R];
         D_dx_vec_[j].block<3, 3>(3, 3) = D_dx_vec_[j].block<3, 3>(3, 3) + D22_d;
       }
       for (int j = E_R; j <= E_Y; ++j){
@@ -417,10 +413,8 @@ namespace hydrus_dynamics{
     // D23_d
     for (int i = 0; i < n_links_; ++i){
       for (int j = E_R; j <= E_Y; ++j){
-        // left part: d T_local d R_local
-        MatrixXd D23_d = T_local_dx_vec_[j-E_R].transpose() * R_local_ * R_link_local_vec_[i] *
-          Inertial_ * R_link_local_vec_[i].transpose() * Jacobian_W_vec_[i];
-        D23_d = D23_d + T_local_.transpose() * R_local_dx_vec_[j-E_R] * R_link_local_vec_[i] *
+        // left part: d Q_local
+        MatrixXd D23_d = Q_local_dx_vec_[j-E_R].transpose() * R_link_local_vec_[i] *
           Inertial_ * R_link_local_vec_[i].transpose() * Jacobian_W_vec_[i];
         // right part: d T_local R_local_
         D23_d = D23_d - link_weight_vec_[i] * T_local_dx_vec_[j-E_R].transpose() *
