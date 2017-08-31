@@ -58,6 +58,7 @@ namespace hydrus_dynamics{
       link_center_pos_local_dx_vec_.push_back(MatrixXd::Zero(3, 4));
       for (int j = 0; j < 3; ++j){
         R_local_ddx_vec_.push_back(MatrixXd::Zero(3, 3));
+        T_local_ddx_vec_.push_back(MatrixXd::Zero(3, 3));
       }
       Bs_dx_vec_.push_back(VectorXd::Zero(3));
     }
@@ -168,6 +169,20 @@ namespace hydrus_dynamics{
     R_local_ddx_vec_[8] << -cos(ep_)*cos(ey_),   cos(er_)*sin(ey_) - cos(ey_)*sin(ep_)*sin(er_), - sin(er_)*sin(ey_) - cos(er_)*cos(ey_)*sin(ep_),
       -cos(ep_)*sin(ey_), - cos(er_)*cos(ey_) - sin(ep_)*sin(er_)*sin(ey_),   cos(ey_)*sin(er_) - cos(er_)*sin(ep_)*sin(ey_),
       0,                            -cos(ey_)*sin(er_),                            -cos(er_)*cos(ey_);
+    // T_local_ddx
+    T_local_ddx_vec_[0] << 0,        0,                0,
+      0, -cos(er_), -cos(ep_)*sin(er_),
+      0,  sin(er_), -cos(ep_)*cos(er_);
+    T_local_ddx_vec_[1] << 0, 0,                0,
+      0, 0, -cos(er_)*sin(ep_),
+      0, 0,  sin(ep_)*sin(er_);
+    T_local_ddx_vec_[3] << 0, 0,                0,
+      0, 0, -cos(er_)*sin(ep_),
+      0, 0,  sin(ep_)*sin(er_);
+    T_local_ddx_vec_[4] << 0, 0,          sin(ep_),
+      0, 0, -cos(ep_)*sin(er_),
+      0, 0, -cos(ep_)*cos(er_);
+    // T_local_ddx_vec: all 0 index: 2, 5, 6-8
 
     // R_link_local_vec_
     R_link_local_vec_[0] = MatrixXd::Identity(3, 3);

@@ -112,6 +112,7 @@ namespace hydrus_dynamics{
     VectorXd dds2_;
     // Ds_x Bs_x Bs_u Cs_x Cs_dx gs_x Ds3_x Cs3_x Cs3_dx
     std::vector<MatrixXd> Ds_dx_vec_;
+    std::vector<MatrixXd> Ds_diikdx_vec_;
     std::vector<MatrixXd> Cs_dx_vec_; // d x
     std::vector<MatrixXd> Cs3_dx_vec_; // d x
     std::vector<MatrixXd> Cs_ddx_vec_; // d (dx)
@@ -128,6 +129,7 @@ namespace hydrus_dynamics{
     std::vector<MatrixXd> R_link_local_dx_vec_; // (d R_l0 er, ep, eq), ..., (d R_l3 er, ep, eq)
     MatrixXd T_local_;
     std::vector<MatrixXd> T_local_dx_vec_; // d er, ep, eq
+    std::vector<MatrixXd> T_local_ddx_vec_; // d er, ep, eq
     MatrixXd Q_local_;
     std::vector<MatrixXd> Q_local_dx_vec_; // d er, ep, eq
     MatrixXd link_center_pos_local_;
