@@ -116,7 +116,7 @@ namespace hydrus_dynamics{
     MatrixXd Bs_u_;
     MatrixXd Csds_x_;
     MatrixXd Csds_dx_;
-    MatrixXd gs_x_;
+    MatrixXd gs_x_; // d px py pz er ep ey q1 q2 q3
     MatrixXd Ds3_x_;
     MatrixXd Cs3_x_;
     MatrixXd Cs3_dx_;

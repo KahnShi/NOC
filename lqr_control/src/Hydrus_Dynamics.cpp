@@ -446,7 +446,23 @@ namespace hydrus_dynamics{
           Cs3_(k, j-Q_1) = Cs_(k, j-Q_1) + 0.5 * (D_d_vec_[i](k, j) + D_d_vec_[j](k, i)
                                          + D_d_vec_[k](i, j)) * x_d;
         }
-
+    // gs
+    gs_ = VectorXd::Zero(6);
+    for (int i = 0; i < n_links_; ++i){
+      // P_X P_Y P_Z
+      Vector3d mid_result = link_weight_vec_[i] * 9.78 * Vector3d(0, 0, 1.0);
+      gs_(P_X) = gs_(P_X) + mid_result.dot(Vector3d(1.0, 0, 0));
+      gs_(P_Y) = gs_(P_Y) + mid_result.dot(Vector3d(0, 1.0, 0));
+      gs_(P_Z) = gs_(P_Z) + mid_result.dot(Vector3d(0, 0, 1.0));
+      // E_R E_P E_Y
+      for (int j = E_R; j <= E_Y; ++j)
+        gs_(j) = gs_(j) + mid_result.dot(R_local_d_vec_[j-E_R]
+                                         * link_center_pos_local_.col(i));
+      // Q_1 Q_2 Q_3. do not have for simplified state
+      //   for (int j = Q_1; j <= Q_3; ++j)
+      //     gs_(j) = gs_(j) + mid_result.dot(R_local_
+      //                                      * link_center_pos_local_d_vec_[j-Q_1].col(i));
+    }
   }
 }
 
