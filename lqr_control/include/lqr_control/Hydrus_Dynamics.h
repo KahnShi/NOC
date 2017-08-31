@@ -103,6 +103,7 @@ namespace hydrus_dynamics{
     VectorXd q_vec_; // size 9, q, dq, ddq
     VectorXd u_vec_;
     MatrixXd Ds_;
+    MatrixXd Ds_inv_;
     MatrixXd Cs_;
     VectorXd Bs_;
     VectorXd Csds_;
@@ -144,6 +145,7 @@ namespace hydrus_dynamics{
     MatrixXd D33_;
     std::vector<MatrixXd> D_d_vec_;
 
+    VectorXd getStateDerivative();
     void getCurrentState(VectorXd *s, VectorXd *q);
     MatrixXd vectorToSkewMatrix(VectorXd s);
     void updateMatrixD();

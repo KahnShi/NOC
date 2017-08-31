@@ -79,6 +79,24 @@ namespace hydrus_dynamics{
   HydrusDynamics::~HydrusDynamics(){
   }
 
+  VectorXd HydrusDynamics::getStateDerivative(){
+    VectorXd d_x(6);
+    for (int i = 0; i < 6; ++i)
+      d_x(i) = x_vec_(6 + i);
+    VectorXd d_q(3), dd_q(3);
+    for (int i = 0; i < 3; ++i){
+      d_q(i) = q_vec_(3 + i);
+      dd_q(i) = q_vec_(6 + i);
+    }
+    VectorXd dd_x(6);
+    dd_x = Ds_inv_ * (Bs_ - Cs_ * d_x - gs_ - Ds3_ * dd_q - Cs3_ * d_q);
+    VectorXd d_state(12);
+    for (int i = 0; i < 6; ++i){
+      d_state(i) = d_x(i);
+      d_state(6 + i) = dd_x(i);
+    }
+  }
+
   void HydrusDynamics::getCurrentState(VectorXd *s_ptr, VectorXd *q_ptr){
     x_vec_ = *s_ptr;
     q_vec_ = *q_ptr;
@@ -297,6 +315,7 @@ namespace hydrus_dynamics{
     Ds_.block<3, 3>(3, 3) = D22_;
     Ds3_.block<3, 3>(0, 0) = D13_;
     Ds3_.block<3, 3>(3, 0) = D23_;
+    Ds_inv_ = Ds_.inverse();
 
     // D_d
     for (int i = 0; i <= Q_3; ++i) // init
