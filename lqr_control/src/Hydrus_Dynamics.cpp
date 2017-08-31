@@ -74,6 +74,7 @@ namespace hydrus_dynamics{
     for (int i = 0; i < 6; ++i){
       S_operation_dx_vec_.push_back(MatrixXd::Zero(3, 4));
       Cs_ddx_vec_.push_back(MatrixXd::Zero(6, 6));
+      Cs3_ddx_vec_.push_back(MatrixXd::Zero(6, 3));
     }
     for (int i = 0; i <= Q_3; ++i){
       D_dx_vec_.push_back(MatrixXd::Zero(9, 9));
@@ -480,8 +481,10 @@ namespace hydrus_dynamics{
     // C
     Cs_ = MatrixXd::Zero(6, 6);
     Cs3_ = MatrixXd::Zero(6, 3);
-    for (int i = 0; i < 6; ++i)
+    for (int i = 0; i < 6; ++i){
       Cs_ddx_vec_[i] = MatrixXd::Zero(6, 6);
+      Cs3_ddx_vec_[i] = MatrixXd::Zero(6, 3);
+    }
     for (int k = 0; k <= E_Y; ++k)
       for (int j = 0; j <= E_Y; ++j)
         for (int i = 0; i <= Q_3; ++i){
@@ -499,8 +502,10 @@ namespace hydrus_dynamics{
           double x_d;
           if (i < 6) x_d = x_vec_[6+i]; // d s
           else x_d = q_vec_[3+(i-6)]; // d q
-          Cs3_(k, j-Q_1) = Cs_(k, j-Q_1) + 0.5 * (D_dx_vec_[i](k, j) + D_dx_vec_[j](k, i)
-                                         + D_dx_vec_[k](i, j)) * x_d;
+          double Cs_param = 0.5 * (D_dx_vec_[i](k, j) + D_dx_vec_[j](k, i) + D_dx_vec_[k](i, j));
+          Cs3_(k, j-Q_1) = Cs_(k, j-Q_1) + Cs_param * x_d;
+          if (i < 6) // not considering joints into state
+            Cs3_ddx_vec_[i](k, j) += Cs_param;
         }
     // gs
     gs_ = VectorXd::Zero(6);
