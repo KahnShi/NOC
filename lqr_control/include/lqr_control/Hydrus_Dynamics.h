@@ -113,6 +113,8 @@ namespace hydrus_dynamics{
     VectorXd dds2_;
     // Ds_x Bs_x Bs_u Csds_x Csds_dx gs_x Ds3_x Cs3_x Cs3_dx
     std::vector<MatrixXd> Ds_dx_vec_;
+    std::vector<MatrixXd> Cs_dx_vec_;
+    std::vector<MatrixXd> Cs_ddx_vec_;
     std::vector<VectorXd> Bs_du_vec_; // d f1, f2, f3, f4
     std::vector<VectorXd> Bs_dx_vec_; // d er, ep, eq
     MatrixXd Csds_dx_;
