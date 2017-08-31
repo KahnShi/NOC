@@ -112,41 +112,39 @@ namespace hydrus_dynamics{
     MatrixXd Cs3_;
     VectorXd dds2_;
     // Ds_x Bs_x Bs_u Csds_x Csds_dx gs_x Ds3_x Cs3_x Cs3_dx
-    MatrixXd Ds_x_;
-    MatrixXd Bs_x_;
+    std::vector<MatrixXd> Ds_dx_vec_;
     std::vector<VectorXd> Bs_du_vec_; // d f1, f2, f3, f4
     std::vector<VectorXd> Bs_dx_vec_; // d er, ep, eq
-    MatrixXd Csds_x_;
     MatrixXd Csds_dx_;
-    MatrixXd gs_x_; // d er ep ey
-    MatrixXd Ds3_x_;
-    MatrixXd Cs3_x_;
+    MatrixXd gs_dx_; // d er ep ey
+    MatrixXd Ds3_dx_;
     MatrixXd Cs3_dx_;
+    MatrixXd Cs3_ddx_;
 
     // mid result
     MatrixXd R_local_;
-    std::vector<MatrixXd> R_local_d_vec_; // d er, ep, eq
-    std::vector<MatrixXd> R_local_dd_vec_; // d er, ep, eq
+    std::vector<MatrixXd> R_local_dx_vec_; // d er, ep, eq
+    std::vector<MatrixXd> R_local_ddx_vec_; // d er, ep, eq
     std::vector<MatrixXd> R_link_local_vec_;
-    std::vector<MatrixXd> R_link_local_d_vec_; // (d R_l0 er, ep, eq), ..., (d R_l3 er, ep, eq)
+    std::vector<MatrixXd> R_link_local_dx_vec_; // (d R_l0 er, ep, eq), ..., (d R_l3 er, ep, eq)
     MatrixXd T_local_;
-    std::vector<MatrixXd> T_local_d_vec_; // d er, ep, eq
+    std::vector<MatrixXd> T_local_dx_vec_; // d er, ep, eq
     MatrixXd Q_local_;
-    std::vector<MatrixXd> Q_local_d_vec_; // d er, ep, eq
+    std::vector<MatrixXd> Q_local_dx_vec_; // d er, ep, eq
     MatrixXd link_center_pos_local_;
-    std::vector<MatrixXd> link_center_pos_local_d_vec_; // d q1, q2, q3
+    std::vector<MatrixXd> link_center_pos_local_dx_vec_; // d q1, q2, q3
     std::vector<MatrixXd> Jacobian_P_vec_;
-    std::vector<MatrixXd> Jacobian_P_d_vec_; // (JacoP[0] d q1, q2, q3), ..., (JacoP[3] d q1, q2, q3)
+    std::vector<MatrixXd> Jacobian_P_dq_vec_; // (JacoP[0] d q1, q2, q3), ..., (JacoP[3] d q1, q2, q3)
     std::vector<MatrixXd> Jacobian_W_vec_;
     MatrixXd S_operation_result_;
-    std::vector<MatrixXd> S_operation_d_vec_; // d er, ep, eq, q1, q2, q3
+    std::vector<MatrixXd> S_operation_dx_vec_; // d er, ep, eq, q1, q2, q3
     MatrixXd D11_;
     MatrixXd D12_;
     MatrixXd D13_;
     MatrixXd D22_;
     MatrixXd D23_;
     MatrixXd D33_;
-    std::vector<MatrixXd> D_d_vec_;
+    std::vector<MatrixXd> D_dx_vec_;
 
     VectorXd getStateDerivative();
     void getCurrentState(VectorXd *s, VectorXd *q);
