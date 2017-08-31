@@ -112,7 +112,7 @@ namespace hydrus_dynamics{
     VectorXd dds2_;
     // Ds_x Bs_x Bs_u Cs_x Cs_dx gs_x Ds3_x Cs3_x Cs3_dx
     std::vector<MatrixXd> Ds_dx_vec_;
-    std::vector<MatrixXd> Ds_diikdx_vec_;
+    std::vector<MatrixXd> Ds_ddx_vec_;
     std::vector<MatrixXd> Cs_dx_vec_; // d x
     std::vector<MatrixXd> Cs3_dx_vec_; // d x
     std::vector<MatrixXd> Cs_ddx_vec_; // d (dx)
@@ -134,11 +134,13 @@ namespace hydrus_dynamics{
     std::vector<MatrixXd> Q_local_dx_vec_; // d er, ep, eq
     MatrixXd link_center_pos_local_;
     std::vector<MatrixXd> link_center_pos_local_dx_vec_; // d q1, q2, q3
+    std::vector<MatrixXd> link_center_pos_local_ddx_vec_; // d q1, q2, q3
     std::vector<MatrixXd> Jacobian_P_vec_;
     std::vector<MatrixXd> Jacobian_P_dq_vec_; // (JacoP[0] d q1, q2, q3), ..., (JacoP[3] d q1, q2, q3)
     std::vector<MatrixXd> Jacobian_W_vec_;
     MatrixXd S_operation_result_;
     std::vector<MatrixXd> S_operation_dx_vec_; // d er, ep, eq, q1, q2, q3
+    std::vector<MatrixXd> S_operation_ddx_vec_; // d er, ep, eq, q1, q2, q3
     MatrixXd D11_;
     MatrixXd D12_;
     MatrixXd D13_;
