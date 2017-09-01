@@ -106,13 +106,42 @@ namespace hydrus_dynamics{
       dd_q(i) = q_vec_(6 + i);
     }
     VectorXd dd_x(6);
-    dd_x = Ds_inv_ * (Bs_ - C_.block<0, 0>(6, 6) * d_x - gs_ - Ds3_ * dd_q
-                      - C_.block<0, 6>(6, 3) * d_q);
+    dd_x = Ds_inv_ * (Bs_ - C_.block<6, 6>(0, 0) * d_x - gs_ - Ds3_ * dd_q
+                      - C_.block<6, 3>(0, 6) * d_q);
     VectorXd d_state(12);
     for (int i = 0; i < 6; ++i){
       d_state(i) = d_x(i);
       d_state(6 + i) = dd_x(i);
     }
+  }
+
+  void HydrusDynamics::linaerizeState(MatrixXd *s_mat_ptr, MatrixXd *u_mat_ptr){
+    // todo: examine
+    VectorXd d_x(6);
+    for (int i = 0; i < 6; ++i)
+      d_x(i) = x_vec_(6 + i);
+    VectorXd d_q(3), dd_q(3);
+    for (int i = 0; i < 3; ++i){
+      d_q(i) = q_vec_(3 + i);
+      dd_q(i) = q_vec_(6 + i);
+    }
+    *s_mat_ptr = MatrixXd::Zero(12, 12);
+    *u_mat_ptr = MatrixXd::Zero(12, 4);
+    s_mat_ptr->block<6, 6>(0, 6) = MatrixXd::Identity(6, 6);
+    for (int i = 0; i < 6; ++i){
+      // d s
+      s_mat_ptr->block<6, 1>(6, i) = -Ds_inv_ * Ds_dx_vec_[i] * Ds_inv_
+        * (Bs_ + C_.block<6, 6>(0, 0) * d_x - gs_ - Ds3_ * dd_q
+           - C_.block<6, 3>(0, 6) * d_q)
+        + Ds_inv_ * (Bs_dx_vec_[i] - C_dx_vec_[i].block<6, 6>(0, 0) * d_x - gs_dx_.col(i)
+                     - Ds3_dx_vec_[i] * dd_q - C_dx_vec_[i].block<6, 3>(0, 6) * d_q);
+      // d ds
+      VectorXd dx_dxi = VectorXd::Zero(6); dx_dxi(i) = 1.0; // derivative of dx related to i-th x
+      s_mat_ptr->block<6, 1>(6, 6+i) =
+        Ds_inv_ * (-C_d_dx_vec_[i].block<6, 6>(0, 0) * d_x
+                   - C_dx_vec_[i].block<6, 6>(0, 0) * dx_dxi
+                   - C_d_dx_vec_[i].block<6, 3>(0, 6) * d_q);
+        }
   }
 
   void HydrusDynamics::getCurrentState(VectorXd *s_ptr, VectorXd *q_ptr){

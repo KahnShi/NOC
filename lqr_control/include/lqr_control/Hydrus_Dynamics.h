@@ -154,6 +154,7 @@ namespace hydrus_dynamics{
     void getCurrentState(VectorXd *s, VectorXd *q);
     MatrixXd vectorToSkewMatrix(VectorXd s);
     void updateMatrixD();
+    void linaerizeState(MatrixXd *s_mat_ptr, MatrixXd *u_mat_ptr);
   };
 }
 
