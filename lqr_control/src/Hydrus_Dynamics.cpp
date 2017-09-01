@@ -61,8 +61,8 @@ namespace hydrus_dynamics{
         Q_local_ddx_vec_.push_back(MatrixXd::Zero(3, 3));
         link_center_pos_local_ddx_vec_.push_back(MatrixXd::Zero(3, 4));
       }
-      Bs_dx_vec_.push_back(VectorXd::Zero(3));
-      gs_dx_vec_.push_back(VectorXd::Zero(3));
+      Bs_dx_vec_.push_back(VectorXd::Zero(6));
+      gs_dx_vec_.push_back(VectorXd::Zero(6));
     }
     for (int i = 0; i < 4; ++i){
       R_link_local_vec_.push_back(MatrixXd::Zero(3, 3));
@@ -76,7 +76,7 @@ namespace hydrus_dynamics{
           R_link_local_ddx_vec_.push_back(MatrixXd::Zero(3, 3));
         }
       }
-      Bs_du_vec_.push_back(VectorXd::Zero(3));
+      Bs_du_vec_.push_back(VectorXd::Zero(6));
     }
     for (int i = 0; i < 6; ++i){
       S_operation_dx_vec_.push_back(MatrixXd::Zero(3, 4));
@@ -117,7 +117,6 @@ namespace hydrus_dynamics{
   }
 
   void HydrusDynamics::linaerizeState(MatrixXd *s_mat_ptr, MatrixXd *u_mat_ptr){
-    // todo: examine
     VectorXd d_x(6);
     for (int i = 0; i < 6; ++i)
       d_x(i) = x_vec_(6 + i);
@@ -128,6 +127,7 @@ namespace hydrus_dynamics{
     }
     *s_mat_ptr = MatrixXd::Zero(12, 12);
     *u_mat_ptr = MatrixXd::Zero(12, 4);
+    // s_mat
     s_mat_ptr->block<6, 6>(0, 6) = MatrixXd::Identity(6, 6);
     for (int i = E_R; i <= E_Y; ++i){
       s_mat_ptr->block<6, 1>(6, i) += -Ds_inv_ * D_dx_vec_[i].block<6, 6>(0, 0)
@@ -143,6 +143,10 @@ namespace hydrus_dynamics{
         * (- C_.block<6, 6>(0, 0) * d_x_d_x
            - C_d_dx_vec_[i-V_X].block<6, 6>(0, 0) * d_x
            - C_dx_vec_[i-V_X].block<6, 3>(0, 6) * d_q);
+    }
+    // u_mat
+    for (int i = U_1; i <= U_3; ++i){
+      u_mat_ptr->block<6, 1>(6, i) += Ds_inv_ * Bs_du_vec_[i];
     }
   }
 
