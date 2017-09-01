@@ -811,8 +811,8 @@ namespace hydrus_dynamics{
           MatrixXd D23_dd = -link_weight_vec_[i] * T_local_.transpose() *
             vectorToSkewMatrix(S_operation_ddx_vec_[6*(j-E_R)+(k-E_R)].col(i)).transpose()
             * R_local_ * Jacobian_P_vec_[i];
-          D_ddx_vec_[j].block<3, 3>(3, 6) = D_ddx_vec_[j].block<3, 3>(3, 6) + D23_dd;
-          D_ddx_vec_[j].block<3, 3>(6, 3) = D_ddx_vec_[j].block<3, 3>(6, 3) + D23_dd.transpose();
+          D_ddx_vec_[j*9+k].block<3, 3>(3, 6) += D23_dd;
+          D_ddx_vec_[j*9+k].block<3, 3>(6, 3) += D23_dd.transpose();
         }
       }
     }
@@ -825,6 +825,17 @@ namespace hydrus_dynamics{
         D33_d = D33_d + Jacobian_W_vec_[i].transpose() * R_link_local_vec_[i] * Inertial_ *
           R_link_local_dx_vec_[3*i+j-Q_1].transpose() * Jacobian_W_vec_[i];
         D_dx_vec_[j].block<3, 3>(6, 6) = D_dx_vec_[j].block<3, 3>(6, 6) + D33_d;
+        for (int k = Q_1; k <= Q_3; ++k){ // d R_link_local d d R_link_local
+          MatrixXd D33_dd = Jacobian_W_vec_[i].transpose() * R_link_local_ddx_vec_[9*i+3*(j-Q_1)+(k-Q_1)] *
+            Inertial_ * R_link_local_vec_[i].transpose() * Jacobian_W_vec_[i];
+          D33_dd += Jacobian_W_vec_[i].transpose() * R_link_local_dx_vec_[3*i+j-Q_1] *
+            Inertial_ * R_link_local_dx_vec_[3*i+k-Q_1] * Jacobian_W_vec_[i];
+          D33_dd += Jacobian_W_vec_[i].transpose() * R_link_local_dx_vec_[3*i+k-Q_1] * Inertial_ *
+            R_link_local_dx_vec_[3*i+j-Q_1].transpose() * Jacobian_W_vec_[i];
+          D33_dd += Jacobian_W_vec_[i].transpose() * R_link_local_vec_[i] * Inertial_ *
+            R_link_local_ddx_vec_[9*i+3*(j-Q_1)+(k-Q_1)].transpose() * Jacobian_W_vec_[i];
+          D_ddx_vec_[j*9+k].block<3, 3>(6, 6) += D33_dd;
+        }
       }
       for (int j = Q_1; j <= Q_3; ++j){
         // left part: d Jacobian_P
@@ -833,6 +844,17 @@ namespace hydrus_dynamics{
         D33_d = D33_d + link_weight_vec_[i] * Jacobian_P_vec_[i].transpose() *
           Jacobian_P_dq_vec_[i*3+j-Q_1];
         D_dx_vec_[j].block<3, 3>(6, 6) = D_dx_vec_[j].block<3, 3>(6, 6) + D33_d;
+        for (int k = Q_1; k <= Q_3; ++k){ // d Jacobian_P d Jacobian_P
+          MatrixXd D33_dd = link_weight_vec_[i] * Jacobian_P_ddq_vec_[i*9+3*(j-Q_1)+(k-Q_1)].transpose() *
+            Jacobian_P_vec_[i];
+          D33_dd += link_weight_vec_[i] * Jacobian_P_dq_vec_[i*3+j-Q_1].transpose() *
+            Jacobian_P_dq_vec_[i*3+k-Q_1];
+          D33_dd += link_weight_vec_[i] * Jacobian_P_dq_vec_[i*3+k-Q_1].transpose() *
+            Jacobian_P_dq_vec_[i*3+j-Q_1];
+          D33_dd += link_weight_vec_[i] * Jacobian_P_vec_[i].transpose() *
+            Jacobian_P_ddq_vec_[i*9+3*(j-Q_1)+(k-Q_1)];
+          D_ddx_vec_[j*9+k].block<3, 3>(6, 6) += D33_dd;
+        }
       }
     }
 
