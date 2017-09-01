@@ -420,17 +420,17 @@ namespace hydrus_dynamics{
     // d S(R_b * P_bli_b)
     for (int i = 0; i < 3; ++i){ // d er,ep,ey
       S_operation_dx_vec_[i] = R_local_dx_vec_[i] * link_center_pos_local_;
-      for (int j = 0; j < 3; ++j) // d e(i) e(j)
+      for (int j = 0; j < 3; ++j) // d e(i) d e(j)
         S_operation_ddx_vec_[i*6+j] = R_local_ddx_vec_[i*3+j] * link_center_pos_local_;
-      for (int j = 0; j < 3; ++j) // d e(i) q(j)
+      for (int j = 0; j < 3; ++j) // d e(i) d q(j)
         S_operation_ddx_vec_[i*6+j+3] = R_local_dx_vec_[i] * link_center_pos_local_dx_vec_[j];
     }
-    for (int i = 0; i < 3; ++i){ // d q1_,q2_,q3_
-      S_operation_dx_vec_[i+3] = R_local_ * link_center_pos_local_dx_vec_[i];
-      for (int j = 0; j < 3; ++j) // d q(i) e(j)
-        S_operation_ddx_vec_[i*6+j] = R_local_dx_vec_[j] * link_center_pos_local_dx_vec_[j];
-      for (int j = 0; j < 3; ++j) // d q(i) q(j)
-        S_operation_ddx_vec_[i*6+j+3] = R_local_ * link_center_pos_local_ddx_vec_[i*3+j];
+    for (int i = 3; i < 6; ++i){ // d q1_,q2_,q3_
+      S_operation_dx_vec_[i] = R_local_ * link_center_pos_local_dx_vec_[i-3];
+      for (int j = 0; j < 3; ++j) // d q(i) d e(j)
+        S_operation_ddx_vec_[i*6+j] = R_local_dx_vec_[j] * link_center_pos_local_dx_vec_[i-3];
+      for (int j = 0; j < 3; ++j) // d q(i) d q(j)
+        S_operation_ddx_vec_[i*6+j+3] = R_local_ * link_center_pos_local_ddx_vec_[(i-3)*3+j];
     }
   }
 
