@@ -912,6 +912,8 @@ namespace hydrus_dynamics{
         }
     // gs
     gs_ = VectorXd::Zero(6);
+    for (int i = 0; i < 3; ++i)
+      gs_dx_vec_[i] = VectorXd::Zero(6);
     for (int i = 0; i < n_links_; ++i){
       Vector3d mid_result = link_weight_vec_[i] * 9.78 * Vector3d(0, 0, 1.0);
       // P_X P_Y P_Z
@@ -919,25 +921,20 @@ namespace hydrus_dynamics{
       gs_(P_Y) = gs_(P_Y) + mid_result.dot(Vector3d(0, 1.0, 0));
       gs_(P_Z) = gs_(P_Z) + mid_result.dot(Vector3d(0, 0, 1.0));
       // E_R E_P E_Y
-      for (int j = E_R; j <= E_Y; ++j)
+      for (int j = E_R; j <= E_Y; ++j){
         gs_(j) = gs_(j) + mid_result.dot(R_local_dx_vec_[j-E_R]
                                          * link_center_pos_local_.col(i));
+        for (int k = E_R; k <= E_Y; ++k)
+          gs_dx_vec_[j](k) += mid_result.dot(R_local_ddx_vec_[3*(j-E_R)+k-E_R]
+                                             * link_center_pos_local_.col(i));
+
+      }
       // Q_1 Q_2 Q_3. do not have for simplified state
       //   for (int j = Q_1; j <= Q_3; ++j)
       //     gs_(j) = gs_(j) + mid_result.dot(R_local_
       //                                      * link_center_pos_local_dx_vec_[j-Q_1].col(i));
     }
 
-    for (int i = 0; i < 3; ++i)
-      gs_dx_vec_[i] = VectorXd::Zero(6);
-    for (int i = 0; i < n_links_; ++i){
-      Vector3d mid_result = link_weight_vec_[i] * 9.78 * Vector3d(0, 0, 1.0);
-      // d E_R E_P E_Y
-      for (int j = E_R; j <= E_Y; ++j)
-        for (int k = E_R; k <= E_Y; ++k)
-          gs_dx_vec_[j](k) += mid_result.dot(R_local_ddx_vec_[3*(j-E_R)+k-E_R]
-                                             * link_center_pos_local_.col(i));
-    }
     // Bs
     Bs_ = VectorXd::Zero(6);
     double f_sum = 0;
