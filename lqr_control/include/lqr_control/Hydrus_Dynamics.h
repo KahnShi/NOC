@@ -58,9 +58,9 @@ namespace hydrus_dynamics{
   #define V_X 6
   #define V_Y 7
   #define V_Z 8
-  #define W_X 9
-  #define W_Y 10
-  #define W_Z 11
+  #define DE_R 9
+  #define DE_P 10
+  #define DE_Y 11
   #define Q_1 6
   #define Q_2 7
   #define Q_3 8
@@ -110,8 +110,8 @@ namespace hydrus_dynamics{
     MatrixXd Ds3_;
     VectorXd dds2_;
     // Ds_x Bs_x Bs_u Cs_x Cs_dx gs_x Ds3_x Cs3_x Cs3_dx
-    std::vector<MatrixXd> Ds_dx_vec_;
-    std::vector<MatrixXd> Ds_ddx_vec_;
+    std::vector<MatrixXd> D_dx_vec_;
+    std::vector<MatrixXd> D_ddx_vec_;
     std::vector<MatrixXd> C_dx_vec_; // d x
     std::vector<MatrixXd> C_d_dx_vec_; // d (dx)
     std::vector<VectorXd> Bs_du_vec_; // d f1, f2, f3, f4
@@ -147,8 +147,6 @@ namespace hydrus_dynamics{
     MatrixXd D22_;
     MatrixXd D23_;
     MatrixXd D33_;
-    std::vector<MatrixXd> D_dx_vec_;
-    std::vector<MatrixXd> D_ddx_vec_;
 
     VectorXd getStateDerivative();
     void getCurrentState(VectorXd *s, VectorXd *q);
