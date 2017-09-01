@@ -62,6 +62,7 @@ namespace hydrus_dynamics{
         link_center_pos_local_ddx_vec_.push_back(MatrixXd::Zero(3, 4));
       }
       Bs_dx_vec_.push_back(VectorXd::Zero(3));
+      gs_dx_vec_.push_back(VectorXd::Zero(3));
     }
     for (int i = 0; i < 4; ++i){
       R_link_local_vec_.push_back(MatrixXd::Zero(3, 3));
@@ -133,7 +134,7 @@ namespace hydrus_dynamics{
       s_mat_ptr->block<6, 1>(6, i) = -Ds_inv_ * Ds_dx_vec_[i] * Ds_inv_
         * (Bs_ + C_.block<6, 6>(0, 0) * d_x - gs_ - Ds3_ * dd_q
            - C_.block<6, 3>(0, 6) * d_q)
-        + Ds_inv_ * (Bs_dx_vec_[i] - C_dx_vec_[i].block<6, 6>(0, 0) * d_x - gs_dx_.col(i)
+        + Ds_inv_ * (Bs_dx_vec_[i] - C_dx_vec_[i].block<6, 6>(0, 0) * d_x - gs_dx_vec_[i]
                      - Ds3_dx_vec_[i] * dd_q - C_dx_vec_[i].block<6, 3>(0, 6) * d_q);
       // d ds
       VectorXd dx_dxi = VectorXd::Zero(6); dx_dxi(i) = 1.0; // derivative of dx related to i-th x
@@ -926,14 +927,15 @@ namespace hydrus_dynamics{
       //                                      * link_center_pos_local_dx_vec_[j-Q_1].col(i));
     }
 
-    gs_dx_ = MatrixXd::Zero(6, 12);
+    for (int i = 0; i < 3; ++i)
+      gs_dx_vec_[i] = VectorXd::Zero(6);
     for (int i = 0; i < n_links_; ++i){
       Vector3d mid_result = link_weight_vec_[i] * 9.78 * Vector3d(0, 0, 1.0);
-      // dd E_R E_P E_Y
+      // d E_R E_P E_Y
       for (int j = E_R; j <= E_Y; ++j)
         for (int k = E_R; k <= E_Y; ++k)
-          gs_dx_(j, k) = gs_dx_(j, k) + mid_result.dot(R_local_ddx_vec_[3*(j-E_R)+k-E_R]
-                                                     * link_center_pos_local_.col(i));
+          gs_dx_vec_[j](k) += mid_result.dot(R_local_ddx_vec_[3*(j-E_R)+k-E_R]
+                                             * link_center_pos_local_.col(i));
     }
     // Bs
     Bs_ = VectorXd::Zero(6);
