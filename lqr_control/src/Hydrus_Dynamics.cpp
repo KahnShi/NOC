@@ -114,9 +114,13 @@ namespace hydrus_dynamics{
       d_state(i) = d_x(i);
       d_state(6 + i) = dd_x(i);
     }
+    return d_x;
   }
 
-  void HydrusDynamics::linaerizeState(MatrixXd *s_mat_ptr, MatrixXd *u_mat_ptr){
+  void HydrusDynamics::linaerizeState(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr, MatrixXd *s_mat_ptr, MatrixXd *u_mat_ptr){
+    updateMiddleVariable(x_ptr, u_ptr, joint_ptr);
+    updateMainMatrix();
+
     VectorXd d_x(6);
     for (int i = 0; i < 6; ++i)
       d_x(i) = x_vec_(6 + i);
@@ -150,25 +154,26 @@ namespace hydrus_dynamics{
     }
   }
 
-  void HydrusDynamics::getCurrentState(VectorXd *s_ptr, VectorXd *q_ptr){
-    x_vec_ = *s_ptr;
-    q_vec_ = *q_ptr;
-    px_ = (*s_ptr)[0];
-    py_ = (*s_ptr)[1];
-    pz_ = (*s_ptr)[2];
-    er_ = (*s_ptr)[3];
-    ep_ = (*s_ptr)[4];
-    ey_ = (*s_ptr)[5];
-    d_px_ = (*s_ptr)[6];
-    d_py_ = (*s_ptr)[7];
-    d_pz_ = (*s_ptr)[8];
-    d_er_ = (*s_ptr)[9];
-    d_ep_ = (*s_ptr)[10];
-    d_ey_ = (*s_ptr)[11];
+  void HydrusDynamics::updateMiddleVariable(VectorXd *x_ptr, VectorXd *u_ptr,VectorXd *joint_ptr){
+    x_vec_ = *x_ptr;
+    u_vec_ = *u_ptr;
+    q_vec_ = *joint_ptr;
+    px_ = (*x_ptr)[0];
+    py_ = (*x_ptr)[1];
+    pz_ = (*x_ptr)[2];
+    er_ = (*x_ptr)[3];
+    ep_ = (*x_ptr)[4];
+    ey_ = (*x_ptr)[5];
+    d_px_ = (*x_ptr)[6];
+    d_py_ = (*x_ptr)[7];
+    d_pz_ = (*x_ptr)[8];
+    d_er_ = (*x_ptr)[9];
+    d_ep_ = (*x_ptr)[10];
+    d_ey_ = (*x_ptr)[11];
 
-    q1_ = (*q_ptr)[0];
-    q2_ = (*q_ptr)[1];
-    q3_ = (*q_ptr)[2];
+    q1_ = (*joint_ptr)[0];
+    q2_ = (*joint_ptr)[1];
+    q3_ = (*joint_ptr)[2];
 
     // mid result
     // R_local_ and its derivative
@@ -447,7 +452,7 @@ namespace hydrus_dynamics{
     return res;
   }
 
-  void HydrusDynamics::updateMatrixD(){
+  void HydrusDynamics::updateMainMatrix(){
     Ds_ = MatrixXd::Zero(6, 6);
     for (int i = 0; i < 3; ++i) // D11
       Ds_(i, i) = weight_sum_;
