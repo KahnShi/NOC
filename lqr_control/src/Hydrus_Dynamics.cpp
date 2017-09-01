@@ -695,8 +695,8 @@ namespace hydrus_dynamics{
             Inertial_ * R_link_local_vec_[i].transpose() * Q_local_;
           D22_dd += Q_local_.transpose() * R_link_local_dx_vec_[3*i+j-Q_1] *
             Inertial_ * R_link_local_dx_vec_[3*i+k-Q_1].transpose() * Q_local_;
-          D22_dd += Q_local_.transpose() * R_link_local_dx_vec_[3*i+j-Q_1] *
-            Inertial_ * R_link_local_dx_vec_[3*i+k-Q_1].transpose() * Q_local_;
+          D22_dd += Q_local_.transpose() * R_link_local_dx_vec_[3*i+k-Q_1] *
+            Inertial_ * R_link_local_dx_vec_[3*i+j-Q_1].transpose() * Q_local_;
           D22_dd += Q_local_.transpose() * R_link_local_vec_[i] * Inertial_ *
             R_link_local_ddx_vec_[9*i+3*(j-Q_1)+(k-Q_1)].transpose() * Q_local_;
           D_ddx_vec_[j*9+k].block<3, 3>(3, 3) += D22_dd;
