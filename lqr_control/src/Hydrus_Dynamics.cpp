@@ -48,8 +48,7 @@ namespace hydrus_dynamics{
     // init
     Ds_ = MatrixXd::Zero(6, 6);
     Ds3_ = MatrixXd::Zero(6, 3);
-    Cs_ = MatrixXd::Zero(6, 6);
-    Cs3_ = MatrixXd::Zero(6, 3);
+    C_ = MatrixXd::Zero(9, 9);
 
     for (int i = 0; i < 3; ++i){
       R_local_dx_vec_.push_back(MatrixXd::Zero(3, 3));
@@ -83,10 +82,8 @@ namespace hydrus_dynamics{
       for (int j = 0; j < 6; ++j){
         S_operation_ddx_vec_.push_back(MatrixXd::Zero(3, 4));
       }
-      Cs_dx_vec_.push_back(MatrixXd::Zero(6, 6));
-      Cs3_dx_vec_.push_back(MatrixXd::Zero(6, 3));
-      Cs_ddx_vec_.push_back(MatrixXd::Zero(6, 6));
-      Cs3_ddx_vec_.push_back(MatrixXd::Zero(6, 3));
+      C_dx_vec_.push_back(MatrixXd::Zero(9, 9));
+      C_d_dx_vec_.push_back(MatrixXd::Zero(9, 9));
     }
     for (int i = 0; i <= Q_3; ++i){
       D_dx_vec_.push_back(MatrixXd::Zero(9, 9));
@@ -109,7 +106,8 @@ namespace hydrus_dynamics{
       dd_q(i) = q_vec_(6 + i);
     }
     VectorXd dd_x(6);
-    dd_x = Ds_inv_ * (Bs_ - Cs_ * d_x - gs_ - Ds3_ * dd_q - Cs3_ * d_q);
+    dd_x = Ds_inv_ * (Bs_ - C_.block<0, 0>(6, 6) * d_x - gs_ - Ds3_ * dd_q
+                      - C_.block<0, 6>(6, 3) * d_q);
     VectorXd d_state(12);
     for (int i = 0; i < 6; ++i){
       d_state(i) = d_x(i);
@@ -861,46 +859,24 @@ namespace hydrus_dynamics{
     }
 
     // C
-    Cs_ = MatrixXd::Zero(6, 6);
-    Cs3_ = MatrixXd::Zero(6, 3);
-    for (int i = 0; i < 6; ++i){
-      Cs_dx_vec_[i] = MatrixXd::Zero(6, 6);
-      Cs3_dx_vec_[i] = MatrixXd::Zero(6, 3);
-      Cs_ddx_vec_[i] = MatrixXd::Zero(6, 6);
-      Cs3_ddx_vec_[i] = MatrixXd::Zero(6, 3);
+    C_ = MatrixXd::Zero(9, 9);
+    for (int i = 0; i < 9; ++i){
+      C_dx_vec_[i] = MatrixXd::Zero(9, 9);
+      C_d_dx_vec_[i] = MatrixXd::Zero(9, 9);
     }
-    for (int k = 0; k <= E_Y; ++k)
-      for (int j = 0; j <= E_Y; ++j)
+    for (int k = 0; k <= Q_3; ++k)
+      for (int j = 0; j <= Q_3; ++j)
         for (int i = 0; i <= Q_3; ++i){
           double x_d;
           if (i < 6) x_d = x_vec_[6+i]; // d s
           else x_d = q_vec_[3+(i-6)]; // d q
-          double Cs_param = 0.5 * (D_dx_vec_[i](k, j) + D_dx_vec_[j](k, i) + D_dx_vec_[k](i, j));
-          Cs_(k, j) = Cs_(k, j) + Cs_param * x_d;
-          if (i < 6){ // not considering joints into state
-            Cs_ddx_vec_[i](k, j) += Cs_param;
-          }
-          for (int i2 = 0; i2 <= E_Y; ++i2){
-            double Cs_dx_param = 0.5 * (D_ddx_vec_[i*9+i2](k, j) + D_ddx_vec_[j*9+i2](k, i)
+          double C_param = 0.5 * (D_dx_vec_[i](k, j) + D_dx_vec_[j](k, i) + D_dx_vec_[k](i, j));
+          C_(k, j) += C_param * x_d;
+          C_d_dx_vec_[i](k, j) += C_param;
+          for (int i2 = 0; i2 <= Q_3; ++i2){
+            double C_dx_param = 0.5 * (D_ddx_vec_[i*9+i2](k, j) + D_ddx_vec_[j*9+i2](k, i)
                                         + D_dx_vec_[k*9+i2](i, j));
-            Cs_dx_vec_[i2](k, j) += Cs_dx_param * x_d;
-          }
-        }
-    for (int k = 0; k <= E_Y; ++k)
-      for (int j = Q_1; j <= Q_3; ++j)
-        for (int i = 0; i <= Q_3; ++i){
-          double x_d;
-          if (i < 6) x_d = x_vec_[6+i]; // d s
-          else x_d = q_vec_[3+(i-6)]; // d q
-          double Cs_param = 0.5 * (D_dx_vec_[i](k, j) + D_dx_vec_[j](k, i) + D_dx_vec_[k](i, j));
-          Cs3_(k, j-Q_1) = Cs_(k, j-Q_1) + Cs_param * x_d;
-          if (i < 6){ // not considering joints into state
-            Cs3_ddx_vec_[i](k, j) += Cs_param;
-          }
-          for (int i2 = 0; i2 <= E_Y; ++i2){
-            double Cs_dx_param = 0.5 * (D_ddx_vec_[i*9+i2](k, j) + D_ddx_vec_[j*9+i2](k, i)
-                                        + D_dx_vec_[k*9+i2](i, j));
-            Cs3_dx_vec_[i2](k, j) += Cs_dx_param * x_d;
+            C_dx_vec_[i2](k, j) += C_dx_param * x_d;
           }
         }
     // gs
