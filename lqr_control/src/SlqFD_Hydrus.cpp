@@ -52,9 +52,35 @@ namespace lqr_discrete{
     }
     std::cout << "[SLQ] Trajectory period: " << end_time_
               << ", Itetation times: " << iteration_times_ << "\n";
-
     waypoints_ptr_ = waypoints_ptr;
 
+    /* hydrus property */
+    n_links_ = 4;
+    I_ptr_ = new MatrixXd(3, 3);
+    *I_ptr_ = MatrixXd::Zero(3, 3);
+    (*I_ptr_)(0, 0) = 0.0001;
+    (*I_ptr_)(1, 1) = 0.0001;
+    (*I_ptr_)(2, 2) = 0.0002;
+
+    /* link information */
+    for (int i = 0; i < n_links_; ++i)
+      link_mass_vec_.push_back(0.5);
+    hydrus_mass_ = 0.0;
+    for (int i = 0; i < n_links_; ++i)
+      hydrus_mass_ += link_mass_vec_[i];
+    link_length_ = 0.44;
+
+    /* Initialize hydrus dynamic calculator */
+    hydrus_dynamic_ptr_ = new HydrusDynamics(n_links_, link_length_, &link_mass_vec_, I_ptr_);
+
+    /* rotor limits */
+    uav_rotor_thrust_min_ = 0.0;
+    uav_rotor_thrust_max_ = (hydrus_mass_ * 9.78 / 4.0) * 3.0;
+
+    /* joint motor */
+    joint_ptr_ = new VectorXd(3 * (n_links_-1)); // contains joint, d_joint, dd_joint
+
+    /* Control information */
     x_size_ = 12;
     u_size_ = 4;
     A_ptr_ = new MatrixXd(x_size_, x_size_);
@@ -66,7 +92,6 @@ namespace lqr_discrete{
     xn_ptr_ = new VectorXd(x_size_);
     x_ptr_ = new VectorXd(x_size_);
     u_ptr_ = new VectorXd(u_size_);
-    M_para_ptr_ = new MatrixXd(3, 4);
     Riccati_P_ptr_ = new MatrixXd(x_size_, x_size_);
     P_ptr_ = new MatrixXd(x_size_, x_size_);
     p_ptr_ = new VectorXd(x_size_);
@@ -81,36 +106,15 @@ namespace lqr_discrete{
     *x0_ptr_ = (*waypoints_ptr)[0];
     *xn_ptr_ = (*waypoints_ptr)[waypoints_ptr->size() - 1];
 
-    /* Hydrus */
-    n_links_ = 4;
-    link_length_ = 0.44;
-    for (int i = 0; i < n_links_; ++i)
-      link_weight_vec_.push_back(0.5 * 9.78 / 4.0);
-    weight_sum_ = 0.0;
-    for (int i = 0; i < n_links_; ++i)
-      weight_sum_ += link_weight_vec_[i];
-    for (int i = 0; i < n_links_; ++i){
-      link_center_pos_local_vec_.push_back(Vector3d::Zero());
-      link_end_pos_local_vec_.push_back(Vector3d::Zero());
-    }
-    R_local_ptr_ = new Matrix3d();
-    T_local_ptr_ = new Matrix3d();
-    for (int i = 0; i < n_links_; ++i){
-      Jacobian_P_vec_.push_back(MatrixXd(3, n_links_-1));
-      Jacobian_W_vec_.push_back(MatrixXd(3, n_links_-1));
-    }
-    Ds_ptr_ = new MatrixXd(6, 6);
-    Ds3_ptr_ = new MatrixXd(6, 3);
-    Cs_ptr_ = new MatrixXd(6, 6);
-    Cs3_ptr_ = new MatrixXd(6, 3);
-
     /* init Q and R matrice */
     *Q0_ptr_ = MatrixXd::Zero(x_size_, x_size_);
     for (int i = 0; i <= P_Z; ++i)
       (*Q0_ptr_)(i, i) = 10.0;
     for (int i = V_X; i <= V_Z; ++i)
       (*Q0_ptr_)(i, i) = 10.0;
-    for (int i = W_X; i < x_size_; ++i)
+    for (int i = E_R; i <= E_Y; ++i)
+      (*Q0_ptr_)(i, i) = 1.0;
+    for (int i = DE_R; i <= DE_Y; ++i)
       (*Q0_ptr_)(i, i) = 1.0;
     // test: weight on z
     (*Q0_ptr_)(P_Z, P_Z) = (*Q0_ptr_)(V_Z, V_Z) = 100.0;
@@ -118,35 +122,12 @@ namespace lqr_discrete{
 
     *R_ptr_ = 200 * MatrixXd::Identity(u_size_, u_size_);
 
-    /* uav property from paper eth15-slq-window */
-    I_ptr_ = new MatrixXd(3, 3);
-    for (int i = 0; i < 3; ++i)
-      for (int j = 0; j < 3; ++j)
-        (*I_ptr_)(i, j) = 0.0;
-    (*I_ptr_)(0, 0) = 0.0001;
-    (*I_ptr_)(1, 1) = 0.0001;
-    (*I_ptr_)(2, 2) = 0.0002;
-
-    uav_mass_ = 1.0;
-
-    *M_para_ptr_ = MatrixXd::Zero(3, 4);
-    double r_uav = 0.3, c_rf = 0.016;
-    (*M_para_ptr_)(0, 1) = -r_uav;
-    (*M_para_ptr_)(0, 3) = r_uav;
-    (*M_para_ptr_)(1, 0) = r_uav;
-    (*M_para_ptr_)(1, 2) = -r_uav;
-    (*M_para_ptr_)(2, 0) = (*M_para_ptr_)(2, 2) = -c_rf;
-    (*M_para_ptr_)(2, 1) = (*M_para_ptr_)(2, 3) = c_rf;
-
-    uav_rotor_thrust_min_ = 0.0;
-    uav_rotor_thrust_max_ = (uav_mass_ * 9.78 / 4.0) * 3.0;
-
     /* Assume initial and final state is still, namely dx = [v, a] = 0 */
     u0_ptr_ = new VectorXd(u_size_);
     un_ptr_ = new VectorXd(u_size_);
     for (int i = 0; i < 4; ++i){
-      (*u0_ptr_)(i) = uav_mass_ * 9.78 / 4.0;
-      (*un_ptr_)(i) = uav_mass_ * 9.78 / 4.0;
+      (*u0_ptr_)(i) = hydrus_mass_ * 9.78 / 4.0;
+      (*un_ptr_)(i) = hydrus_mass_ * 9.78 / 4.0;
     }
 
     /* SLQ special initialization */
@@ -168,107 +149,9 @@ namespace lqr_discrete{
     line_search_steps_ = 4;
 
     debug_ = true;
-    // FDLQR();
-    // getRiccatiH();
+    FDLQR();
+    getRiccatiH();
     ROS_INFO("[SLQ] Initialization finished.");
-  }
-
-  void SlqFiniteDiscreteControlHydrus::getRiccatiH(){
-    // method 1: use real state at time tf (get from initial LQR result)
-    *x_ptr_ = x_vec_[iteration_times_];
-    *u_ptr_ = u_vec_[iteration_times_];
-    // method 2: use ideal state at time tf
-    //*x_ptr_ = VectorXd::Zero(x_size_);
-    //*u_ptr_ = VectorXd::Zero(u_size_);
-    if (debug_){
-      printStateInfo(x_ptr_, iteration_times_);
-      printControlInfo(u_ptr_, iteration_times_);
-    }
-    updateMatrixAB(x_ptr_, u_ptr_);
-
-    /* debug: print matrix A and B */
-    // if (debug_){
-    //   printMatrixAB();
-    // }
-
-    lqr_control::float64Array dat_A, dat_B, dat_Q, dat_R, dat_P;
-
-    // fill out message:
-    dat_A.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
-    dat_A.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
-    dat_A.array.layout.dim[0].label = "height";
-    dat_A.array.layout.dim[1].label = "width";
-    dat_A.array.layout.dim[0].size = x_size_;
-    dat_A.array.layout.dim[1].size = x_size_;
-    dat_A.array.layout.dim[0].stride = x_size_ * x_size_;
-    dat_A.array.layout.dim[1].stride = x_size_;
-    dat_A.array.layout.data_offset = 0;
-    for (int i = 0; i < x_size_; ++i)
-      for (int j = 0; j < x_size_; ++j)
-        dat_A.array.data.push_back((*A_ptr_)(i, j));
-    dat_B.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
-    dat_B.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
-    dat_B.array.layout.dim[0].label = "height";
-    dat_B.array.layout.dim[1].label = "width";
-    dat_B.array.layout.dim[0].size = x_size_;
-    dat_B.array.layout.dim[1].size = u_size_;
-    dat_B.array.layout.dim[0].stride = x_size_ * u_size_;
-    dat_B.array.layout.dim[1].stride = u_size_;
-    dat_B.array.layout.data_offset = 0;
-    for (int i = 0; i < x_size_; ++i)
-      for (int j = 0; j < u_size_; ++j)
-        dat_B.array.data.push_back((*B_ptr_)(i, j));
-    dat_Q.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
-    dat_Q.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
-    dat_Q.array.layout.dim[0].label = "height";
-    dat_Q.array.layout.dim[1].label = "width";
-    dat_Q.array.layout.dim[0].size = x_size_;
-    dat_Q.array.layout.dim[1].size = x_size_;
-    dat_Q.array.layout.dim[0].stride = x_size_ * x_size_;
-    dat_Q.array.layout.dim[1].stride = x_size_;
-    dat_Q.array.layout.data_offset = 0;
-    for (int i = 0; i < x_size_; ++i)
-      for (int j = 0; j < x_size_; ++j)
-        dat_Q.array.data.push_back((*Q_ptr_)(i, j));
-    dat_R.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
-    dat_R.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
-    dat_R.array.layout.dim[0].label = "height";
-    dat_R.array.layout.dim[1].label = "width";
-    dat_R.array.layout.dim[0].size = u_size_;
-    dat_R.array.layout.dim[1].size = u_size_;
-    dat_R.array.layout.dim[0].stride = u_size_ * u_size_;
-    dat_R.array.layout.dim[1].stride = u_size_;
-    dat_R.array.layout.data_offset = 0;
-    for (int i = 0; i < u_size_; ++i)
-      for (int j = 0; j < u_size_; ++j)
-        dat_R.array.data.push_back((*R_ptr_)(i, j));
-
-    lqr_control::Dare dare_srv;
-    dare_srv.request.A = dat_A;
-    dare_srv.request.B = dat_B;
-    dare_srv.request.Q = dat_Q;
-    dare_srv.request.R = dat_R;
-    ROS_INFO("[SLQ] Matrix AB is sent to Riccati solver.");
-    if (dare_client_.call(dare_srv))
-      dat_P = dare_srv.response.P;
-    else
-      ROS_ERROR("[SLQ] No response from dare sever.");
-    for (int i = 0; i < x_size_; ++i)
-      for (int j = 0; j < x_size_; ++j)
-        (*Riccati_P_ptr_)(i, j) = dat_P.array.data[i * x_size_ + j];
-    ROS_INFO("[SLQ] Matrix P is received from Riccati solver.");
-
-    /* debug: output matrix result from riccati eqation */
-    // if (debug_){
-    //   std::cout << "[Debug] print matrix P initial value:\n";
-    //   for (int i = 0; i < x_size_; ++i){
-    //     for (int j = 0; j < x_size_; ++j)
-    //       std::cout << (*Riccati_P_ptr_)(i, j) << ", ";
-    //     std::cout << "\n";
-    //   }
-    // }
-
-    ROS_INFO("[SLQ] Get P matrice initial value from Ricatti function.");
   }
 
   void SlqFiniteDiscreteControlHydrus::iterativeOptimization(){
@@ -295,7 +178,9 @@ namespace lqr_discrete{
 
       *x_ptr_ = x_vec_[i];
       *u_ptr_ = u_vec_[i];
-      updateMatrixAB(x_ptr_, u_ptr_);
+      // assign value to joint
+      *joint_ptr_ = VectorXd::Zero(3 * (n_links_-1));
+      updateMatrixAB(x_ptr_, u_ptr_, joint_ptr_);
 
       *q_ptr_ = (*Q0_ptr_) * x_vec_[i];
       for (int j = 1; j < waypoints_ptr_->size(); ++j)
@@ -391,324 +276,116 @@ namespace lqr_discrete{
     }
   }
 
-  void SlqFiniteDiscreteControlHydrus::updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr){
-    updateMatrixA(x_ptr, u_ptr);
-    updateMatrixB(x_ptr, u_ptr);
-  }
-
-  void SlqFiniteDiscreteControlHydrus::updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *q_ptr){
-    updateHydrusLinks(x_ptr, q_ptr);
-    updateMatrixD(x_ptr, u_ptr, q_ptr);
-    updateMatrixA(x_ptr, u_ptr);
-    updateMatrixB(x_ptr, u_ptr);
-  }
-
-  void SlqFiniteDiscreteControlHydrus::updateHydrusLinks(VectorXd *x_ptr, VectorXd *q_ptr){
-    *R_local_ptr_ = AngleAxisd((*x_ptr)(E_Y), Vector3d::UnitZ())
-      * AngleAxisd((*x_ptr)(E_P), Vector3d::UnitY())
-      * AngleAxisd((*x_ptr)(E_R), Vector3d::UnitX());
-    *T_local_ptr_ << 1.0, 0.0, -sin((*x_ptr)(E_P)),
-      0.0, cos((*x_ptr)(E_R)), cos((*x_ptr)(E_P)) * sin((*x_ptr)(E_R)),
-      0.0, -sin((*x_ptr)(E_R)), cos((*x_ptr)(E_P)) * cos((*x_ptr)(E_R));
-    link_center_pos_local_vec_[0](0) = link_length_ / 2.0;
-    link_end_pos_local_vec_[0](0) = link_length_;
-    Vector3d previous_end_pt(link_length_, 0, 0);
-    Matrix3d previous_rot = Matrix3d::Zero();
-    R_link_local_vec_.push_back(previous_rot); // R_l0_b
-    for (int i = 0; i < 3; ++i)
-      previous_rot(i, i) = 1.0;
-    for (int i = 1; i < n_links_; ++i){
-      Matrix3d rot;
-      rot << cos((*q_ptr)(i-1)), -sin((*q_ptr)(i-1)), 0,
-        sin((*q_ptr)(i-1)), cos((*q_ptr)(i-1)), 0,
-        0, 0, 1;
-      previous_rot = previous_rot * rot;
-      R_link_local_vec_.push_back(previous_rot); // R_li_b
-      link_center_pos_local_vec_[i] = previous_end_pt + previous_rot * Vector3d(link_length_ / 2.0, 0, 0);
-      previous_end_pt = previous_end_pt + previous_rot * Vector3d(link_length_, 0, 0);
-      link_end_pos_local_vec_[i] = previous_end_pt;
-    }
-    // update Jacobian matrix with (n_links_ - 1) joints
-    for (int i = 1; i < n_links_; ++i){ // no joint before first link
-      Vector3d z_axis = Vector3d(0, 0, 1); // todo: z axis should be different for each link
-      MatrixXd J_P = MatrixXd::Zero(3, n_links_-1);
-      MatrixXd J_W = MatrixXd::Zero(3, n_links_-1);
-      for (int j = 1; j <= i; ++j){ // no joint before first link
-        Vector3d val = z_axis.cross(link_center_pos_local_vec_[i] - link_end_pos_local_vec_[j-1]);
-        for (int k = 0; k < 3; ++k){
-          J_P(k, j-1) = val(k);
-          J_W(k, j-1) = z_axis(k);
-        }
-      }
-      Jacobian_P_vec_[i] = J_P;
-      Jacobian_W_vec_[i] = J_W;
-    }
-  }
-
-  void SlqFiniteDiscreteControlHydrus::updateMatrixD(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *q_ptr){
-    std::vector<MatrixXd> S_operation_vec;
-    for (int i = 0; i < n_links_; ++i){
-      MatrixXd S_mat = S_operation((*R_local_ptr_) * link_center_pos_local_vec_[i]);
-      S_operation_vec.push_back(S_mat);
-    }
-    *Ds_ptr_ = MatrixXd::Zero(x_size_, x_size_);
-    for (int i = 0; i < 3; ++i) // D11
-      (*Ds_ptr_)(i, i) = weight_sum_;
-    Matrix3d D12 = Matrix3d::Zero();
-    for (int i = 0; i < n_links_; ++i)
-      D12 = D12 - link_weight_vec_[i] * S_operation_vec[i];
-    D12 = D12 * (*T_local_ptr_);
-    MatrixXd D13 = MatrixXd::Zero(3, n_links_-1);
-    for (int i = 0; i < n_links_; ++i)
-      D13 = D13 + link_weight_vec_[i] * Jacobian_P_vec_[i];
-    D13 = (*R_local_ptr_) * D13;
-    MatrixXd D22 = MatrixXd::Zero(3, 3);
-    for (int i = 0; i < n_links_; ++i)
-      D22 = D22 + link_weight_vec_[i] * T_local_ptr_->transpose() * S_operation_vec[i].transpose()
-        * S_operation_vec[i] * (*T_local_ptr_)
-        + (*R_local_ptr_) * R_link_local_vec_[i] * (*I_ptr_) *
-        R_link_local_vec_[i].transpose() * R_local_ptr_->transpose();
-    MatrixXd D23 = MatrixXd::Zero(3, 3);
-    for (int i = 0; i < n_links_; ++i)
-      D23 = D23 + T_local_ptr_->transpose() * (*R_local_ptr_) * R_link_local_vec_[i] *
-        (*I_ptr_) * R_link_local_vec_[i].transpose() * Jacobian_W_vec_[i]
-        - link_weight_vec_[i] * T_local_ptr_->transpose() * S_operation_vec[i].transpose() *
-        (*R_local_ptr_) * Jacobian_W_vec_[i];
-    MatrixXd D33 = MatrixXd::Zero(3, 3);
-    for (int i = 0; i < n_links_; ++i)
-      D33 = D33 + link_weight_vec_[i] * Jacobian_P_vec_[i].transpose() * Jacobian_P_vec_[i]
-        + Jacobian_W_vec_[i].transpose() * R_link_local_vec_[i] * (*I_ptr_) *
-        R_link_local_vec_[i].transpose() * Jacobian_W_vec_[i];
-
-    Ds_ptr_->block<3, 3>(0, 3) = D12;
-    Ds_ptr_->block<3, 3>(3, 0) = D12.transpose();
-    Ds_ptr_->block<3, 3>(3, 3) = D22;
-    Ds3_ptr_->block<3, 3>(0, 0) = D13;
-    Ds3_ptr_->block<3, 3>(3, 0) = D23;
-
-    std::vector<MatrixXd> T_local_d_vec;
-    MatrixXd T_local_d_r; T_local_d_r << 0.0, 0.0, 0.0,
-      0.0, -sin((*x_ptr)(E_R)), cos((*x_ptr)(E_P)) * cos((*x_ptr)(E_R)),
-      0.0, -cos((*x_ptr)(E_R)), -cos((*x_ptr)(E_P)) * sin((*x_ptr)(E_R));
-    T_local_d_vec.push_back(T_local_d_r);
-    MatrixXd T_local_d_p; T_local_d_p << 0.0, 0.0, -cos((*x_ptr)(E_P)),
-      0.0, 0.0, -sin((*x_ptr)(E_P)) * sin((*x_ptr)(E_R)),
-      0.0, 0.0, -sin((*x_ptr)(E_P)) * cos((*x_ptr)(E_R));
-    T_local_d_vec.push_back(T_local_d_p);
-    T_local_d_vec.push_back(MatrixXd::Zero(3, 3));
-
-    std::vector<MatrixXd> D_d_vec;
-    for (int i = 0; i < 6+3; ++i)
-      D_d_vec.push_back(MatrixXd::Zero(9, 9));
-    // D11 all 0
-    // D12
-    for (int i = 0; i < n_links_; ++i){ // d_T_local
-      for (int j = 0; j < 3; ++j){
-        MatrixXd D12_d  = -link_weight_vec_[i] * S_operation_vec[i] * T_local_d_vec[j];
-        D_d_vec[E_R + j].block<3, 3>(0, 3) = D_d_vec[E_R + j].block<3, 3>(0, 3) + D12_d;
-      }}
-    
-  }
-
-  void SlqFiniteDiscreteControlHydrus::updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr){
-    *A_ptr_ = MatrixXd::Zero(x_size_, x_size_);
-
-    /* x, y, z */
-    (*A_ptr_)(P_X, V_X) = 1;
-    (*A_ptr_)(P_Y, V_Y) = 1;
-    (*A_ptr_)(P_Z, V_Z) = 1;
-
-    /* v_x, v_y, v_z */
-    double u = 0.0;
-    for (int i = 0; i < u_size_; ++i)
-      u += ((*u_ptr)[i] + (*un_ptr_)[i]);
-      // test: real u
-      // u += (*u_ptr)[i];
-
-    /* u' = u / m */
-    u = u / uav_mass_;
-    /* d v_x = (sin y * sin r + cos y * sin p * cos r) * u' */
-    (*A_ptr_)(V_X, E_R) = (sin((*x_ptr)[E_Y]) * cos((*x_ptr)[E_R]) -
-                           cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * sin((*x_ptr)[E_R])) * u;
-    (*A_ptr_)(V_X, E_P) = cos((*x_ptr)[E_Y]) * cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]) * u;
-    (*A_ptr_)(V_X, E_Y) = (cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) -
-                           sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R])) * u;
-    /* d v_y = (-cos y * sin r + sin y * sin p * cos r) * u' */
-    (*A_ptr_)(V_Y, E_R) = (-cos((*x_ptr)[E_Y]) * cos((*x_ptr)[E_R]) -
-                           sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]))* u;
-    (*A_ptr_)(V_Y, E_P) = sin((*x_ptr)[E_Y]) * cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]) * u;
-    (*A_ptr_)(V_Y, E_Y) = (sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
-                           cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))* u;
-    /* d v_z = (cos p * cos r) * u' */
-    (*A_ptr_)(V_Z, E_P) = -sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]) * u;
-    (*A_ptr_)(V_Z, E_R) = -cos((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]) * u;
-
-    /* e_r, e_p, e_y */
-    /* d e = R_e * w_b */
-    Vector3d w((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
-    MatrixXd R_e = MatrixXd::Zero(3, 3);
-    R_e << 1, tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]), tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]),
-      0, cos((*x_ptr)[E_R]), -sin((*x_ptr)[E_R]),
-      0, sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
-    Vector3d d_e_w_x = R_e * Vector3d(1.0, 0, 0);
-    Vector3d d_e_w_y = R_e * Vector3d(0, 1.0, 0);
-    Vector3d d_e_w_z = R_e * Vector3d(0, 0, 1.0);
-    MatrixXd R_e_r = MatrixXd::Zero(3, 3);
-    R_e_r << 0, tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]), -tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]),
-      0, -sin((*x_ptr)[E_R]), -cos((*x_ptr)[E_R]),
-      0, cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), -sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
-    Vector3d d_e_e_r = R_e_r * w;
-    MatrixXd R_e_p = MatrixXd::Zero(3, 3);
-    double d_cosp = sin((*x_ptr)[E_P]) / pow(cos((*x_ptr)[E_P]), 2.0);
-    R_e_p << 0, sin((*x_ptr)[E_R]) / pow(cos((*x_ptr)[E_P]), 2.0), cos((*x_ptr)[E_R]) / pow(cos((*x_ptr)[E_P]), 2.0),
-      0, 0, 0,
-      0, sin((*x_ptr)[E_R]) * d_cosp, cos((*x_ptr)[E_R]) * d_cosp;
-    Vector3d d_e_e_p = R_e_p * w;
-    for (int i = E_R; i <= E_Y; ++i){
-      (*A_ptr_)(i, W_X) = d_e_w_x(i - E_R);
-      (*A_ptr_)(i, W_Y) = d_e_w_y(i - E_R);
-      (*A_ptr_)(i, W_Z) = d_e_w_z(i - E_R);
-      (*A_ptr_)(i, E_R) = d_e_e_r(i - E_R);
-      (*A_ptr_)(i, E_P) = d_e_e_p(i - E_R);
-    }
-
-    /* w_x, w_y, w_z */
-    /* d w = I^-1 * (- (w^) * (Iw) + tau), w^ = [0, -w_z, w_y; w_z, 0, -w_x; -w_y, w_x, 0] */
-    /* d w_w = I^-1 * (- d(w^) * (Iw) - (w^) * (I * d(w))) */
-    MatrixXd w_m = MatrixXd::Zero(3, 3);
-    w_m << 0, -(*x_ptr)[W_Z], (*x_ptr)[W_Y],
-      (*x_ptr)[W_Z], 0, -(*x_ptr)[W_X],
-      -(*x_ptr)[W_Y], (*x_ptr)[W_X], 0;
-    MatrixXd dw_m = MatrixXd::Zero(3, 3);
-    dw_m(1, 2) = -1;
-    dw_m(2, 1) = 1;
-    Vector3d dw_x = I_ptr_->inverse() *
-      ((-dw_m * ((*I_ptr_) * w))
-       - w_m * ((*I_ptr_) * Vector3d(1.0, 0.0, 0.0)));
-    for (int i = 0; i < 3; ++i)
-      (*A_ptr_)(W_X + i, W_X) = dw_x(i);
-
-    dw_m = MatrixXd::Zero(3, 3);
-    dw_m(0, 2) = 1;
-    dw_m(2, 0) = -1;
-    Vector3d dw_y = I_ptr_->inverse() *
-      ((-dw_m * ((*I_ptr_) * w))
-       - w_m * ((*I_ptr_) * Vector3d(0.0, 1.0, 0.0)));
-    for (int i = 0; i < 3; ++i)
-      (*A_ptr_)(W_X + i, W_Y) = dw_y(i);
-
-    dw_m = MatrixXd::Zero(3, 3);
-    dw_m(0, 1) = -1;
-    dw_m(1, 0) = 1;
-    Vector3d dw_z = I_ptr_->inverse() *
-      ((-dw_m * ((*I_ptr_) * w))
-       - w_m * ((*I_ptr_) * Vector3d(0.0, 0.0, 1.0)));
-    for (int i = 0; i < 3; ++i)
-      (*A_ptr_)(W_X + i, W_Z) = dw_z(i);
-
+  void SlqFiniteDiscreteControlHydrus::updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr){
+    hydrus_dynamic_ptr_->linaerizeState(x_ptr, u_ptr, joint_ptr, A_ptr_, B_ptr_);
     (*A_ptr_) = (*A_ptr_) / control_freq_ + MatrixXd::Identity(x_size_, x_size_);
   }
 
-  void SlqFiniteDiscreteControlHydrus::updateMatrixB(VectorXd *x_ptr, VectorXd *u_ptr){
-    *B_ptr_ = MatrixXd::Zero(x_size_, u_size_);
-
-    /* x, y, z */
-    /* all 0 */
-
-    /* v_x, v_y, v_z */
-    /* d v_x = (sin y * sin r + cos y * sin p * cos r) * (u1 + u2 + u3 + u4) / m */
-    (*B_ptr_)(V_X, U_1) = (sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
-                           cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
-      / uav_mass_;
-    /* d v_y = (-cos y * sin r + sin y * sin p * cos r) * (u1 + u2 + u3 + u4) / m  */
-    (*B_ptr_)(V_Y, U_1) = (-cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
-                           sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
-      / uav_mass_;
-    /* d v_z = (cos p * cos r) * (u1 + u2 + u3 + u4) / m */
-    (*B_ptr_)(V_Z, U_1) = (cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
-      / uav_mass_;
-    for (int i = V_X; i <= V_Z; ++i)
-      for (int j = U_2; j <= U_4; ++j)
-      (*B_ptr_)(i, j) = (*B_ptr_)(i, U_1);
-
-    /* e_r, e_p, e_y */
-    /* all 0 */
-
-    /* w_x, w_y, w_z */
-    /* d w = I^-1 * (- (w^) * (Iw) + M_para * [u1;u2;u3;u4]) */
-    /* d w_u = I^-1 * M_para * d[u1;u2;u3;u4] */
-    Vector3d dw_u1 = I_ptr_->inverse() * (*M_para_ptr_) * Vector4d(1.0, 0.0, 0.0, 0.0);
-    for (int i = 0; i < 3; ++i)
-      (*B_ptr_)(W_X + i, U_1) = dw_u1(i);
-
-    Vector3d dw_u2 = I_ptr_->inverse() * (*M_para_ptr_) * Vector4d(0.0, 1.0, 0.0, 0.0);
-    for (int i = 0; i < 3; ++i)
-      (*B_ptr_)(W_X + i, U_2) = dw_u2(i);
-
-    Vector3d dw_u3 = I_ptr_->inverse() * (*M_para_ptr_) * Vector4d(0.0, 0.0, 1.0, 0.0);
-    for (int i = 0; i < 3; ++i)
-      (*B_ptr_)(W_X + i, U_3) = dw_u3(i);
-
-    Vector3d dw_u4 = I_ptr_->inverse() * (*M_para_ptr_) * Vector4d(0.0, 0.0, 0.0, 1.0);
-    for (int i = 0; i < 3; ++i)
-      (*B_ptr_)(W_X + i, U_4) = dw_u4(i);
-
-    (*B_ptr_) = (*B_ptr_) / control_freq_;
-  }
-
   void SlqFiniteDiscreteControlHydrus::updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr){
-    VectorXd dev_x = VectorXd::Zero(x_size_);
-    /* x, y, z */
-    dev_x(P_X) = (*x_ptr)(V_X);
-    dev_x(P_Y) = (*x_ptr)(V_Y);
-    dev_x(P_Z) = (*x_ptr)(V_Z);
-
-    /* v_x, v_y, v_z */
-    double u = 0.0;
-    for (int i = 0; i < u_size_; ++i)
-       u += ((*u_ptr)[i] + (*un_ptr_)[i]);
-      // test: real u
-      // u += (*u_ptr)[i];
-    /* d v_x = (sin y * sin r + cos y * sin p * cos r) * (u1 + u2 + u3 + u4) / m */
-    dev_x(V_X) = (sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
-                  cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
-      * u / uav_mass_;
-    /* d v_y = (-cos y * sin r + sin y * sin p * cos r) * (u1 + u2 + u3 + u4) / m  */
-    dev_x(V_Y) = (-cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
-                  sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
-      * u / uav_mass_;
-    /* d v_z = (cos p * cos r) * (u1 + u2 + u3 + u4) / m */
-    dev_x(V_Z) = (cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
-      * u / uav_mass_ - 9.78;
-
-    /* e_r, e_p, e_y */
-    /* d e = R_e * w_b */
-    Vector3d w((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
-    MatrixXd R_e = MatrixXd::Zero(3, 3);
-    R_e << 1, tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]), tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]),
-      0, cos((*x_ptr)[E_R]), -sin((*x_ptr)[E_R]),
-      0, sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
-    Vector3d d_e = R_e * w;
-    for (int i = E_R; i <= E_Y; ++i)
-      dev_x(i) = d_e(i - E_R);
-
-    /* w_x, w_y, w_z */
-    /* d w = I^-1 * (- (w^) * (Iw) + M_para * [u1;u2;u3;u4]), w^ = [0, -w_z, w_y; w_z, 0, -w_x; -w_y, w_x, 0] */
-    MatrixXd w_m = MatrixXd::Zero(3, 3);
-    w_m << 0, -(*x_ptr)[W_Z], (*x_ptr)[W_Y],
-      (*x_ptr)[W_Z], 0, -(*x_ptr)[W_X],
-      -(*x_ptr)[W_Y], (*x_ptr)[W_X], 0;
-    Vector3d dw;
-    dw = I_ptr_->inverse() * (-w_m * ((*I_ptr_) * w) + (*M_para_ptr_) * ((*u_ptr) + (*un_ptr_)));
-    // test: real u
-    // dw = I_ptr_->inverse() * (-w_m * ((*I_ptr_) * w) + (*M_para_ptr_) * (*u_ptr));
-    for (int i = 0; i < 3; ++i)
-      dev_x(W_X + i) = dw(i);
-
+    // todo: examine
+    VectorXd dev_x = hydrus_dynamic_ptr_->getStateDerivative();
     dev_x = dev_x / control_freq_;
     *new_x_ptr = dev_x + *x_ptr;
-    // test
-    //*new_x_ptr = stateAddition(x_ptr, &dev_x);
+  }
+
+  void SlqFiniteDiscreteControlHydrus::getRiccatiH(){
+    // method 1: use real state at time tf (get from initial LQR result)
+    *x_ptr_ = x_vec_[iteration_times_];
+    *u_ptr_ = u_vec_[iteration_times_];
+    // method 2: use ideal state at time tf
+    //*x_ptr_ = VectorXd::Zero(x_size_);
+    //*u_ptr_ = VectorXd::Zero(u_size_);
+    if (debug_){
+      printStateInfo(x_ptr_, iteration_times_);
+      printControlInfo(u_ptr_, iteration_times_);
+    }
+    // assign value to joint
+    *joint_ptr_ = VectorXd::Zero(3 * (n_links_-1));
+    updateMatrixAB(x_ptr_, u_ptr_, joint_ptr_);
+
+    /* debug: print matrix A and B */
+    // if (debug_){
+    //   printMatrixAB();
+    // }
+
+    lqr_control::float64Array dat_A, dat_B, dat_Q, dat_R, dat_P;
+
+    // fill out message:
+    dat_A.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    dat_A.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    dat_A.array.layout.dim[0].label = "height";
+    dat_A.array.layout.dim[1].label = "width";
+    dat_A.array.layout.dim[0].size = x_size_;
+    dat_A.array.layout.dim[1].size = x_size_;
+    dat_A.array.layout.dim[0].stride = x_size_ * x_size_;
+    dat_A.array.layout.dim[1].stride = x_size_;
+    dat_A.array.layout.data_offset = 0;
+    for (int i = 0; i < x_size_; ++i)
+      for (int j = 0; j < x_size_; ++j)
+        dat_A.array.data.push_back((*A_ptr_)(i, j));
+    dat_B.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    dat_B.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    dat_B.array.layout.dim[0].label = "height";
+    dat_B.array.layout.dim[1].label = "width";
+    dat_B.array.layout.dim[0].size = x_size_;
+    dat_B.array.layout.dim[1].size = u_size_;
+    dat_B.array.layout.dim[0].stride = x_size_ * u_size_;
+    dat_B.array.layout.dim[1].stride = u_size_;
+    dat_B.array.layout.data_offset = 0;
+    for (int i = 0; i < x_size_; ++i)
+      for (int j = 0; j < u_size_; ++j)
+        dat_B.array.data.push_back((*B_ptr_)(i, j));
+    dat_Q.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    dat_Q.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    dat_Q.array.layout.dim[0].label = "height";
+    dat_Q.array.layout.dim[1].label = "width";
+    dat_Q.array.layout.dim[0].size = x_size_;
+    dat_Q.array.layout.dim[1].size = x_size_;
+    dat_Q.array.layout.dim[0].stride = x_size_ * x_size_;
+    dat_Q.array.layout.dim[1].stride = x_size_;
+    dat_Q.array.layout.data_offset = 0;
+    for (int i = 0; i < x_size_; ++i)
+      for (int j = 0; j < x_size_; ++j)
+        dat_Q.array.data.push_back((*Q_ptr_)(i, j));
+    dat_R.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    dat_R.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    dat_R.array.layout.dim[0].label = "height";
+    dat_R.array.layout.dim[1].label = "width";
+    dat_R.array.layout.dim[0].size = u_size_;
+    dat_R.array.layout.dim[1].size = u_size_;
+    dat_R.array.layout.dim[0].stride = u_size_ * u_size_;
+    dat_R.array.layout.dim[1].stride = u_size_;
+    dat_R.array.layout.data_offset = 0;
+    for (int i = 0; i < u_size_; ++i)
+      for (int j = 0; j < u_size_; ++j)
+        dat_R.array.data.push_back((*R_ptr_)(i, j));
+
+    lqr_control::Dare dare_srv;
+    dare_srv.request.A = dat_A;
+    dare_srv.request.B = dat_B;
+    dare_srv.request.Q = dat_Q;
+    dare_srv.request.R = dat_R;
+    ROS_INFO("[SLQ] Matrix AB is sent to Riccati solver.");
+    if (dare_client_.call(dare_srv))
+      dat_P = dare_srv.response.P;
+    else
+      ROS_ERROR("[SLQ] No response from dare sever.");
+    for (int i = 0; i < x_size_; ++i)
+      for (int j = 0; j < x_size_; ++j)
+        (*Riccati_P_ptr_)(i, j) = dat_P.array.data[i * x_size_ + j];
+    ROS_INFO("[SLQ] Matrix P is received from Riccati solver.");
+
+    /* debug: output matrix result from riccati eqation */
+    // if (debug_){
+    //   std::cout << "[Debug] print matrix P initial value:\n";
+    //   for (int i = 0; i < x_size_; ++i){
+    //     for (int j = 0; j < x_size_; ++j)
+    //       std::cout << (*Riccati_P_ptr_)(i, j) << ", ";
+    //     std::cout << "\n";
+    //   }
+    // }
+
+    ROS_INFO("[SLQ] Get P matrice initial value from Ricatti function.");
   }
 
   bool SlqFiniteDiscreteControlHydrus::feedforwardConverged(){
@@ -721,7 +398,7 @@ namespace lqr_discrete{
       if (control_sum > fw_max)
         fw_max = control_sum;
     }
-    double fw_converge_threshold = (uav_mass_ * 9.78 / 4.0) * 0.1;
+    double fw_converge_threshold = (hydrus_mass_ * 9.78 / 4.0) * 0.1;
     if (fw_max < pow(fw_converge_threshold, 2))
       return true;
     else
@@ -760,7 +437,7 @@ namespace lqr_discrete{
     for (int j = 6; j < x_size_; ++j)
       (*W_ptr)(j, j) = 0.1 * weight;
     (*W_ptr)(E_Y, E_Y) = weight;
-    (*W_ptr)(W_Y, W_Y) = weight;
+    (*W_ptr)(DE_Y, DE_Y) = weight;
     // test: weight on z
     (*W_ptr)(2, 2) = (*W_ptr)(5, 5) = 100.0 * weight;
 
@@ -788,7 +465,9 @@ namespace lqr_discrete{
   void SlqFiniteDiscreteControlHydrus::FDLQR(){
     *x_ptr_ = x_vec_[0];
     *u_ptr_ = u_vec_[0];
-    updateMatrixAB(x_ptr_, u_ptr_);
+    // assign value to joint
+    *joint_ptr_ = VectorXd::Zero(3 * (n_links_-1));
+    updateMatrixAB(x_ptr_, u_ptr_, joint_ptr_);
 
     std::vector<MatrixXd> F_vec;
     MatrixXd P(x_size_, x_size_);
@@ -866,14 +545,6 @@ namespace lqr_discrete{
       std::cout << ";";
     }
     std::cout << "\n\n";
-  }
-
-  Matrix3d SlqFiniteDiscreteControlHydrus::S_operation(Vector3d v){
-    Matrix3d s_mat;
-    s_mat << 0.0, -v(3), v(2),
-      v(3), 0.0, -v(1),
-      -v(2), v(1), 0.0;
-    return s_mat;
   }
 
   void SlqFiniteDiscreteControlHydrus::printMatrix(MatrixXd *mat_ptr, std::string mat_name){

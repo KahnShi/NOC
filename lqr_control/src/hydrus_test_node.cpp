@@ -83,17 +83,7 @@ int main(int argc, char **argv)
   VectorXd x = VectorXd::Zero(12);
   VectorXd q = VectorXd::Zero(3);
   q(0) = 3.1416 / 6.0;
-  hydrus_node->updateHydrusLinks(&x, &q);
-  std::cout << "jacobian p\n";
-  for (int i = 0; i < 4; ++i){
-    std::cout << i << "\n";
-    for (int j = 0; j < 3; ++j){
-      for (int k = 0; k < 3; ++k){
-        std::cout << hydrus_node->Jacobian_W_vec_[i](j, k) << ", ";
-      }
-      std::cout << "\n";
-    }
-  }
+  // hydrus_node->updateHydrusLinks(&x, &q);
 
   ros::spinOnce();
   return 0;
