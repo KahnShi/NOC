@@ -542,7 +542,7 @@ namespace hydrus_dynamics{
         }
         for (int k = Q_1; k <= Q_3; ++k){ // d R_b d J_p
           MatrixXd D13_dd = link_weight_vec_[i] * R_local_dx_vec_[j-E_R]
-            * Jacobian_P_dq_vec_[i*3+k];
+            * Jacobian_P_dq_vec_[i*3+(k-Q_1)];
           D_ddx_vec_[j*9+k].block<3, 3>(0, 6) += D13_dd;
           D_ddx_vec_[j*9+k].block<3, 3>(6, 0) += D13_dd.transpose();
         }
