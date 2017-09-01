@@ -83,6 +83,8 @@ namespace hydrus_dynamics{
       for (int j = 0; j < 6; ++j){
         S_operation_ddx_vec_.push_back(MatrixXd::Zero(3, 4));
       }
+      Cs_dx_vec_.push_back(MatrixXd::Zero(6, 6));
+      Cs3_dx_vec_.push_back(MatrixXd::Zero(6, 3));
       Cs_ddx_vec_.push_back(MatrixXd::Zero(6, 6));
       Cs3_ddx_vec_.push_back(MatrixXd::Zero(6, 3));
     }
@@ -862,6 +864,8 @@ namespace hydrus_dynamics{
     Cs_ = MatrixXd::Zero(6, 6);
     Cs3_ = MatrixXd::Zero(6, 3);
     for (int i = 0; i < 6; ++i){
+      Cs_dx_vec_[i] = MatrixXd::Zero(6, 6);
+      Cs3_dx_vec_[i] = MatrixXd::Zero(6, 3);
       Cs_ddx_vec_[i] = MatrixXd::Zero(6, 6);
       Cs3_ddx_vec_[i] = MatrixXd::Zero(6, 3);
     }
@@ -873,8 +877,14 @@ namespace hydrus_dynamics{
           else x_d = q_vec_[3+(i-6)]; // d q
           double Cs_param = 0.5 * (D_dx_vec_[i](k, j) + D_dx_vec_[j](k, i) + D_dx_vec_[k](i, j));
           Cs_(k, j) = Cs_(k, j) + Cs_param * x_d;
-          if (i < 6) // not considering joints into state
+          if (i < 6){ // not considering joints into state
             Cs_ddx_vec_[i](k, j) += Cs_param;
+          }
+          for (int i2 = 0; i2 <= E_Y; ++i2){
+            double Cs_dx_param = 0.5 * (D_ddx_vec_[i*9+i2](k, j) + D_ddx_vec_[j*9+i2](k, i)
+                                        + D_dx_vec_[k*9+i2](i, j));
+            Cs_dx_vec_[i2](k, j) += Cs_dx_param * x_d;
+          }
         }
     for (int k = 0; k <= E_Y; ++k)
       for (int j = Q_1; j <= Q_3; ++j)
@@ -884,8 +894,14 @@ namespace hydrus_dynamics{
           else x_d = q_vec_[3+(i-6)]; // d q
           double Cs_param = 0.5 * (D_dx_vec_[i](k, j) + D_dx_vec_[j](k, i) + D_dx_vec_[k](i, j));
           Cs3_(k, j-Q_1) = Cs_(k, j-Q_1) + Cs_param * x_d;
-          if (i < 6) // not considering joints into state
+          if (i < 6){ // not considering joints into state
             Cs3_ddx_vec_[i](k, j) += Cs_param;
+          }
+          for (int i2 = 0; i2 <= E_Y; ++i2){
+            double Cs_dx_param = 0.5 * (D_ddx_vec_[i*9+i2](k, j) + D_ddx_vec_[j*9+i2](k, i)
+                                        + D_dx_vec_[k*9+i2](i, j));
+            Cs3_dx_vec_[i2](k, j) += Cs_dx_param * x_d;
+          }
         }
     // gs
     gs_ = VectorXd::Zero(6);
