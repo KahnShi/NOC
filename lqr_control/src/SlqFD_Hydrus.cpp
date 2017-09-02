@@ -145,6 +145,7 @@ namespace lqr_discrete{
       VectorXd cur_joint = getCurrentJoint(i/control_freq_);
       VectorXd cur_joint_dt = getCurrentJoint(i/control_freq_, 1);
       joint_vec_.push_back(cur_joint);
+      joint_dt_vec_.push_back(cur_joint_dt);
       getHydrusLinksCenter(&cur_joint);
       getHydrusLinksCenterDerivative(&cur_joint, &cur_joint_dt);
       getHydrusInertialTensor(&cur_joint, i);
@@ -463,38 +464,57 @@ namespace lqr_discrete{
     }
 
     /* w_x, w_y, w_z */
-    /* d w = I^-1 * (- (w^) * (Iw) + tau), w^ = [0, -w_z, w_y; w_z, 0, -w_x; -w_y, w_x, 0] */
-    /* d w_w = I^-1 * (- d(w^) * (Iw) - (w^) * (I * d(w))) */
-    MatrixXd w_m = MatrixXd::Zero(3, 3);
-    w_m << 0, -(*x_ptr)[W_Z], (*x_ptr)[W_Y],
-      (*x_ptr)[W_Z], 0, -(*x_ptr)[W_X],
-      -(*x_ptr)[W_Y], (*x_ptr)[W_X], 0;
-    MatrixXd dw_m = MatrixXd::Zero(3, 3);
-    dw_m(1, 2) = -1;
-    dw_m(2, 1) = 1;
-    Vector3d dw_x = I_ptr_->inverse() *
-      ((-dw_m * ((*I_ptr_) * w))
-       - w_m * ((*I_ptr_) * Vector3d(1.0, 0.0, 0.0)));
-    for (int i = 0; i < 3; ++i)
-      (*A_ptr_)(W_X + i, W_X) = dw_x(i);
+    /* d w = I.inv() * (sigma ri.cross(fi - R'*mi*g) - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
+    /* d w_e, d w_w*/
 
-    dw_m = MatrixXd::Zero(3, 3);
-    dw_m(0, 2) = 1;
-    dw_m(2, 0) = -1;
-    Vector3d dw_y = I_ptr_->inverse() *
-      ((-dw_m * ((*I_ptr_) * w))
-       - w_m * ((*I_ptr_) * Vector3d(0.0, 1.0, 0.0)));
-    for (int i = 0; i < 3; ++i)
-      (*A_ptr_)(W_X + i, W_Y) = dw_y(i);
+    /* d w_e = I.inv() * (sigma ri.cross(- d R'*mi*g) */
+    Matrix3d I_sum = Matrix3d::Zero();
+    for (int i = 0; i < n_links_; ++i)
+      I_sum += I_vec_[time_id][i];
+    I_sum = I_sum.inverse();
+    Vector3d rot_inv_z_d_er(0.0,
+                            cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]),
+                            -cos((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]));
+    Vector3d d_w_e_r = Vector3d::Zero();
+    for (int i = 0; i < n_links_; ++i){
+      d_w_e_r += link_center_pos_local_vec_[time_id][i].
+        cross(-rot_inv_z_d_er * link_weight_vec_[i] * 9.78);
+    }
+    d_w_e_r = I_sum * d_w_e_r;
 
-    dw_m = MatrixXd::Zero(3, 3);
-    dw_m(0, 1) = -1;
-    dw_m(1, 0) = 1;
-    Vector3d dw_z = I_ptr_->inverse() *
-      ((-dw_m * ((*I_ptr_) * w))
-       - w_m * ((*I_ptr_) * Vector3d(0.0, 0.0, 1.0)));
-    for (int i = 0; i < 3; ++i)
-      (*A_ptr_)(W_X + i, W_Z) = dw_z(i);
+    Vector3d rot_inv_z_d_ep(-cos((*x_ptr)[E_P]),
+                            -sin((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]),
+                            -sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]));
+    Vector3d d_w_e_p = Vector3d::Zero();
+    for (int i = 0; i < n_links_; ++i){
+      d_w_e_p += link_center_pos_local_vec_[time_id][i].
+        cross(-rot_inv_z_d_ep * link_weight_vec_[i] * 9.78);
+    }
+    d_w_e_p = I_sum * d_w_e_p;
+
+    Vector3d d_w_e_y = Vector3d::Zero();
+
+    /* d w_w = I.inv() * (sigma - (d wi).cross(Ii * wi) - wi.cross(Ii * dwi) - dIi * dwi) */
+    std::vector<Vector3d> d_w_w_i_vec;
+    for (int j = 0; j < 3; ++j){
+      Vector3d d_w_w_i = Vector3d::Zero();
+      Vector3d dwi = Vector3d::Zero(); dwi(j) = 1.0;
+      for (int i = 0; i < n_links_; ++i){
+        Vector3d wi = w + Vector3d(getJacobianW(i) * joint_dt_vec_[time_id]);
+        d_w_w_i += (-dwi.cross(Vector3d(I_vec_[time_id][i] * wi))
+                    - wi.cross(Vector3d(I_vec_[time_id][i] * dwi))
+                    - I_dt_vec_[time_id][i] * dwi);
+      }
+      d_w_w_i = I_sum * d_w_w_i;
+      d_w_w_i_vec.push_back(d_w_w_i);
+    }
+
+    for (int i = W_X; i <= W_Z; ++i){
+      (*A_ptr_)(i, E_R) = d_w_e_r(i - W_X);
+      (*A_ptr_)(i, E_P) = d_w_e_p(i - W_X);
+      for (int j = W_X; j <= W_Z; ++j)
+        (*A_ptr_)(i, j) = d_w_w_i_vec[j - W_X](i - W_X);
+    }
 
     (*A_ptr_) = (*A_ptr_) / control_freq_ + MatrixXd::Identity(x_size_, x_size_);
   }
@@ -529,23 +549,18 @@ namespace lqr_discrete{
     /* all 0 */
 
     /* w_x, w_y, w_z */
-    /* d w = I^-1 * (- (w^) * (Iw) + M_para * [u1;u2;u3;u4]) */
-    /* d w_u = I^-1 * M_para * d[u1;u2;u3;u4] */
-    Vector3d dw_u1 = I_ptr_->inverse() * (*M_para_ptr_) * Vector4d(1.0, 0.0, 0.0, 0.0);
-    for (int i = 0; i < 3; ++i)
-      (*B_ptr_)(W_X + i, U_1) = dw_u1(i);
-
-    Vector3d dw_u2 = I_ptr_->inverse() * (*M_para_ptr_) * Vector4d(0.0, 1.0, 0.0, 0.0);
-    for (int i = 0; i < 3; ++i)
-      (*B_ptr_)(W_X + i, U_2) = dw_u2(i);
-
-    Vector3d dw_u3 = I_ptr_->inverse() * (*M_para_ptr_) * Vector4d(0.0, 0.0, 1.0, 0.0);
-    for (int i = 0; i < 3; ++i)
-      (*B_ptr_)(W_X + i, U_3) = dw_u3(i);
-
-    Vector3d dw_u4 = I_ptr_->inverse() * (*M_para_ptr_) * Vector4d(0.0, 0.0, 0.0, 1.0);
-    for (int i = 0; i < 3; ++i)
-      (*B_ptr_)(W_X + i, U_4) = dw_u4(i);
+    /* d w = I.inv() * (sigma ri.cross(fi - R'*mi*g) - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
+    /* d w_u_i = I.inv() * (ri.cross(d fi)) */
+    Matrix3d I_sum = Matrix3d::Zero();
+    for (int i = 0; i < n_links_; ++i)
+      I_sum += I_vec_[time_id][i];
+    I_sum = I_sum.inverse();
+    for (int i = 0; i < n_links_; ++i){
+      Vector3d dw_u_i = I_sum *
+        link_center_pos_local_vec_[time_id][i].cross(Vector3d(0, 0, 1.0));
+      for (int j = 0; j < 3; ++j)
+        (*B_ptr_)(W_X + j, U_1 + i) = dw_u_i(j);
+    }
 
     (*B_ptr_) = (*B_ptr_) / control_freq_;
   }
@@ -591,11 +606,7 @@ namespace lqr_discrete{
       dev_x(i) = d_e(i - E_R);
 
     /* w_x, w_y, w_z */
-    /* d w = I^-1 * (- (w^) * (Iw) + M_para * [u1;u2;u3;u4]), w^ = [0, -w_z, w_y; w_z, 0, -w_x; -w_y, w_x, 0] */
-    MatrixXd w_m = MatrixXd::Zero(3, 3);
-    w_m << 0, -(*x_ptr)[W_Z], (*x_ptr)[W_Y],
-      (*x_ptr)[W_Z], 0, -(*x_ptr)[W_X],
-      -(*x_ptr)[W_Y], (*x_ptr)[W_X], 0;
+    /* d w = I.inv() * (sigma ri.cross(fi - R'*mi*g) - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
     Vector3d dw;
     Vector3d mid_result = Vector3d::Zero();
     Vector3d rot_inv_z(-sin((*x_ptr)[E_P]),
