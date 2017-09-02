@@ -56,15 +56,15 @@ int main(int argc, char **argv)
   way_pts_vec.push_back(start_state);
   period_vec.push_back(0.0);
 
-  VectorXd mid_state = VectorXd::Zero(12);
-  mid_state(0) = 8.0;
-  mid_state(1) = 0.0;
-  mid_state(2) = 2.0;
-  mid_state(3) = -2.0;
-  mid_state(4) = -2.0;
-  mid_state(5) = -1.0;
-  way_pts_vec.push_back(mid_state);
-  period_vec.push_back(3.0);
+  // VectorXd mid_state = VectorXd::Zero(12);
+  // mid_state(0) = 8.0;
+  // mid_state(1) = 0.0;
+  // mid_state(2) = 2.0;
+  // mid_state(3) = -2.0;
+  // mid_state(4) = -2.0;
+  // mid_state(5) = -1.0;
+  // way_pts_vec.push_back(mid_state);
+  // period_vec.push_back(3.0);
 
   VectorXd end_state = VectorXd::Zero(12);
   end_state(0) = 5.0;

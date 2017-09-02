@@ -34,16 +34,14 @@
  *********************************************************************/
 
 #ifndef SLQ_FINITE_DISCRETE_CONTROLLER_HYDRUS_H
-#define SLQ_FINITE_DISCRETE_CONTROLLER_HYDRUS_H
+#define SLQ_FINITE_DISCRETE_CONTROLLER_QUADROTOR_H
 
-#include <lqr_control/LqrDiscreteBase.h>
-#include <lqr_control/Hydrus_Dynamics.h>
+#include <lqr_control/LqrFD_Quadrotor.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <std_msgs/MultiArrayDimension.h>
 #include <unistd.h>
 #include <lqr_control/Dare.h>
 #include <lqr_control/float64Array.h>
-using namespace hydrus_dynamics;
 
 namespace lqr_discrete{
   class SlqFiniteDiscreteControlHydrus: public LqrDiscreteControlBase{
@@ -53,15 +51,15 @@ namespace lqr_discrete{
 
     /* Hydrus */
     double link_length_;
-    MatrixXd *I_ptr_;
     int n_links_;
-    std::vector<double> link_mass_vec_;
-    double hydrus_mass_;
+    std::vector<double> link_weight_vec_;
+    VectorXd *joint_ptr_;
+    double hydrus_weight_;
+    MatrixXd *I_ptr_;
+    MatrixXd *M_para_ptr_;
     bool debug_;
     double uav_rotor_thrust_min_;
     double uav_rotor_thrust_max_;
-    VectorXd *joint_ptr_;
-
     /* slq */
     MatrixXd *H_ptr_;
     MatrixXd *Riccati_P_ptr_;
@@ -81,16 +79,18 @@ namespace lqr_discrete{
     std::vector<MatrixXd> K_vec_;
     std::vector<VectorXd> *waypoints_ptr_;
     std::vector<double> *time_ptr_;
-    HydrusDynamics *hydrus_dynamic_ptr_;
+    LqrFiniteDiscreteControlQuadrotor *lqr_controller_ptr_;
 
     /* Ros service */
     ros::ServiceClient dare_client_;
 
     void initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr);
-    void updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr);
+    void updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr);
+    void updateMatrixB(VectorXd *x_ptr, VectorXd *u_ptr);
+    void updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr);
     void getRiccatiH();
     void iterativeOptimization();
-    void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr);
+    void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr);
     bool feedforwardConverged();
     VectorXd stateAddition(VectorXd *x1_ptr, VectorXd *x2_ptr);
     VectorXd stateSubtraction(VectorXd *x1_ptr, VectorXd *x2_ptr);
@@ -100,14 +100,9 @@ namespace lqr_discrete{
     void updateSLQEquations();
     void FDLQR();
     void checkControlInputFeasible(VectorXd *u);
-    void getCurrentJoint(VectorXd *joint_ptr, double cur_time);
     void printStateInfo(VectorXd *x, int id);
     void printControlInfo(VectorXd *u, int id);
     void printMatrixAB();
-    void printMatrix(MatrixXd *mat_ptr, std::string mat_name=std::string("matrix"));
-    void printMatrix(Matrix3d *mat_ptr, std::string mat_name=std::string("matrix"));
-    void printVector(VectorXd *vec_ptr, std::string mat_name=std::string("vector"));
-    void printVector(Vector3d *vec_ptr, std::string mat_name=std::string("vector"));
   };
 }
 
