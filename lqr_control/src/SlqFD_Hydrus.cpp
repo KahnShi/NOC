@@ -338,8 +338,7 @@ namespace lqr_discrete{
           }
 
           VectorXd new_x(x_size_);
-          VectorXd cur_joint = joint_vec_[i];
-          updateNewState(&new_x, &cur_x, &cur_u, &cur_joint);
+          updateNewState(&new_x, &cur_x, &cur_u, i);
           cur_x = new_x;
         }
         energy_sum += (cur_x.transpose() * (*Riccati_P_ptr_) * cur_x)(0);
@@ -366,8 +365,7 @@ namespace lqr_discrete{
         + K_vec_[i] * (cur_x - x_vec_[i]);
       checkControlInputFeasible(&cur_u);
       VectorXd new_x(x_size_);
-      VectorXd cur_joint = joint_vec_[i];
-      updateNewState(&new_x, &cur_x, &cur_u, &cur_joint);
+      updateNewState(&new_x, &cur_x, &cur_u, i);
       if ((i % 100 == 0 || i == iteration_times_ - 1) && debug_){
         printStateInfo(&cur_x, i);
         printControlInfo(&cur_u, i);
@@ -547,8 +545,12 @@ namespace lqr_discrete{
     (*B_ptr_) = (*B_ptr_) / control_freq_;
   }
 
-  void SlqFiniteDiscreteControlHydrus::updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr){
+  void SlqFiniteDiscreteControlHydrus::updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr, int time_id){
     VectorXd dev_x = VectorXd::Zero(x_size_);
+
+    VectorXd *joint_ptr = new VectorXd(n_links_ - 1);
+    *joint_ptr = joint_vec_[time_id];
+
     /* x, y, z */
     dev_x(P_X) = (*x_ptr)(V_X);
     dev_x(P_Y) = (*x_ptr)(V_Y);
@@ -744,8 +746,7 @@ namespace lqr_discrete{
     for (int i = iteration_times_ - 1; i >= 0; --i){
       VectorXd u = -F_vec[i] * x;
       VectorXd new_x(x_size_);
-      VectorXd cur_joint = joint_vec_[i];
-      updateNewState(&new_x, &x, &u, &cur_joint);
+      updateNewState(&new_x, &x, &u, i);
       x = new_x;
       x_vec_[iteration_times_ - i] = x;
 

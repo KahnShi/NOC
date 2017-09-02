@@ -93,7 +93,7 @@ namespace lqr_discrete{
     void updateMatrixAB(int time_id);
     void getRiccatiH();
     void iterativeOptimization();
-    void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr);
+    void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr, int time_id);
     bool feedforwardConverged();
     VectorXd stateAddition(VectorXd *x1_ptr, VectorXd *x2_ptr);
     VectorXd stateSubtraction(VectorXd *x1_ptr, VectorXd *x2_ptr);
