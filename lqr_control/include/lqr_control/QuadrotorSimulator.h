@@ -36,9 +36,8 @@
 #ifndef QUADROTOR_SIMULATOR_H
 #define QUADROTOR_SIMULATOR_H
 
-#include <lqr_control/LqrFD_Quadrotor.h>
-#include <lqr_control/LqrID_Quadrotor.h>
-#include <lqr_control/SlqFD_Quadrotor.h>
+// #include <lqr_control/SlqFD_Quadrotor.h>
+#include <lqr_control/SlqFD_Hydrus.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <nav_msgs/Path.h>
@@ -53,8 +52,8 @@ namespace quadrotor_simulator{
     ~QuadrotorSimulator(){};
     ros::NodeHandle nh_;
     ros::NodeHandle nhp_;
-    // LqrFiniteDiscreteControlQuadrotor *controller_ptr_;
-    SlqFiniteDiscreteControlQuadrotor *controller_ptr_;
+    // SlqFiniteDiscreteControlQuadrotor *controller_ptr_;
+    SlqFiniteDiscreteControlHydrus *controller_ptr_;
     std::vector<VectorXd> *waypoints_ptr_;
     std::vector<double> *time_ptr_;
     double period_;

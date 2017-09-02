@@ -148,11 +148,12 @@ namespace hydrus_dynamics{
     MatrixXd D23_;
     MatrixXd D33_;
 
+    void updateHrydrusDynamicParamater(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr);
     VectorXd getStateDerivative();
     void updateMiddleVariable(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr);
     MatrixXd vectorToSkewMatrix(VectorXd s);
     void updateMainMatrix();
-    void linaerizeState(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr, MatrixXd *s_mat_ptr, MatrixXd *u_mat_ptr);
+    void linaerizeState(MatrixXd *s_mat_ptr, MatrixXd *u_mat_ptr);
   };
 }
 

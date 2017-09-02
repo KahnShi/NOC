@@ -179,6 +179,7 @@ namespace lqr_discrete{
       *x_ptr_ = x_vec_[i];
       *u_ptr_ = u_vec_[i];
       // assign value to joint
+      getCurrentJoint(joint_ptr_, i / control_freq_);
       *joint_ptr_ = VectorXd::Zero(3 * (n_links_-1));
       updateMatrixAB(x_ptr_, u_ptr_, joint_ptr_);
 
@@ -236,7 +237,9 @@ namespace lqr_discrete{
           }
 
           VectorXd new_x(x_size_);
-          updateNewState(&new_x, &cur_x, &cur_u);
+          VectorXd cur_joint(3);
+          getCurrentJoint(&cur_joint, i / control_freq_);
+          updateNewState(&new_x, &cur_x, &cur_u, &cur_joint);
           cur_x = new_x;
         }
         energy_sum += (cur_x.transpose() * (*Riccati_P_ptr_) * cur_x)(0);
@@ -263,7 +266,9 @@ namespace lqr_discrete{
         + K_vec_[i] * (cur_x - x_vec_[i]);
       checkControlInputFeasible(&cur_u);
       VectorXd new_x(x_size_);
-      updateNewState(&new_x, &cur_x, &cur_u);
+      VectorXd cur_joint(3);
+      getCurrentJoint(&cur_joint, i / control_freq_);
+      updateNewState(&new_x, &cur_x, &cur_u, &cur_joint);
       if ((i % 100 == 0 || i == iteration_times_ - 1) && debug_){
         printStateInfo(&cur_x, i);
         printControlInfo(&cur_u, i);
@@ -277,12 +282,14 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlHydrus::updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr){
-    hydrus_dynamic_ptr_->linaerizeState(x_ptr, u_ptr, joint_ptr, A_ptr_, B_ptr_);
+    hydrus_dynamic_ptr_->updateHrydrusDynamicParamater(x_ptr, u_ptr, joint_ptr);
+    hydrus_dynamic_ptr_->linaerizeState(A_ptr_, B_ptr_);
     (*A_ptr_) = (*A_ptr_) / control_freq_ + MatrixXd::Identity(x_size_, x_size_);
   }
 
-  void SlqFiniteDiscreteControlHydrus::updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr){
+  void SlqFiniteDiscreteControlHydrus::updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr){
     // todo: examine
+    hydrus_dynamic_ptr_->updateHrydrusDynamicParamater(x_ptr, u_ptr, joint_ptr);
     VectorXd dev_x = hydrus_dynamic_ptr_->getStateDerivative();
     dev_x = dev_x / control_freq_;
     *new_x_ptr = dev_x + *x_ptr;
@@ -300,7 +307,7 @@ namespace lqr_discrete{
       printControlInfo(u_ptr_, iteration_times_);
     }
     // assign value to joint
-    *joint_ptr_ = VectorXd::Zero(3 * (n_links_-1));
+    getCurrentJoint(joint_ptr_, end_time_);
     updateMatrixAB(x_ptr_, u_ptr_, joint_ptr_);
 
     /* debug: print matrix A and B */
@@ -466,7 +473,7 @@ namespace lqr_discrete{
     *x_ptr_ = x_vec_[0];
     *u_ptr_ = u_vec_[0];
     // assign value to joint
-    *joint_ptr_ = VectorXd::Zero(3 * (n_links_-1));
+    getCurrentJoint(joint_ptr_, end_time_);
     updateMatrixAB(x_ptr_, u_ptr_, joint_ptr_);
 
     std::vector<MatrixXd> F_vec;
@@ -486,7 +493,9 @@ namespace lqr_discrete{
     for (int i = iteration_times_ - 1; i >= 0; --i){
       VectorXd u = -F_vec[i] * x;
       VectorXd new_x(x_size_);
-      updateNewState(&new_x, &x, &u);
+      VectorXd cur_joint(3);
+      getCurrentJoint(&cur_joint, i / control_freq_);
+      updateNewState(&new_x, &x, &u, &cur_joint);
       x = new_x;
       x_vec_[iteration_times_ - i] = x;
 
@@ -509,6 +518,12 @@ namespace lqr_discrete{
       else if ((*u)(j) + (*un_ptr_)(j) > uav_rotor_thrust_max_)
         (*u)(j) = uav_rotor_thrust_max_ - (*un_ptr_)(j);
     }
+  }
+
+  void SlqFiniteDiscreteControlHydrus::getCurrentJoint(VectorXd *joint_ptr, double cur_time){
+    // not transforming
+    for (int i = 0; i < n_links_ -1; ++i)
+      (*joint_ptr)(i) = 3.14159 / 4.0; // pi/4
   }
 
   void SlqFiniteDiscreteControlHydrus::printStateInfo(VectorXd *x, int id){

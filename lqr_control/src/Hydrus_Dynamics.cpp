@@ -97,6 +97,11 @@ namespace hydrus_dynamics{
   HydrusDynamics::~HydrusDynamics(){
   }
 
+  void HydrusDynamics::updateHrydrusDynamicParamater(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr){
+    updateMiddleVariable(x_ptr, u_ptr, joint_ptr);
+    updateMainMatrix();
+  }
+
   VectorXd HydrusDynamics::getStateDerivative(){
     VectorXd d_x(6);
     for (int i = 0; i < 6; ++i)
@@ -117,10 +122,7 @@ namespace hydrus_dynamics{
     return d_x;
   }
 
-  void HydrusDynamics::linaerizeState(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr, MatrixXd *s_mat_ptr, MatrixXd *u_mat_ptr){
-    updateMiddleVariable(x_ptr, u_ptr, joint_ptr);
-    updateMainMatrix();
-
+  void HydrusDynamics::linaerizeState(MatrixXd *s_mat_ptr, MatrixXd *u_mat_ptr){
     VectorXd d_x(6);
     for (int i = 0; i < 6; ++i)
       d_x(i) = x_vec_(6 + i);

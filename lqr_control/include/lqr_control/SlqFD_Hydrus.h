@@ -90,7 +90,7 @@ namespace lqr_discrete{
     void updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr);
     void getRiccatiH();
     void iterativeOptimization();
-    void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr);
+    void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr);
     bool feedforwardConverged();
     VectorXd stateAddition(VectorXd *x1_ptr, VectorXd *x2_ptr);
     VectorXd stateSubtraction(VectorXd *x1_ptr, VectorXd *x2_ptr);
@@ -100,6 +100,7 @@ namespace lqr_discrete{
     void updateSLQEquations();
     void FDLQR();
     void checkControlInputFeasible(VectorXd *u);
+    void getCurrentJoint(VectorXd *joint_ptr, double cur_time);
     void printStateInfo(VectorXd *x, int id);
     void printControlInfo(VectorXd *u, int id);
     void printMatrixAB();
