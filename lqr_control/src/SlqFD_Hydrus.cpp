@@ -381,8 +381,10 @@ namespace lqr_discrete{
   VectorXd SlqFiniteDiscreteControlHydrus::getCurrentJoint(double time, int order){
     VectorXd joint = VectorXd::Zero(n_links_ - 1);
     // keep quadrotor model, neglecting time, order
-    for (int i = 0; i < n_links_ - 1; ++i)
-      joint(i) = 3.14159 / 2.0;
+    if (order == 0){
+      for (int i = 0; i < n_links_ - 1; ++i)
+        joint(i) = 3.14159 / 2.0;
+    }
     return joint;
   }
 
@@ -592,9 +594,26 @@ namespace lqr_discrete{
       (*x_ptr)[W_Z], 0, -(*x_ptr)[W_X],
       -(*x_ptr)[W_Y], (*x_ptr)[W_X], 0;
     Vector3d dw;
-    dw = I_ptr_->inverse() * (-w_m * ((*I_ptr_) * w) + (*M_para_ptr_) * ((*u_ptr) + (*un_ptr_)));
-    // test: real u
-    // dw = I_ptr_->inverse() * (-w_m * ((*I_ptr_) * w) + (*M_para_ptr_) * (*u_ptr));
+    Vector3d mid_result = Vector3d::Zero();
+    Vector3d rot_inv_z(-sin((*x_ptr)[E_P]),
+                       cos((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]),
+                       cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]));
+    VectorXd dq = getCurrentJoint(time_id/control_freq_, 1);
+    VectorXd ddq = getCurrentJoint(time_id/control_freq_, 2);
+    for (int i = 0; i < n_links_; ++i){
+      MatrixXd JW_mat = getJacobianW(i);
+      mid_result +=
+        link_center_pos_local_vec_[time_id][i].
+        cross(Vector3d(0, 0, (*u_ptr)[i] + (*un_ptr_)[i])
+              - rot_inv_z * link_weight_vec_[i] * 9.78)
+        - I_vec_[time_id][i] * JW_mat * ddq
+        - (Vector3d(w + JW_mat * dq)).cross(Vector3d(I_vec_[time_id][i]
+                                           * (w + JW_mat * dq)));
+    }
+    Matrix3d I_sum = Matrix3d::Zero();
+    for (int i = 0; i < n_links_; ++i)
+      I_sum += I_vec_[time_id][i];
+    dw = I_sum.inverse() * (mid_result);
     for (int i = 0; i < 3; ++i)
       dev_x(W_X + i) = dw(i);
 
@@ -664,6 +683,14 @@ namespace lqr_discrete{
       prev_link_end = prev_link_end + rot * Vector3d(link_length_, 0, 0);
     }
     link_center_pos_local_vec_.push_back(links_center_vec);
+  }
+
+  MatrixXd SlqFiniteDiscreteControlHydrus::getJacobianW(int id){
+    // eg. [all 0], [0 0 0; 0 0 0; 1 0 0], [0 0 0; 0 0 0; 1 1 0], [0 0 0; 0 0 0; 1 1 1 ]
+    MatrixXd JW_mat = MatrixXd::Zero(3, n_links_ - 1);
+    for (int i = 1; i < id; ++i)
+      JW_mat(2, i-1) = 1.0;
+    return JW_mat;
   }
 
   VectorXd SlqFiniteDiscreteControlHydrus::stateAddition(VectorXd *x1_ptr, VectorXd *x2_ptr){

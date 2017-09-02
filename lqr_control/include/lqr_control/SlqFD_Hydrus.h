@@ -106,6 +106,7 @@ namespace lqr_discrete{
     VectorXd getCurrentJoint(double time, int order = 0);
     void getHydrusLinksCenter(VectorXd *joint_ptr);
     void getHydrusInertialTensor(VectorXd *joint_ptr, int time_id);
+    MatrixXd getJacobianW(int id);
     void printStateInfo(VectorXd *x, int id);
     void printControlInfo(VectorXd *u, int id);
     void printMatrixAB();
