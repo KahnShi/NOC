@@ -64,8 +64,8 @@ namespace lqr_discrete{
     for (int i = 0; i < n_links_; ++i)
       hydrus_weight_ += link_weight_vec_[i];
     joint_ptr_ = new VectorXd(n_links_ - 1);
-    I_ptr_ = new MatrixXd(3, 3);
-    *I_ptr_ = MatrixXd::Zero(3, 3);
+    I_ptr_ = new Matrix3d();
+    *I_ptr_ = Matrix3d::Zero(3, 3);
     // Inertial is too small to ignore.
     // (*I_ptr_)(0, 0) = 0.0001;
     // (*I_ptr_)(1, 1) = 0.0001;
@@ -461,7 +461,7 @@ namespace lqr_discrete{
     Matrix3d I_sum = Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i)
       I_sum += I_vec_[time_id][i];
-    I_sum = I_sum.inverse();
+    Matrix3d I_inv = I_sum.inverse();
     Vector3d rot_inv_z_d_er(0.0,
                             cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]),
                             -cos((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]));
@@ -470,7 +470,7 @@ namespace lqr_discrete{
       d_w_e_r += link_center_pos_local_vec_[time_id][i].
         cross(-rot_inv_z_d_er * link_weight_vec_[i] * 9.78);
     }
-    d_w_e_r = I_sum * d_w_e_r;
+    d_w_e_r = I_inv * d_w_e_r;
 
     Vector3d rot_inv_z_d_ep(-cos((*x_ptr)[E_P]),
                             -sin((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]),
@@ -480,7 +480,7 @@ namespace lqr_discrete{
       d_w_e_p += link_center_pos_local_vec_[time_id][i].
         cross(-rot_inv_z_d_ep * link_weight_vec_[i] * 9.78);
     }
-    d_w_e_p = I_sum * d_w_e_p;
+    d_w_e_p = I_inv * d_w_e_p;
 
     Vector3d d_w_e_y = Vector3d::Zero();
 
@@ -491,12 +491,11 @@ namespace lqr_discrete{
       Vector3d dwi = Vector3d::Zero(); dwi(j) = 1.0;
       for (int i = 0; i < n_links_; ++i){
         Vector3d wi = w + Vector3d(getJacobianW(i) * joint_dt_vec_[time_id]);
-        d_w_w_i += (-dwi.cross(Vector3d(I_vec_[time_id][i] * wi))
-                    - wi.cross(Vector3d(I_vec_[time_id][i] * dwi))
-                    - I_dt_vec_[time_id][i] * dwi);
+        d_w_w_i = d_w_w_i + (-dwi.cross(Vector3d(I_vec_[time_id][i] * wi))
+                             - wi.cross(Vector3d(I_vec_[time_id][i] * dwi))
+                             - Vector3d(I_dt_vec_[time_id][i] * dwi));
       }
-      d_w_w_i = I_sum * d_w_w_i;
-      d_w_w_i_vec.push_back(d_w_w_i);
+      d_w_w_i_vec.push_back(I_inv * d_w_w_i);
     }
 
     for (int i = W_X; i <= W_Z; ++i){
@@ -544,9 +543,9 @@ namespace lqr_discrete{
     Matrix3d I_sum = Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i)
       I_sum += I_vec_[time_id][i];
-    I_sum = I_sum.inverse();
+    Matrix3d I_inv = I_sum.inverse();
     for (int i = 0; i < n_links_; ++i){
-      Vector3d dw_u_i = I_sum *
+      Vector3d dw_u_i = I_inv *
         link_center_pos_local_vec_[time_id][i].cross(Vector3d(0, 0, 1.0));
       for (int j = 0; j < 3; ++j)
         (*B_ptr_)(W_X + j, U_1 + i) = dw_u_i(j);
@@ -646,10 +645,10 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlHydrus::getHydrusInertialTensor(VectorXd *joint_ptr, int time_id){
-    std::vector<MatrixXd> cur_I_vec;
-    std::vector<MatrixXd> cur_I_dt_vec;
+    std::vector<Matrix3d> cur_I_vec;
+    std::vector<Matrix3d> cur_I_dt_vec;
     for (int i = 0; i < n_links_; ++i){
-      MatrixXd cur_I = *I_ptr_;
+      Matrix3d cur_I = *I_ptr_;
       Vector3d center_pos = link_center_pos_local_vec_[time_id][i];
       cur_I(0, 0) += link_weight_vec_[i] * (pow(center_pos(1), 2.0)
                                             + pow(center_pos(2), 2.0));
@@ -666,7 +665,7 @@ namespace lqr_discrete{
 
       cur_I_vec.push_back(cur_I);
 
-      MatrixXd cur_I_dt = MatrixXd::Zero(3, 3);
+      Matrix3d cur_I_dt = Matrix3d::Zero();
       Vector3d center_pos_dt = link_center_pos_local_dt_vec_[time_id][i];
       cur_I_dt(0, 0) = link_weight_vec_[i] * (2 * center_pos(1) * center_pos_dt(1)
                                               + 2 * center_pos(2) * center_pos_dt(2));
@@ -683,6 +682,7 @@ namespace lqr_discrete{
       cur_I_dt(1, 0) = cur_I_dt(0, 1);
       cur_I_dt(2, 0) = cur_I_dt(0, 2);
       cur_I_dt(2, 1) = cur_I_dt(1, 2);
+      cur_I_dt_vec.push_back(cur_I_dt);
     }
     I_vec_.push_back(cur_I_vec);
     I_dt_vec_.push_back(cur_I_dt_vec);
