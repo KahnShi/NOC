@@ -63,7 +63,7 @@ namespace lqr_discrete{
     hydrus_weight_ = 0.0;
     for (int i = 0; i < n_links_; ++i)
       hydrus_weight_ += link_weight_vec_[i];
-    joint_ptr_ = new VectorXd(n_links_);
+    joint_ptr_ = new VectorXd(n_links_ - 1);
     I_ptr_ = new MatrixXd(3, 3);
     *I_ptr_ = MatrixXd::Zero(3, 3);
     (*I_ptr_)(0, 0) = 0.0001;
@@ -141,6 +141,7 @@ namespace lqr_discrete{
     for (int i = 0; i <= iteration_times_; ++i){
       x_vec_.push_back(x_init);
       u_vec_.push_back(u_init);
+      joint_vec_.push_back(getCurrentJoint(i/control_freq_));
       u_fw_vec_.push_back(u_init);
       u_fb_vec_.push_back(u_init);
       K_vec_.push_back(MatrixXd::Zero(u_size_, x_size_));
@@ -165,7 +166,8 @@ namespace lqr_discrete{
       printStateInfo(x_ptr_, iteration_times_);
       printControlInfo(u_ptr_, iteration_times_);
     }
-    updateMatrixAB(x_ptr_, u_ptr_);
+    *joint_ptr_ = joint_vec_[iteration_times_];
+    updateMatrixAB(x_ptr_, u_ptr_, joint_ptr_);
 
     /* debug: print matrix A and B */
     // if (debug_){
@@ -276,7 +278,8 @@ namespace lqr_discrete{
 
       *x_ptr_ = x_vec_[i];
       *u_ptr_ = u_vec_[i];
-      updateMatrixAB(x_ptr_, u_ptr_);
+      *joint_ptr_ = joint_vec_[i];
+      updateMatrixAB(x_ptr_, u_ptr_, joint_ptr_);
 
       *q_ptr_ = (*Q0_ptr_) * x_vec_[i];
       for (int j = 1; j < waypoints_ptr_->size(); ++j)
@@ -332,7 +335,8 @@ namespace lqr_discrete{
           }
 
           VectorXd new_x(x_size_);
-          updateNewState(&new_x, &cur_x, &cur_u);
+          VectorXd cur_joint = joint_vec_[i];
+          updateNewState(&new_x, &cur_x, &cur_u, &cur_joint);
           cur_x = new_x;
         }
         energy_sum += (cur_x.transpose() * (*Riccati_P_ptr_) * cur_x)(0);
@@ -359,7 +363,8 @@ namespace lqr_discrete{
         + K_vec_[i] * (cur_x - x_vec_[i]);
       checkControlInputFeasible(&cur_u);
       VectorXd new_x(x_size_);
-      updateNewState(&new_x, &cur_x, &cur_u);
+      VectorXd cur_joint = joint_vec_[i];
+      updateNewState(&new_x, &cur_x, &cur_u, &cur_joint);
       if ((i % 100 == 0 || i == iteration_times_ - 1) && debug_){
         printStateInfo(&cur_x, i);
         printControlInfo(&cur_u, i);
@@ -372,12 +377,20 @@ namespace lqr_discrete{
     }
   }
 
-  void SlqFiniteDiscreteControlHydrus::updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr){
-    updateMatrixA(x_ptr, u_ptr);
-    updateMatrixB(x_ptr, u_ptr);
+  VectorXd SlqFiniteDiscreteControlHydrus::getCurrentJoint(double time, int order){
+    VectorXd joint = VectorXd::Zero(n_links_ - 1);
+    // keep quadrotor model, neglecting time, order
+    for (int i = 0; i < n_links_ - 1; ++i)
+      joint(i) = 3.14159 / 4.0;
+    return joint;
   }
 
-  void SlqFiniteDiscreteControlHydrus::updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr){
+  void SlqFiniteDiscreteControlHydrus::updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr){
+    updateMatrixA(x_ptr, u_ptr, joint_ptr);
+    updateMatrixB(x_ptr, u_ptr, joint_ptr);
+  }
+
+  void SlqFiniteDiscreteControlHydrus::updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr){
     *A_ptr_ = MatrixXd::Zero(x_size_, x_size_);
 
     /* x, y, z */
@@ -476,7 +489,7 @@ namespace lqr_discrete{
     (*A_ptr_) = (*A_ptr_) / control_freq_ + MatrixXd::Identity(x_size_, x_size_);
   }
 
-  void SlqFiniteDiscreteControlHydrus::updateMatrixB(VectorXd *x_ptr, VectorXd *u_ptr){
+  void SlqFiniteDiscreteControlHydrus::updateMatrixB(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr){
     *B_ptr_ = MatrixXd::Zero(x_size_, u_size_);
 
     /* x, y, z */
@@ -523,7 +536,7 @@ namespace lqr_discrete{
     (*B_ptr_) = (*B_ptr_) / control_freq_;
   }
 
-  void SlqFiniteDiscreteControlHydrus::updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr){
+  void SlqFiniteDiscreteControlHydrus::updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr){
     VectorXd dev_x = VectorXd::Zero(x_size_);
     /* x, y, z */
     dev_x(P_X) = (*x_ptr)(V_X);
@@ -655,7 +668,8 @@ namespace lqr_discrete{
   void SlqFiniteDiscreteControlHydrus::FDLQR(){
     *x_ptr_ = x_vec_[0];
     *u_ptr_ = u_vec_[0];
-    updateMatrixAB(x_ptr_, u_ptr_);
+    *joint_ptr_ = joint_vec_[0];
+    updateMatrixAB(x_ptr_, u_ptr_, joint_ptr_);
 
     std::vector<MatrixXd> F_vec;
     MatrixXd P(x_size_, x_size_);
@@ -674,7 +688,8 @@ namespace lqr_discrete{
     for (int i = iteration_times_ - 1; i >= 0; --i){
       VectorXd u = -F_vec[i] * x;
       VectorXd new_x(x_size_);
-      updateNewState(&new_x, &x, &u);
+      VectorXd cur_joint = joint_vec_[i];
+      updateNewState(&new_x, &x, &u, &cur_joint);
       x = new_x;
       x_vec_[iteration_times_ - i] = x;
 

@@ -54,6 +54,7 @@ namespace lqr_discrete{
     int n_links_;
     std::vector<double> link_weight_vec_;
     VectorXd *joint_ptr_;
+    std::vector<VectorXd> joint_vec_;
     double hydrus_weight_;
     MatrixXd *I_ptr_;
     MatrixXd *M_para_ptr_;
@@ -85,12 +86,12 @@ namespace lqr_discrete{
     ros::ServiceClient dare_client_;
 
     void initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr);
-    void updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr);
-    void updateMatrixB(VectorXd *x_ptr, VectorXd *u_ptr);
-    void updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr);
+    void updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr);
+    void updateMatrixB(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr);
+    void updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr);
     void getRiccatiH();
     void iterativeOptimization();
-    void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr);
+    void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr);
     bool feedforwardConverged();
     VectorXd stateAddition(VectorXd *x1_ptr, VectorXd *x2_ptr);
     VectorXd stateSubtraction(VectorXd *x1_ptr, VectorXd *x2_ptr);
@@ -100,6 +101,7 @@ namespace lqr_discrete{
     void updateSLQEquations();
     void FDLQR();
     void checkControlInputFeasible(VectorXd *u);
+    VectorXd getCurrentJoint(double time, int order = 0);
     void printStateInfo(VectorXd *x, int id);
     void printControlInfo(VectorXd *u, int id);
     void printMatrixAB();
