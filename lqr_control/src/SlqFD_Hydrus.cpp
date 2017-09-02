@@ -141,7 +141,10 @@ namespace lqr_discrete{
     for (int i = 0; i <= iteration_times_; ++i){
       x_vec_.push_back(x_init);
       u_vec_.push_back(u_init);
-      joint_vec_.push_back(getCurrentJoint(i/control_freq_));
+      VectorXd cur_joint = getCurrentJoint(i/control_freq_);
+      joint_vec_.push_back(cur_joint);
+      getHydrusLinksCenter(&cur_joint);
+      getHydrusInertialTensor(&cur_joint, i);
       u_fw_vec_.push_back(u_init);
       u_fb_vec_.push_back(u_init);
       K_vec_.push_back(MatrixXd::Zero(u_size_, x_size_));
@@ -381,7 +384,7 @@ namespace lqr_discrete{
     VectorXd joint = VectorXd::Zero(n_links_ - 1);
     // keep quadrotor model, neglecting time, order
     for (int i = 0; i < n_links_ - 1; ++i)
-      joint(i) = 3.14159 / 4.0;
+      joint(i) = 3.14159 / 2.0;
     return joint;
   }
 
@@ -606,6 +609,51 @@ namespace lqr_discrete{
       return true;
     else
       return false;
+  }
+
+  void SlqFiniteDiscreteControlHydrus::getHydrusInertialTensor(VectorXd *joint_ptr, int time_id){
+    std::vector<MatrixXd> cur_I_vec;
+    for (int i = 0; i < n_links_; ++i){
+      MatrixXd cur_I = *I_ptr_;
+      Vector3d center_pos = link_center_pos_local_vec_[time_id][i];
+      cur_I(0, 0) += link_weight_vec_[i] * (pow(center_pos(1)/2.0, 2.0)
+                                            + pow(center_pos(2)/2.0, 2.0));
+      cur_I(1, 1) += link_weight_vec_[i] * (pow(center_pos(0)/2.0, 2.0)
+                                            + pow(center_pos(2)/2.0, 2.0));
+      cur_I(2, 2) += link_weight_vec_[i] * (pow(center_pos(0)/2.0, 2.0)
+                                            + pow(center_pos(1)/2.0, 2.0));
+      cur_I(0, 1) = -link_weight_vec_[i] * center_pos(0) * center_pos(1) / 4.0;
+      cur_I(0, 2) = -link_weight_vec_[i] * center_pos(0) * center_pos(2) / 4.0;
+      cur_I(1, 2) = -link_weight_vec_[i] * center_pos(1) * center_pos(2) / 4.0;
+      cur_I(1, 0) = cur_I(0, 1);
+      cur_I(2, 0) = cur_I(0, 2);
+      cur_I(2, 1) = cur_I(1, 2);
+
+      cur_I_vec.push_back(cur_I);
+    }
+    I_vec_.push_back(cur_I_vec);
+  }
+
+  void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenter(VectorXd *joint_ptr){
+    std::vector<Vector3d> links_center_vec;
+    Vector3d link1_center(link_length_ / 2.0, 0, 0);
+    links_center_vec.push_back(link1_center);
+    Vector3d prev_link_end(link_length_, 0, 0);
+    double joint_ang = 0.0;
+
+    // only considering 2d hydrus
+    for (int i = 1; i < n_links_; ++i){
+      Vector3d link_center = Vector3d::Zero();
+      joint_ang += (*joint_ptr)(i - 1);
+      Matrix3d rot;
+      rot << cos(joint_ang), -sin(joint_ang), 0,
+        sin(joint_ang), cos(joint_ang), 0,
+        0, 0, 1;
+      link_center = prev_link_end + rot * Vector3d(link_length_ / 2.0, 0, 0);
+      links_center_vec.push_back(link_center);
+      prev_link_end = prev_link_end + rot * Vector3d(link_length_, 0, 0);
+    }
+    link_center_pos_local_vec_.push_back(links_center_vec);
   }
 
   VectorXd SlqFiniteDiscreteControlHydrus::stateAddition(VectorXd *x1_ptr, VectorXd *x2_ptr){
