@@ -62,7 +62,6 @@ namespace lqr_discrete{
     std::vector<std::vector<MatrixXd> > I_dt_vec_;
     std::vector<std::vector<Vector3d> > link_center_pos_local_vec_;
     std::vector<std::vector<Vector3d> > link_center_pos_local_dt_vec_;
-    MatrixXd *M_para_ptr_;
     bool debug_;
     double uav_rotor_thrust_min_;
     double uav_rotor_thrust_max_;

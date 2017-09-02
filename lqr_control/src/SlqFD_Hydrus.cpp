@@ -82,7 +82,6 @@ namespace lqr_discrete{
     xn_ptr_ = new VectorXd(x_size_);
     x_ptr_ = new VectorXd(x_size_);
     u_ptr_ = new VectorXd(u_size_);
-    M_para_ptr_ = new MatrixXd(3, 4);
     Riccati_P_ptr_ = new MatrixXd(x_size_, x_size_);
     P_ptr_ = new MatrixXd(x_size_, x_size_);
     p_ptr_ = new VectorXd(x_size_);
@@ -110,15 +109,6 @@ namespace lqr_discrete{
     *Q_ptr_ = (*Q0_ptr_);
 
     *R_ptr_ = 400 * MatrixXd::Identity(u_size_, u_size_);
-
-    *M_para_ptr_ = MatrixXd::Zero(3, 4);
-    double r_uav = 0.3, c_rf = 0.016;
-    (*M_para_ptr_)(0, 1) = -r_uav;
-    (*M_para_ptr_)(0, 3) = r_uav;
-    (*M_para_ptr_)(1, 0) = r_uav;
-    (*M_para_ptr_)(1, 2) = -r_uav;
-    (*M_para_ptr_)(2, 0) = (*M_para_ptr_)(2, 2) = -c_rf;
-    (*M_para_ptr_)(2, 1) = (*M_para_ptr_)(2, 3) = c_rf;
 
     uav_rotor_thrust_min_ = 0.0;
     uav_rotor_thrust_max_ = (hydrus_weight_ * 9.78 / 4.0) * 3.0;
@@ -656,11 +646,6 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlHydrus::getHydrusInertialTensor(VectorXd *joint_ptr, int time_id){
-    if (!I_vec_.empty())
-      I_vec_.clear();
-    if (!I_dt_vec_.empty())
-      I_dt_vec_.clear();
-
     std::vector<MatrixXd> cur_I_vec;
     std::vector<MatrixXd> cur_I_dt_vec;
     for (int i = 0; i < n_links_; ++i){
@@ -704,11 +689,6 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenter(VectorXd *joint_ptr){
-    if (!link_center_pos_local_vec_.empty())
-      link_center_pos_local_vec_.clear();
-    if (!link_center_pos_local_dt_vec_.empty())
-      link_center_pos_local_dt_vec_.clear();
-
     std::vector<Vector3d> links_center_vec;
     Vector3d link1_center(link_length_ / 2.0, 0, 0);
     links_center_vec.push_back(link1_center);
