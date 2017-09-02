@@ -88,9 +88,9 @@ namespace lqr_discrete{
     ros::ServiceClient dare_client_;
 
     void initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr);
-    void updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr);
-    void updateMatrixB(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr);
-    void updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr);
+    void updateMatrixA(int time_id);
+    void updateMatrixB(int time_id);
+    void updateMatrixAB(int time_id);
     void getRiccatiH();
     void iterativeOptimization();
     void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr);

@@ -170,7 +170,7 @@ namespace lqr_discrete{
       printControlInfo(u_ptr_, iteration_times_);
     }
     *joint_ptr_ = joint_vec_[iteration_times_];
-    updateMatrixAB(x_ptr_, u_ptr_, joint_ptr_);
+    updateMatrixAB(iteration_times_);
 
     /* debug: print matrix A and B */
     // if (debug_){
@@ -282,7 +282,7 @@ namespace lqr_discrete{
       *x_ptr_ = x_vec_[i];
       *u_ptr_ = u_vec_[i];
       *joint_ptr_ = joint_vec_[i];
-      updateMatrixAB(x_ptr_, u_ptr_, joint_ptr_);
+      updateMatrixAB(i);
 
       *q_ptr_ = (*Q0_ptr_) * x_vec_[i];
       for (int j = 1; j < waypoints_ptr_->size(); ++j)
@@ -388,13 +388,17 @@ namespace lqr_discrete{
     return joint;
   }
 
-  void SlqFiniteDiscreteControlHydrus::updateMatrixAB(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr){
-    updateMatrixA(x_ptr, u_ptr, joint_ptr);
-    updateMatrixB(x_ptr, u_ptr, joint_ptr);
+  void SlqFiniteDiscreteControlHydrus::updateMatrixAB(int time_id){
+    updateMatrixA(time_id);
+    updateMatrixB(time_id);
   }
 
-  void SlqFiniteDiscreteControlHydrus::updateMatrixA(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr){
+  void SlqFiniteDiscreteControlHydrus::updateMatrixA(int time_id){
     *A_ptr_ = MatrixXd::Zero(x_size_, x_size_);
+
+    VectorXd *x_ptr = new VectorXd(x_size_); *x_ptr = x_vec_[time_id];
+    VectorXd *u_ptr = new VectorXd(u_size_); *u_ptr = u_vec_[time_id];
+    VectorXd *joint_ptr = new VectorXd(n_links_ - 1); *joint_ptr = joint_vec_[time_id];
 
     /* x, y, z */
     (*A_ptr_)(P_X, V_X) = 1;
@@ -492,8 +496,12 @@ namespace lqr_discrete{
     (*A_ptr_) = (*A_ptr_) / control_freq_ + MatrixXd::Identity(x_size_, x_size_);
   }
 
-  void SlqFiniteDiscreteControlHydrus::updateMatrixB(VectorXd *x_ptr, VectorXd *u_ptr, VectorXd *joint_ptr){
+  void SlqFiniteDiscreteControlHydrus::updateMatrixB(int time_id){
     *B_ptr_ = MatrixXd::Zero(x_size_, u_size_);
+
+    VectorXd *x_ptr = new VectorXd(x_size_); *x_ptr = x_vec_[time_id];
+    VectorXd *u_ptr = new VectorXd(u_size_); *u_ptr = u_vec_[time_id];
+    VectorXd *joint_ptr = new VectorXd(n_links_ - 1); *joint_ptr = joint_vec_[time_id];
 
     /* x, y, z */
     /* all 0 */
@@ -717,7 +725,7 @@ namespace lqr_discrete{
     *x_ptr_ = x_vec_[0];
     *u_ptr_ = u_vec_[0];
     *joint_ptr_ = joint_vec_[0];
-    updateMatrixAB(x_ptr_, u_ptr_, joint_ptr_);
+    updateMatrixAB(0);
 
     std::vector<MatrixXd> F_vec;
     MatrixXd P(x_size_, x_size_);
