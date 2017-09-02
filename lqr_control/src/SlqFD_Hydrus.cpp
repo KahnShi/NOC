@@ -66,9 +66,10 @@ namespace lqr_discrete{
     joint_ptr_ = new VectorXd(n_links_ - 1);
     I_ptr_ = new MatrixXd(3, 3);
     *I_ptr_ = MatrixXd::Zero(3, 3);
-    (*I_ptr_)(0, 0) = 0.0001;
-    (*I_ptr_)(1, 1) = 0.0001;
-    (*I_ptr_)(2, 2) = 0.0002;
+    // Inertial is too small to ignore.
+    // (*I_ptr_)(0, 0) = 0.0001;
+    // (*I_ptr_)(1, 1) = 0.0001;
+    // (*I_ptr_)(2, 2) = 0.0002;
 
     x_size_ = 12;
     u_size_ = 4;
@@ -142,8 +143,10 @@ namespace lqr_discrete{
       x_vec_.push_back(x_init);
       u_vec_.push_back(u_init);
       VectorXd cur_joint = getCurrentJoint(i/control_freq_);
+      VectorXd cur_joint_dt = getCurrentJoint(i/control_freq_, 1);
       joint_vec_.push_back(cur_joint);
       getHydrusLinksCenter(&cur_joint);
+      getHydrusLinksCenterDerivative(&cur_joint, &cur_joint_dt);
       getHydrusInertialTensor(&cur_joint, i);
       u_fw_vec_.push_back(u_init);
       u_fb_vec_.push_back(u_init);
@@ -602,13 +605,14 @@ namespace lqr_discrete{
     VectorXd ddq = getCurrentJoint(time_id/control_freq_, 2);
     for (int i = 0; i < n_links_; ++i){
       MatrixXd JW_mat = getJacobianW(i);
+      Vector3d wi = w + Vector3d(JW_mat * dq);
       mid_result +=
         link_center_pos_local_vec_[time_id][i].
         cross(Vector3d(0, 0, (*u_ptr)[i] + (*un_ptr_)[i])
               - rot_inv_z * link_weight_vec_[i] * 9.78)
         - I_vec_[time_id][i] * JW_mat * ddq
-        - (Vector3d(w + JW_mat * dq)).cross(Vector3d(I_vec_[time_id][i]
-                                           * (w + JW_mat * dq)));
+        - wi.cross(Vector3d(I_vec_[time_id][i] * wi))
+        - I_dt_vec_[time_id][i] * wi;
     }
     Matrix3d I_sum = Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i)
@@ -641,29 +645,59 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlHydrus::getHydrusInertialTensor(VectorXd *joint_ptr, int time_id){
+    if (!I_vec_.empty())
+      I_vec_.clear();
+    if (!I_dt_vec_.empty())
+      I_dt_vec_.clear();
+
     std::vector<MatrixXd> cur_I_vec;
+    std::vector<MatrixXd> cur_I_dt_vec;
     for (int i = 0; i < n_links_; ++i){
       MatrixXd cur_I = *I_ptr_;
       Vector3d center_pos = link_center_pos_local_vec_[time_id][i];
-      cur_I(0, 0) += link_weight_vec_[i] * (pow(center_pos(1)/2.0, 2.0)
-                                            + pow(center_pos(2)/2.0, 2.0));
-      cur_I(1, 1) += link_weight_vec_[i] * (pow(center_pos(0)/2.0, 2.0)
-                                            + pow(center_pos(2)/2.0, 2.0));
-      cur_I(2, 2) += link_weight_vec_[i] * (pow(center_pos(0)/2.0, 2.0)
-                                            + pow(center_pos(1)/2.0, 2.0));
-      cur_I(0, 1) = -link_weight_vec_[i] * center_pos(0) * center_pos(1) / 4.0;
-      cur_I(0, 2) = -link_weight_vec_[i] * center_pos(0) * center_pos(2) / 4.0;
-      cur_I(1, 2) = -link_weight_vec_[i] * center_pos(1) * center_pos(2) / 4.0;
+      cur_I(0, 0) += link_weight_vec_[i] * (pow(center_pos(1), 2.0)
+                                            + pow(center_pos(2), 2.0));
+      cur_I(1, 1) += link_weight_vec_[i] * (pow(center_pos(0), 2.0)
+                                            + pow(center_pos(2), 2.0));
+      cur_I(2, 2) += link_weight_vec_[i] * (pow(center_pos(0), 2.0)
+                                            + pow(center_pos(1), 2.0));
+      cur_I(0, 1) = -link_weight_vec_[i] * center_pos(0) * center_pos(1);
+      cur_I(0, 2) = -link_weight_vec_[i] * center_pos(0) * center_pos(2);
+      cur_I(1, 2) = -link_weight_vec_[i] * center_pos(1) * center_pos(2);
       cur_I(1, 0) = cur_I(0, 1);
       cur_I(2, 0) = cur_I(0, 2);
       cur_I(2, 1) = cur_I(1, 2);
 
       cur_I_vec.push_back(cur_I);
+
+      MatrixXd cur_I_dt = MatrixXd::Zero(3, 3);
+      Vector3d center_pos_dt = link_center_pos_local_dt_vec_[time_id][i];
+      cur_I_dt(0, 0) = link_weight_vec_[i] * (2 * center_pos(1) * center_pos_dt(1)
+                                              + 2 * center_pos(2) * center_pos_dt(2));
+      cur_I_dt(1, 1) = link_weight_vec_[i] * (2 * center_pos(0) * center_pos_dt(0)
+                                              + 2 * center_pos(2) * center_pos_dt(2));
+      cur_I_dt(2, 2) = link_weight_vec_[i] * (2 * center_pos(0) * center_pos_dt(0)
+                                              + 2 * center_pos(1) * center_pos_dt(1));
+      cur_I_dt(0, 1) = -link_weight_vec_[i] * (center_pos(0) * center_pos_dt(1)
+                                               + center_pos_dt(0) * center_pos(1));
+      cur_I_dt(0, 2) = -link_weight_vec_[i] * (center_pos(0) * center_pos_dt(2)
+                                               + center_pos_dt(0) * center_pos(2));
+      cur_I_dt(1, 2) = -link_weight_vec_[i] * (center_pos(1) * center_pos_dt(2)
+                                               + center_pos_dt(1) * center_pos(2));
+      cur_I_dt(1, 0) = cur_I_dt(0, 1);
+      cur_I_dt(2, 0) = cur_I_dt(0, 2);
+      cur_I_dt(2, 1) = cur_I_dt(1, 2);
     }
     I_vec_.push_back(cur_I_vec);
+    I_dt_vec_.push_back(cur_I_dt_vec);
   }
 
   void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenter(VectorXd *joint_ptr){
+    if (!link_center_pos_local_vec_.empty())
+      link_center_pos_local_vec_.clear();
+    if (!link_center_pos_local_dt_vec_.empty())
+      link_center_pos_local_dt_vec_.clear();
+
     std::vector<Vector3d> links_center_vec;
     Vector3d link1_center(link_length_ / 2.0, 0, 0);
     links_center_vec.push_back(link1_center);
@@ -683,6 +717,29 @@ namespace lqr_discrete{
       prev_link_end = prev_link_end + rot * Vector3d(link_length_, 0, 0);
     }
     link_center_pos_local_vec_.push_back(links_center_vec);
+  }
+
+  void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr){
+    std::vector<Vector3d> links_center_dt_vec;
+    Vector3d link1_center_dt(0.0, 0, 0);
+    links_center_dt_vec.push_back(link1_center_dt);
+    Vector3d prev_link_end_dt(0, 0, 0);
+    double joint_ang = 0.0;
+    double joint_ang_dt = 0.0;
+    // only considering 2d hydrus
+    for (int i = 1; i < n_links_; ++i){
+      Vector3d link_center_dt = Vector3d::Zero();
+      joint_ang += (*joint_ptr)(i - 1);
+      joint_ang_dt += (*joint_dt_ptr)(i - 1);
+      Matrix3d rot_dt;
+      rot_dt << -sin(joint_ang), -cos(joint_ang), 0,
+        cos(joint_ang), -sin(joint_ang), 0,
+        0, 0, 0;
+      link_center_dt = prev_link_end_dt + rot_dt * Vector3d(link_length_ / 2.0, 0, 0) * joint_ang_dt;
+      links_center_dt_vec.push_back(link_center_dt);
+      prev_link_end_dt = prev_link_end_dt + rot_dt * Vector3d(link_length_, 0, 0) * joint_ang_dt;
+    }
+    link_center_pos_local_dt_vec_.push_back(links_center_dt_vec);
   }
 
   MatrixXd SlqFiniteDiscreteControlHydrus::getJacobianW(int id){

@@ -58,7 +58,9 @@ namespace lqr_discrete{
     double hydrus_weight_;
     MatrixXd *I_ptr_;
     std::vector<std::vector<MatrixXd> > I_vec_;
+    std::vector<std::vector<MatrixXd> > I_dt_vec_;
     std::vector<std::vector<Vector3d> > link_center_pos_local_vec_;
+    std::vector<std::vector<Vector3d> > link_center_pos_local_dt_vec_;
     MatrixXd *M_para_ptr_;
     bool debug_;
     double uav_rotor_thrust_min_;
@@ -105,6 +107,7 @@ namespace lqr_discrete{
     void checkControlInputFeasible(VectorXd *u);
     VectorXd getCurrentJoint(double time, int order = 0);
     void getHydrusLinksCenter(VectorXd *joint_ptr);
+    void getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr);
     void getHydrusInertialTensor(VectorXd *joint_ptr, int time_id);
     MatrixXd getJacobianW(int id);
     void printStateInfo(VectorXd *x, int id);
