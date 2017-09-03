@@ -601,7 +601,7 @@ namespace lqr_discrete{
     Vector3d rot_inv_z(-sin((*x_ptr)[E_P]),
                        cos((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]),
                        cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]));
-    VectorXd dq = getCurrentJoint(time_id/control_freq_, 1);
+    VectorXd dq = joint_dt_vec_[time_id];
     VectorXd ddq = getCurrentJoint(time_id/control_freq_, 2);
     for (int i = 0; i < n_links_; ++i){
       MatrixXd JW_mat = getJacobianW(i);
@@ -726,9 +726,10 @@ namespace lqr_discrete{
       rot_dt << -sin(joint_ang), -cos(joint_ang), 0,
         cos(joint_ang), -sin(joint_ang), 0,
         0, 0, 0;
-      link_center_dt = prev_link_end_dt + rot_dt * Vector3d(link_length_ / 2.0, 0, 0) * joint_ang_dt;
+      rot_dt = rot_dt * joint_ang_dt;
+      link_center_dt = prev_link_end_dt + rot_dt * Vector3d(link_length_ / 2.0, 0, 0);
       links_center_dt_vec.push_back(link_center_dt);
-      prev_link_end_dt = prev_link_end_dt + rot_dt * Vector3d(link_length_, 0, 0) * joint_ang_dt;
+      prev_link_end_dt = prev_link_end_dt + rot_dt * Vector3d(link_length_, 0, 0);
     }
     link_center_pos_local_dt_vec_.push_back(links_center_dt_vec);
   }
