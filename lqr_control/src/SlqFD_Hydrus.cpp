@@ -532,13 +532,13 @@ namespace lqr_discrete{
 
     /* d w_w = I.inv() * (sigma - (d wi).cross(Ii * wi) - wi.cross(Ii * dwi) - dIi * dwi) */
     std::vector<Vector3d> d_w_w_i_vec;
-    for (int j = 0; j < 3; ++j){
+    for (int i = 0; i < 3; ++i){
       Vector3d d_w_w_i = Vector3d::Zero();
-      Vector3d dwi = Vector3d::Zero(); dwi(j) = 1.0;
-      for (int i = 0; i < n_links_; ++i){
-        Vector3d wi = w + Vector3d(getJacobianW(i) * joint_dt_vec_[time_id]);
-        d_w_w_i = d_w_w_i + (-dwi.cross(Vector3d(I_vec_[time_id][i] * wi))
-                             - wi.cross(Vector3d(I_vec_[time_id][i] * dwi))
+      Vector3d dwi = Vector3d::Zero(); dwi(i) = 1.0;
+      for (int j = 0; j < n_links_; ++j){
+        Vector3d wj = w + Vector3d(getJacobianW(j) * joint_dt_vec_[time_id]);
+        d_w_w_i = d_w_w_i + (-dwi.cross(Vector3d(I_vec_[time_id][j] * wj))
+                             - wj.cross(Vector3d(I_vec_[time_id][j] * dwi))
                              - Vector3d(I_dt_vec_[time_id][i] * dwi));
       }
       d_w_w_i_vec.push_back(I_inv * d_w_w_i);
@@ -547,8 +547,9 @@ namespace lqr_discrete{
     for (int i = W_X; i <= W_Z; ++i){
       (*A_ptr_)(i, E_R) = d_w_e_r(i - W_X);
       (*A_ptr_)(i, E_P) = d_w_e_p(i - W_X);
-      for (int j = W_X; j <= W_Z; ++j)
-        (*A_ptr_)(i, j) = d_w_w_i_vec[j - W_X](i - W_X);
+      (*A_ptr_)(i, W_X) = d_w_w_i_vec[0](i - W_X);
+      (*A_ptr_)(i, W_Y) = d_w_w_i_vec[1](i - W_X);
+      (*A_ptr_)(i, W_X) = d_w_w_i_vec[2](i - W_X);
     }
 
     (*A_ptr_) = (*A_ptr_) / control_freq_ + MatrixXd::Identity(x_size_, x_size_);
