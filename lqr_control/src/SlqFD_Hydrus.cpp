@@ -39,6 +39,14 @@ namespace lqr_discrete{
     /* Ros service */
     dare_client_ = nh_.serviceClient<lqr_control::Dare>("dare_solver");
 
+    /* ros param */
+    double R_para, Q_p_para, Q_v_para, Q_e_para, Q_w_para;
+    nhp_.param("R_para", R_para, 400.0);
+    nhp_.param("Q_p_para", Q_p_para, 10.0);
+    nhp_.param("Q_v_para", Q_v_para, 10.0);
+    nhp_.param("Q_w_para", Q_w_para, 1.0);
+    nhp_.param("Q_e_para", Q_e_para, 1.0);
+
     control_freq_ = freq;
     time_ptr_ = time_ptr;
     double period = (*time_ptr)[time_ptr->size() - 1] - (*time_ptr)[0];
@@ -99,16 +107,18 @@ namespace lqr_discrete{
     /* init Q and R matrice */
     *Q0_ptr_ = MatrixXd::Zero(x_size_, x_size_);
     for (int i = 0; i <= P_Z; ++i)
-      (*Q0_ptr_)(i, i) = 10.0;
+      (*Q0_ptr_)(i, i) = Q_p_para;
     for (int i = V_X; i <= V_Z; ++i)
-      (*Q0_ptr_)(i, i) = 10.0;
-    for (int i = W_X; i < x_size_; ++i)
-      (*Q0_ptr_)(i, i) = 1.0;
+      (*Q0_ptr_)(i, i) = Q_v_para;
+    for (int i = W_X; i <= W_Z; ++i)
+      (*Q0_ptr_)(i, i) = Q_w_para;
+    for (int i = E_R; i <= E_Y; ++i)
+      (*Q0_ptr_)(i, i) = Q_e_para;
     // test: weight on z
     (*Q0_ptr_)(P_Z, P_Z) = (*Q0_ptr_)(V_Z, V_Z) = 100.0;
     *Q_ptr_ = (*Q0_ptr_);
 
-    *R_ptr_ = 400 * MatrixXd::Identity(u_size_, u_size_);
+    *R_ptr_ = R_para * MatrixXd::Identity(u_size_, u_size_);
 
     uav_rotor_thrust_min_ = 0.0;
     uav_rotor_thrust_max_ = (hydrus_weight_ * 9.78 / 4.0) * 3.0;
