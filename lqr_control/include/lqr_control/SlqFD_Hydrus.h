@@ -106,6 +106,7 @@ namespace lqr_discrete{
     void FDLQR();
     void checkControlInputFeasible(VectorXd *u);
     VectorXd getCurrentJoint(double time, int order = 0);
+    Matrix3d getCurrentRotationMatrix(Vector3d euler_angle, int order = 0);
     void getHydrusLinksCenter(VectorXd *joint_ptr);
     void getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr);
     void getHydrusInertialTensor(VectorXd *joint_ptr, int time_id);

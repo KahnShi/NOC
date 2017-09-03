@@ -392,6 +392,42 @@ namespace lqr_discrete{
     return joint;
   }
 
+  Matrix3d SlqFiniteDiscreteControlHydrus::getCurrentRotationMatrix(Vector3d euler_angle, int order){
+    Matrix3d rot = Matrix3d::Zero();
+    Matrix3d rot_x, rot_y, rot_z;
+    rot_x << 1, 0, 0,
+      0, cos(euler_angle(0)), -sin(euler_angle(0)),
+      0, sin(euler_angle(0)), cos(euler_angle(0));
+    rot_y << cos(euler_angle(1)), 0, sin(euler_angle(1)),
+      0, 1, 0,
+      -sin(euler_angle(1)), 0, cos(euler_angle(1));
+    rot_z << cos(euler_angle(2)), -sin(euler_angle(2)), 0,
+      sin(euler_angle(2)), cos(euler_angle(2)), 0,
+      0, 0, 1;
+    if (order == 0){
+      rot = rot_z * rot_y * rot_x;
+    }
+    else if(order == 1){
+      Matrix3d rot_x_d, rot_y_d, rot_z_d;
+      rot_x_d << 1, 0, 0,
+        0, -sin(euler_angle(0)), -cos(euler_angle(0)),
+        0, cos(euler_angle(0)), -sin(euler_angle(0));
+      rot_y_d << -sin(euler_angle(1)), 0, cos(euler_angle(1)),
+        0, 1, 0,
+        -cos(euler_angle(1)), 0, -sin(euler_angle(1));
+      rot_z_d << -sin(euler_angle(2)), -cos(euler_angle(2)), 0,
+        cos(euler_angle(2)), -sin(euler_angle(2)), 0,
+        0, 0, 1;
+      rot = rot_z_d * rot_y * rot_x
+        + rot_z * rot_y_d * rot_x
+        + rot_z * rot_y * rot_x_d;
+    }
+    else{
+      ROS_WARN("[getCurrentRotationMatrix] order is too high.");
+    }
+    return rot;
+  }
+
   void SlqFiniteDiscreteControlHydrus::updateMatrixAB(int time_id){
     updateMatrixA(time_id);
     updateMatrixB(time_id);
