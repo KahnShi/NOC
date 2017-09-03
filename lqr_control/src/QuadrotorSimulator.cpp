@@ -65,11 +65,18 @@ namespace quadrotor_simulator{
     // slq
     while (1){
       std::cout << "\n[QuadrotorSimulator] Iteration times: " << oc_iteration_times_ << "\n";
-      std::cout << "[press 1 to continue, 2 to break]\n";
+      std::cout << "[press 1 to continue, 2 to break, 5 to continue do 10 groups]\n";
       int id;
       std::cin >> id;
       if (id == 2)
         break;
+      else if (id == 5){
+        for (int i = 0; i < 10; ++i){
+          controller_ptr_->iterativeOptimization();
+          ++oc_iteration_times_;
+          visualizeTrajectory();
+        }
+      }
       controller_ptr_->iterativeOptimization();
       ++oc_iteration_times_;
       visualizeTrajectory();
