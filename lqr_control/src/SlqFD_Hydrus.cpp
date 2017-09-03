@@ -40,10 +40,11 @@ namespace lqr_discrete{
     dare_client_ = nh_.serviceClient<lqr_control::Dare>("dare_solver");
 
     /* ros param */
-    double R_para, Q_p_para, Q_v_para, Q_e_para, Q_w_para;
+    double R_para, Q_p_para, Q_v_para, Q_e_para, Q_w_para, Q_z_para;
     nhp_.param("R_para", R_para, 400.0);
     nhp_.param("Q_p_para", Q_p_para, 10.0);
     nhp_.param("Q_v_para", Q_v_para, 10.0);
+    nhp_.param("Q_z_para", Q_z_para, 10.0);
     nhp_.param("Q_w_para", Q_w_para, 1.0);
     nhp_.param("Q_e_para", Q_e_para, 1.0);
 
@@ -115,7 +116,7 @@ namespace lqr_discrete{
     for (int i = E_R; i <= E_Y; ++i)
       (*Q0_ptr_)(i, i) = Q_e_para;
     // test: weight on z
-    (*Q0_ptr_)(P_Z, P_Z) = (*Q0_ptr_)(V_Z, V_Z) = 100.0;
+    (*Q0_ptr_)(P_Z, P_Z) = (*Q0_ptr_)(V_Z, V_Z) = Q_z_para;
     *Q_ptr_ = (*Q0_ptr_);
 
     *R_ptr_ = R_para * MatrixXd::Identity(u_size_, u_size_);
@@ -782,7 +783,8 @@ namespace lqr_discrete{
   }
 
   MatrixXd SlqFiniteDiscreteControlHydrus::getJacobianW(int id){
-    // eg. [all 0], [0 0 0; 0 0 0; 1 0 0], [0 0 0; 0 0 0; 1 1 0], [0 0 0; 0 0 0; 1 1 1 ]
+    // eg. [0 0 0; 0 0 0; 0 0 0], [0 0 0; 0 0 0; 1 0 0],
+    // [0 0 0; 0 0 0; 1 1 0], [0 0 0; 0 0 0; 1 1 1 ]
     MatrixXd JW_mat = MatrixXd::Zero(3, n_links_ - 1);
     for (int i = 1; i < id; ++i)
       JW_mat(2, i-1) = 1.0;
