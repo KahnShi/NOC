@@ -786,8 +786,8 @@ namespace lqr_discrete{
     // eg. [0 0 0; 0 0 0; 0 0 0], [0 0 0; 0 0 0; 1 0 0],
     // [0 0 0; 0 0 0; 1 1 0], [0 0 0; 0 0 0; 1 1 1 ]
     MatrixXd JW_mat = MatrixXd::Zero(3, n_links_ - 1);
-    for (int i = 1; i < id; ++i)
-      JW_mat(2, i-1) = 1.0;
+    for (int i = 0; i < id; ++i)
+      JW_mat(2, i) = 1.0;
     return JW_mat;
   }
 
