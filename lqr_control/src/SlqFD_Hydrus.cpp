@@ -80,7 +80,7 @@ namespace lqr_discrete{
     // (*I_ptr_)(1, 1) = 0.0001;
     // (*I_ptr_)(2, 2) = 0.0002;
     double c_rf = 0.016;
-    VectorXd M_z_ = VectorXd::Zero(u_size_);
+    M_z_ = VectorXd::Zero(n_links_);
     M_z_(0) = -c_rf;
     M_z_(1) = c_rf;
     M_z_(2) = -c_rf;
