@@ -76,9 +76,9 @@ int main(int argc, char **argv)
   // end_state(E_R) = 3.14 / 6.0;
   //end_state(Q_W) = 1.0;
   way_pts_vec.push_back(end_state);
-  period_vec.push_back(6.0);
+  period_vec.push_back(5.0);
 
-  quadrotor_sim_node->initQuadrotorSimulator(&way_pts_vec, &period_vec, 100.0);
+  quadrotor_sim_node->initQuadrotorSimulator(&way_pts_vec, &period_vec, 20.0);
   quadrotor_sim_node->planOptimalTrajectory();
   quadrotor_sim_node->visualizeTrajectory();
 
