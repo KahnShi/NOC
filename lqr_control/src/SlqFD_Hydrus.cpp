@@ -35,7 +35,7 @@
 
 #include <lqr_control/SlqFD_Hydrus.h>
 namespace lqr_discrete{
-  void SlqFiniteDiscreteControlHydrus::initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr){
+  void SlqFiniteDiscreteControlHydrus::initHydrus(){
     /* Ros service */
     dare_client_ = nh_.serviceClient<lqr_control::Dare>("dare_solver");
 
@@ -47,22 +47,6 @@ namespace lqr_discrete{
     nhp_.param("Q_z_para", Q_z_para, 10.0);
     nhp_.param("Q_w_para", Q_w_para, 1.0);
     nhp_.param("Q_e_para", Q_e_para, 1.0);
-
-    control_freq_ = freq;
-    time_ptr_ = time_ptr;
-    double period = (*time_ptr)[time_ptr->size() - 1] - (*time_ptr)[0];
-    if (floor(freq * period) < freq * period){
-      end_time_ = (floor(freq * period) + 1.0) / freq;
-      iteration_times_ = floor(freq * period) + 1;
-    }
-    else{
-      end_time_ = period;
-      iteration_times_ = floor(freq * period);
-    }
-    std::cout << "[SLQ] Trajectory period: " << end_time_
-              << ", Itetation times: " << iteration_times_ << "\n";
-
-    waypoints_ptr_ = waypoints_ptr;
 
     /* hydrus */
     link_length_ = 0.44;
@@ -108,9 +92,6 @@ namespace lqr_discrete{
     r_ptr_ = new VectorXd(u_size_);
     q_ptr_ = new VectorXd(x_size_);
 
-    *x0_ptr_ = (*waypoints_ptr)[0];
-    *xn_ptr_ = (*waypoints_ptr)[waypoints_ptr->size() - 1];
-
     /* init Q and R matrice */
     *Q0_ptr_ = MatrixXd::Zero(x_size_, x_size_);
     for (int i = 0; i <= P_Z; ++i)
@@ -123,16 +104,55 @@ namespace lqr_discrete{
       (*Q0_ptr_)(i, i) = Q_e_para;
     // test: weight on z
     (*Q0_ptr_)(P_Z, P_Z) = (*Q0_ptr_)(V_Z, V_Z) = Q_z_para;
-    *Q_ptr_ = (*Q0_ptr_);
 
     *R_ptr_ = R_para * MatrixXd::Identity(u_size_, u_size_);
 
     uav_rotor_thrust_min_ = 0.0;
     uav_rotor_thrust_max_ = (hydrus_weight_ * 9.78 / 4.0) * 3.0;
 
-    /* Assume initial and final state is still, namely dx = [v, a] = 0 */
     u0_ptr_ = new VectorXd(u_size_);
     un_ptr_ = new VectorXd(u_size_);
+
+
+  }
+
+  void SlqFiniteDiscreteControlHydrus::initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr){
+    control_freq_ = freq;
+    time_ptr_ = time_ptr;
+    double period = (*time_ptr)[time_ptr->size() - 1] - (*time_ptr)[0];
+    if (floor(freq * period) < freq * period){
+      end_time_ = (floor(freq * period) + 1.0) / freq;
+      iteration_times_ = floor(freq * period) + 1;
+    }
+    else{
+      end_time_ = period;
+      iteration_times_ = floor(freq * period);
+    }
+    std::cout << "[SLQ] Trajectory period: " << end_time_
+              << ", Itetation times: " << iteration_times_ << "\n";
+
+    waypoints_ptr_ = waypoints_ptr;
+
+    *A_ptr_ = MatrixXd::Zero(x_size_, x_size_);
+    *B_ptr_ = MatrixXd::Zero(x_size_, u_size_);
+    *x_ptr_ = VectorXd::Zero(x_size_);
+    *u_ptr_ = VectorXd::Zero(u_size_);
+    *Riccati_P_ptr_ = MatrixXd::Zero(x_size_, x_size_);
+    *P_ptr_ = MatrixXd::Zero(x_size_, x_size_);
+    *p_ptr_ = VectorXd::Zero(x_size_);
+    *H_ptr_ = MatrixXd::Zero(u_size_, u_size_);
+    *G_ptr_ = MatrixXd::Zero(u_size_, x_size_);
+    *K_ptr_ = MatrixXd::Zero(u_size_, x_size_);
+    *g_ptr_ = VectorXd::Zero(u_size_);
+    *l_ptr_ = VectorXd::Zero(u_size_);
+    *r_ptr_ = VectorXd::Zero(u_size_);
+    *q_ptr_ = VectorXd::Zero(x_size_);
+
+    *x0_ptr_ = (*waypoints_ptr)[0];
+    *xn_ptr_ = (*waypoints_ptr)[waypoints_ptr->size() - 1];
+    *Q_ptr_ = (*Q0_ptr_);
+
+    /* Assume initial and final state is still, namely dx = [v, a] = 0 */
     for (int i = 0; i < 4; ++i){
       (*u0_ptr_)(i) = hydrus_weight_ * 9.78 / 4.0;
       (*un_ptr_)(i) = hydrus_weight_ * 9.78 / 4.0;
@@ -145,6 +165,21 @@ namespace lqr_discrete{
     u_init = VectorXd::Zero(u_size_);
     // test: real u
     // u_init = (*un_ptr_);
+
+    /* Clear assigned vector */
+    if (!x_vec_.empty()) x_vec_.clear();
+    if (!u_vec_.empty()) u_vec_.clear();
+    if (!joint_vec_.empty()) joint_vec_.clear();
+    if (!joint_dt_vec_.empty()) joint_dt_vec_.clear();
+    if (!I_vec_.empty()) I_vec_.clear();
+    if (!I_dt_vec_.empty()) I_dt_vec_.clear();
+    if (!link_center_pos_local_vec_.empty()) link_center_pos_local_vec_.clear();
+    if (!link_center_pos_local_dt_vec_.empty()) link_center_pos_local_dt_vec_.clear();
+    if (!cog_pos_local_vec_.empty()) cog_pos_local_vec_.clear();
+    if (!cog_pos_local_dt_vec_.empty()) cog_pos_local_dt_vec_.clear();
+    if (!u_fw_vec_.empty()) u_fw_vec_.clear();
+    if (!u_fb_vec_.empty()) u_fb_vec_.clear();
+    if (!K_vec_.empty()) K_vec_.clear();
 
     for (int i = 0; i <= iteration_times_; ++i){
       x_vec_.push_back(x_init);

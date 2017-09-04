@@ -92,6 +92,7 @@ namespace lqr_discrete{
     /* Ros service */
     ros::ServiceClient dare_client_;
 
+    void initHydrus();
     void initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr);
     void updateMatrixA(int time_id);
     void updateMatrixB(int time_id);

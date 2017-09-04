@@ -38,6 +38,7 @@ namespace quadrotor_simulator{
   QuadrotorSimulator::QuadrotorSimulator(ros::NodeHandle nh, ros::NodeHandle nhp): nh_(nh), nhp_(nhp){
     // controller_ptr_ = new SlqFiniteDiscreteControlQuadrotor(nh_, nhp_);
     controller_ptr_ = new SlqFiniteDiscreteControlHydrus(nh_, nhp_);
+    controller_ptr_->initHydrus();
 
     pub_traj_path_ = nh_.advertise<nav_msgs::Path>("lqr_path", 1);
     pub_traj_way_points_ = nh_.advertise<visualization_msgs::MarkerArray>("end_points_markers", 1);
