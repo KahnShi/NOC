@@ -39,6 +39,7 @@ namespace lqr_discrete{
     /* Ros service */
     dare_client_ = nh_.serviceClient<lqr_control::Dare>("dare_solver");
 
+    not_first_slq_flag_ = false;
     /* ros param */
     double R_para, Q_p_para, Q_v_para, Q_e_para, Q_w_para, Q_z_para;
     nhp_.param("R_para", R_para, 400.0);
@@ -49,10 +50,10 @@ namespace lqr_discrete{
     nhp_.param("Q_e_para", Q_e_para, 1.0);
 
     /* hydrus */
-    link_length_ = 0.44;
+    link_length_ = 0.6;
     n_links_ = 4;
     for (int i = 0; i < n_links_; ++i)
-      link_weight_vec_.push_back(0.55);
+      link_weight_vec_.push_back(0.92);
     hydrus_weight_ = 0.0;
     for (int i = 0; i < n_links_; ++i)
       hydrus_weight_ += link_weight_vec_[i];
@@ -63,7 +64,7 @@ namespace lqr_discrete{
     // (*I_ptr_)(0, 0) = 0.0001;
     // (*I_ptr_)(1, 1) = 0.0001;
     // (*I_ptr_)(2, 2) = 0.0002;
-    double c_rf = 0.016;
+    double c_rf = -0.01676;
     M_z_ = VectorXd::Zero(n_links_);
     M_z_(0) = -c_rf;
     M_z_(1) = c_rf;
@@ -108,7 +109,7 @@ namespace lqr_discrete{
     *R_ptr_ = R_para * MatrixXd::Identity(u_size_, u_size_);
 
     uav_rotor_thrust_min_ = 0.0;
-    uav_rotor_thrust_max_ = (hydrus_weight_ * 9.78 / 4.0) * 3.0;
+    uav_rotor_thrust_max_ = 18.0;
 
     u0_ptr_ = new VectorXd(u_size_);
     un_ptr_ = new VectorXd(u_size_);
@@ -167,19 +168,23 @@ namespace lqr_discrete{
     // u_init = (*un_ptr_);
 
     /* Clear assigned vector */
-    if (!x_vec_.empty()) x_vec_.clear();
-    if (!u_vec_.empty()) u_vec_.clear();
-    if (!joint_vec_.empty()) joint_vec_.clear();
-    if (!joint_dt_vec_.empty()) joint_dt_vec_.clear();
-    if (!I_vec_.empty()) I_vec_.clear();
-    if (!I_dt_vec_.empty()) I_dt_vec_.clear();
-    if (!link_center_pos_local_vec_.empty()) link_center_pos_local_vec_.clear();
-    if (!link_center_pos_local_dt_vec_.empty()) link_center_pos_local_dt_vec_.clear();
-    if (!cog_pos_local_vec_.empty()) cog_pos_local_vec_.clear();
-    if (!cog_pos_local_dt_vec_.empty()) cog_pos_local_dt_vec_.clear();
-    if (!u_fw_vec_.empty()) u_fw_vec_.clear();
-    if (!u_fb_vec_.empty()) u_fb_vec_.clear();
-    if (!K_vec_.empty()) K_vec_.clear();
+    if (not_first_slq_flag_){
+      x_vec_.clear();
+      u_vec_.clear();
+      joint_vec_.clear();
+      joint_dt_vec_.clear();
+      I_vec_.clear();
+      I_dt_vec_.clear();
+      link_center_pos_local_vec_.clear();
+      link_center_pos_local_dt_vec_.clear();
+      cog_pos_local_vec_.clear();
+      cog_pos_local_dt_vec_.clear();
+      u_fw_vec_.clear();
+      u_fb_vec_.clear();
+      K_vec_.clear();
+    }
+    else
+      not_first_slq_flag_ = true;
 
     for (int i = 0; i <= iteration_times_; ++i){
       x_vec_.push_back(x_init);
