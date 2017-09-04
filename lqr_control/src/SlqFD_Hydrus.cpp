@@ -184,8 +184,8 @@ namespace lqr_discrete{
     for (int i = 0; i <= iteration_times_; ++i){
       x_vec_.push_back(x_init);
       u_vec_.push_back(u_init);
-      VectorXd cur_joint = getCurrentJoint(i/control_freq_);
-      VectorXd cur_joint_dt = getCurrentJoint(i/control_freq_, 1);
+      VectorXd cur_joint = getCurrentJoint(double(i)/control_freq_);
+      VectorXd cur_joint_dt = getCurrentJoint(double(i)/control_freq_, 1);
       joint_vec_.push_back(cur_joint);
       joint_dt_vec_.push_back(cur_joint_dt);
       getHydrusLinksCenter(&cur_joint);
@@ -433,23 +433,23 @@ namespace lqr_discrete{
       for (int i = 0; i < n_links_ - 1; ++i)
         joint(i) = 3.14159 / 2.0;
     }
-    // test: [0, 5] 1.57; [5, 5.5] 1.57-3.14*(t-5.0)^2; [5.5, 6] 3.14*(t-6.0)^2
+    // example: end time is 6s: [0, 5] 1.57; [5, 5.5] 1.57-3.14*(t-5.0)^2; [5.5, 6] 3.14*(t-6.0)^2
     if (order == 0){
       if (time > 5.5)
-        joint(2) = 3.14 * pow(time-6.0, 2.0);
+        joint(2) = 3.14 * pow(time - end_time_, 2.0);
       else if(time > 5)
-        joint(2) = 1.57 - 3.14 * pow(time-5.0, 2.0);
+        joint(2) = 1.57 - 3.14 * pow(time - end_time_ + 1.0, 2.0);
     }
     else if (order == 1){
-      if (time > 5.5)
-        joint(2) = 3.14 * 2 * (time-6.0);
-      else if(time > 5)
-        joint(2) = -3.14 * 2 * (time-5.0);
+      if (time > end_time_ - 0.5)
+        joint(2) = 3.14 * 2 * (time-end_time_);
+      else if(time > end_time_ - 1.0)
+        joint(2) = -3.14 * 2 * (time - end_time_ + 1.0);
     }
     else if (order == 2){
-      if (time > 5.5)
+      if (time > end_time_ - 0.5)
         joint(2) = 3.14 * 2;
-      else if(time > 5)
+      else if(time > end_time_ - 1.0)
         joint(2) = -3.14 * 2;
     }
     return joint;
