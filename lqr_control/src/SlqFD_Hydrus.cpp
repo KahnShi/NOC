@@ -398,6 +398,25 @@ namespace lqr_discrete{
       for (int i = 0; i < n_links_ - 1; ++i)
         joint(i) = 3.14159 / 2.0;
     }
+    // test: [0, 5] 1.57; [5, 5.5] 1.57-3.14*(t-5.0)^2; [5.5, 6] 3.14*(t-6.0)^2
+    if (order == 0){
+      if (time > 5.5)
+        joint(2) = 3.14 * pow(time-6.0, 2.0);
+      else if(time > 5)
+        joint(2) = 1.57 - 3.14 * pow(time-5.0, 2.0);
+    }
+    else if (order == 1){
+      if (time > 5.5)
+        joint(2) = 3.14 * 2 * (time-6.0);
+      else if(time > 5)
+        joint(2) = -3.14 * 2 * (time-5.0);
+    }
+    else if (order == 2){
+      if (time > 5.5)
+        joint(2) = 3.14 * 2;
+      else if(time > 5)
+        joint(2) = -3.14 * 2;
+    }
     return joint;
   }
 
