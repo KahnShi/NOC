@@ -150,6 +150,7 @@ namespace lqr_discrete{
       getHydrusLinksCenter(&cur_joint);
       getHydrusLinksCenterDerivative(&cur_joint, &cur_joint_dt);
       getHydrusInertialTensor(&cur_joint, i);
+      updateHydrusCogPosition(i);
       u_fw_vec_.push_back(u_init);
       u_fb_vec_.push_back(u_init);
       K_vec_.push_back(MatrixXd::Zero(u_size_, x_size_));
@@ -734,6 +735,16 @@ namespace lqr_discrete{
     }
     I_vec_.push_back(cur_I_vec);
     I_dt_vec_.push_back(cur_I_dt_vec);
+  }
+
+  void SlqFiniteDiscreteControlHydrus::updateHydrusCogPosition(int time_id){
+    Vector3d cog_local_pos = Vector3d::Zero();
+    std::vector<Vector3d> center_local_pos_vec = link_center_pos_local_vec_[time_id];
+    for (int i = 0; i < n_links_; ++i){
+      cog_local_pos = cog_local_pos + link_weight_vec_[i] * center_local_pos_vec[i];
+    }
+    cog_local_pos = cog_local_pos / hydrus_weight_;
+    cog_pos_local_vec_.push_back(cog_local_pos);
   }
 
   void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenter(VectorXd *joint_ptr){

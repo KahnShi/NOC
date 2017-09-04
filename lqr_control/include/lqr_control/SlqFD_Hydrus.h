@@ -62,6 +62,7 @@ namespace lqr_discrete{
     std::vector<std::vector<Matrix3d> > I_dt_vec_;
     std::vector<std::vector<Vector3d> > link_center_pos_local_vec_;
     std::vector<std::vector<Vector3d> > link_center_pos_local_dt_vec_;
+    std::vector<Vector3d> cog_pos_local_vec_;
     bool debug_;
     double uav_rotor_thrust_min_;
     double uav_rotor_thrust_max_;
@@ -110,6 +111,7 @@ namespace lqr_discrete{
     void getHydrusLinksCenter(VectorXd *joint_ptr);
     void getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr);
     void getHydrusInertialTensor(VectorXd *joint_ptr, int time_id);
+    void updateHydrusCogPosition(int time_id);
     MatrixXd getJacobianW(int id);
     void printStateInfo(VectorXd *x, int id);
     void printControlInfo(VectorXd *u, int id);
