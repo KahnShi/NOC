@@ -750,7 +750,7 @@ namespace lqr_discrete{
       cur_I_vec.push_back(cur_I);
 
       Matrix3d cur_I_dt = Matrix3d::Zero();
-      Vector3d center_pos_dt = link_center_pos_local_dt_vec_[time_id][i] - cog_pos_local_dt_vec_[i];
+      Vector3d center_pos_dt = link_center_pos_local_dt_vec_[time_id][i] - cog_pos_local_dt_vec_[time_id];
       cur_I_dt(0, 0) = link_weight_vec_[i] * (2 * center_pos(1) * center_pos_dt(1)
                                               + 2 * center_pos(2) * center_pos_dt(2));
       cur_I_dt(1, 1) = link_weight_vec_[i] * (2 * center_pos(0) * center_pos_dt(0)
