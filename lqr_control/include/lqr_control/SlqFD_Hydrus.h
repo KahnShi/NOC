@@ -57,6 +57,7 @@ namespace lqr_discrete{
     std::vector<VectorXd> joint_vec_;
     std::vector<VectorXd> joint_dt_vec_;
     double hydrus_weight_;
+    VectorXd M_z_;
     Matrix3d *I_ptr_;
     std::vector<std::vector<Matrix3d> > I_vec_;
     std::vector<std::vector<Matrix3d> > I_dt_vec_;
