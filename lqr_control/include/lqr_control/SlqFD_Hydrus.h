@@ -117,6 +117,7 @@ namespace lqr_discrete{
     void updateHydrusCogPosition(int time_id);
     void updateHydrusCogPositionDerivative(int time_id);
     MatrixXd getJacobianW(int id);
+    Vector3d VectorXdTo3d(VectorXd vec);
     void printStateInfo(VectorXd *x, int id);
     void printControlInfo(VectorXd *u, int id);
     void printMatrixAB();

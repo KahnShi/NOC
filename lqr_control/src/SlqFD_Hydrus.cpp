@@ -565,6 +565,7 @@ namespace lqr_discrete{
     /* w_x, w_y, w_z */
     /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
     /* d w_w = I.inv() * (sigma - (d wi).cross(Ii * wi) - wi.cross(Ii * dwi) - dIi * dwi) */
+    w = Vector3d((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
     Matrix3d I_sum = Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i)
       I_sum += I_vec_[time_id][i];
@@ -574,10 +575,10 @@ namespace lqr_discrete{
       Vector3d d_w_w_i = Vector3d::Zero();
       Vector3d dwi = Vector3d::Zero(); dwi(i) = 1.0;
       for (int j = 0; j < n_links_; ++j){
-        Vector3d wj = w + Vector3d(getJacobianW(j) * joint_dt_vec_[time_id]);
-        d_w_w_i = d_w_w_i + (-dwi.cross(Vector3d(I_vec_[time_id][j] * wj))
-                             - wj.cross(Vector3d(I_vec_[time_id][j] * dwi))
-                             - Vector3d(I_dt_vec_[time_id][i] * dwi));
+        Vector3d wj = w + VectorXdTo3d(getJacobianW(j) * joint_dt_vec_[time_id]);
+        d_w_w_i = d_w_w_i + (-dwi.cross(VectorXdTo3d(I_vec_[time_id][j] * wj))
+                             - wj.cross(VectorXdTo3d(I_vec_[time_id][j] * dwi))
+                             - VectorXdTo3d(I_dt_vec_[time_id][i] * dwi));
       }
       d_w_w_i_vec.push_back(I_inv * d_w_w_i);
     }
@@ -687,14 +688,14 @@ namespace lqr_discrete{
     VectorXd ddq = getCurrentJoint(time_id/control_freq_, 2);
     for (int i = 0; i < n_links_; ++i){
       MatrixXd JW_mat = getJacobianW(i);
-      Vector3d wi = w + Vector3d(JW_mat * dq);
+      Vector3d wi = w + VectorXdTo3d(JW_mat * dq);
       double fi = (*u_ptr)[i] + (*un_ptr_)[i];
       mid_result +=
         (link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id]).
         cross(Vector3d(0, 0, fi))
         + Vector3d(0, 0, fi * M_z_(i))
         - I_vec_[time_id][i] * JW_mat * ddq
-        - wi.cross(Vector3d(I_vec_[time_id][i] * wi))
+        - wi.cross(VectorXdTo3d(I_vec_[time_id][i] * wi))
         - I_dt_vec_[time_id][i] * wi;
     }
     Matrix3d I_sum = Matrix3d::Zero();
@@ -941,6 +942,13 @@ namespace lqr_discrete{
       }
     }
     ROS_INFO("[SLQ] LQR init finished");
+  }
+
+  Vector3d SlqFiniteDiscreteControlHydrus::VectorXdTo3d(VectorXd vec){
+    Vector3d vec3;
+    for (int i = 0; i < 3; ++i)
+      vec3(i) = vec(i);
+    return vec3;
   }
 
   void SlqFiniteDiscreteControlHydrus::checkControlInputFeasible(VectorXd *u){
