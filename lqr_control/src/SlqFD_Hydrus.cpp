@@ -79,6 +79,12 @@ namespace lqr_discrete{
     // (*I_ptr_)(0, 0) = 0.0001;
     // (*I_ptr_)(1, 1) = 0.0001;
     // (*I_ptr_)(2, 2) = 0.0002;
+    double c_rf = 0.016;
+    M_z_ = VectorXd::Zero(n_links_);
+    M_z_(0) = -c_rf;
+    M_z_(1) = c_rf;
+    M_z_(2) = -c_rf;
+    M_z_(3) = c_rf;
 
     x_size_ = 12;
     u_size_ = 4;
@@ -501,7 +507,7 @@ namespace lqr_discrete{
     }
 
     /* w_x, w_y, w_z */
-    /* d w = I.inv() * (sigma ri.cross(fi - R'*mi*g) - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
+    /* d w = I.inv() * (sigma ri.cross(fi - R'*mi*g) + [0;0;fi * M_z(i)] - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
     /* d w_e, d w_w*/
 
     /* d w_e = I.inv() * (sigma ri.cross(- d R'*mi*g) */
@@ -586,15 +592,16 @@ namespace lqr_discrete{
     /* all 0 */
 
     /* w_x, w_y, w_z */
-    /* d w = I.inv() * (sigma ri.cross(fi - R'*mi*g) - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
-    /* d w_u_i = I.inv() * (ri.cross(d fi)) */
+    /* d w = I.inv() * (sigma ri.cross(fi - R'*mi*g) + [0;0;fi * M_z(i)] - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
+    /* d w_u_i = I.inv() * (ri.cross(d fi) + [0;0;d fi * M_z(i)]) */
     Matrix3d I_sum = Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i)
       I_sum += I_vec_[time_id][i];
     Matrix3d I_inv = I_sum.inverse();
     for (int i = 0; i < n_links_; ++i){
       Vector3d dw_u_i = I_inv *
-        link_center_pos_local_vec_[time_id][i].cross(Vector3d(0, 0, 1.0));
+        (link_center_pos_local_vec_[time_id][i].cross(Vector3d(0, 0, 1.0))
+         + Vector3d(0, 0, M_z_(i)));
       for (int j = 0; j < 3; ++j)
         (*B_ptr_)(W_X + j, U_1 + i) = dw_u_i(j);
     }
@@ -643,7 +650,7 @@ namespace lqr_discrete{
       dev_x(i) = d_e(i - E_R);
 
     /* w_x, w_y, w_z */
-    /* d w = I.inv() * (sigma ri.cross(fi - R'*mi*g) - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
+    /* d w = I.inv() * (sigma ri.cross(fi - R'*mi*g) + [0;0;fi * M_z(i)] - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
     Vector3d dw;
     Vector3d mid_result = Vector3d::Zero();
     Vector3d rot_inv_z(-sin((*x_ptr)[E_P]),
@@ -654,10 +661,12 @@ namespace lqr_discrete{
     for (int i = 0; i < n_links_; ++i){
       MatrixXd JW_mat = getJacobianW(i);
       Vector3d wi = w + Vector3d(JW_mat * dq);
+      double fi = (*u_ptr)[i] + (*un_ptr_)[i];
       mid_result +=
         link_center_pos_local_vec_[time_id][i].
-        cross(Vector3d(0, 0, (*u_ptr)[i] + (*un_ptr_)[i])
+        cross(Vector3d(0, 0, fi)
               - rot_inv_z * link_weight_vec_[i] * 9.78)
+        + Vector3d(0, 0, fi * M_z_(i))
         - I_vec_[time_id][i] * JW_mat * ddq
         - wi.cross(Vector3d(I_vec_[time_id][i] * wi))
         - I_dt_vec_[time_id][i] * wi;
