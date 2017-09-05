@@ -43,10 +43,10 @@ namespace lqr_discrete{
     /* ros param */
     double R_para, Q_p_para, Q_v_para, Q_e_para, Q_w_para, Q_z_para;
     nhp_.param("transform_movement_flag", transform_movement_flag_, false);
-    nhp_.param("R_para", R_para, 400.0);
+    nhp_.param("R_para", R_para, 100.0);
     nhp_.param("Q_p_para", Q_p_para, 10.0);
     nhp_.param("Q_v_para", Q_v_para, 10.0);
-    nhp_.param("Q_z_para", Q_z_para, 10.0);
+    nhp_.param("Q_z_para", Q_z_para, 100.0);
     nhp_.param("Q_w_para", Q_w_para, 1.0);
     nhp_.param("Q_e_para", Q_e_para, 1.0);
 
@@ -59,8 +59,8 @@ namespace lqr_discrete{
     for (int i = 0; i < n_links_; ++i)
       hydrus_weight_ += link_weight_vec_[i];
     joint_ptr_ = new VectorXd(n_links_ - 1);
-    I_ptr_ = new Matrix3d();
-    *I_ptr_ = Matrix3d::Zero(3, 3);
+    I_ptr_ = new Eigen::Matrix3d();
+    *I_ptr_ = Eigen::Matrix3d::Zero(3, 3);
     // Inertial is too small to ignore.
     // (*I_ptr_)(0, 0) = 0.0001;
     // (*I_ptr_)(1, 1) = 0.0001;
@@ -478,9 +478,9 @@ namespace lqr_discrete{
     return joint;
   }
 
-  Matrix3d SlqFiniteDiscreteControlHydrus::getCurrentRotationMatrix(Vector3d euler_angle, int order){
-    Matrix3d rot = Matrix3d::Zero();
-    Matrix3d rot_x, rot_y, rot_z;
+  Eigen::Matrix3d SlqFiniteDiscreteControlHydrus::getCurrentRotationMatrix(Eigen::Vector3d euler_angle, int order){
+    Eigen::Matrix3d rot = Eigen::Matrix3d::Zero();
+    Eigen::Matrix3d rot_x, rot_y, rot_z;
     rot_x << 1, 0, 0,
       0, cos(euler_angle(0)), -sin(euler_angle(0)),
       0, sin(euler_angle(0)), cos(euler_angle(0));
@@ -494,7 +494,7 @@ namespace lqr_discrete{
       rot = rot_z * rot_y * rot_x;
     }
     else if(order == 1){
-      Matrix3d rot_x_d, rot_y_d, rot_z_d;
+      Eigen::Matrix3d rot_x_d, rot_y_d, rot_z_d;
       rot_x_d << 1, 0, 0,
         0, -sin(euler_angle(0)), -cos(euler_angle(0)),
         0, cos(euler_angle(0)), -sin(euler_angle(0));
@@ -558,25 +558,25 @@ namespace lqr_discrete{
 
     /* e_r, e_p, e_y */
     /* d e = R_e * w_b */
-    Vector3d w((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
+    Eigen::Vector3d w((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
     MatrixXd R_e = MatrixXd::Zero(3, 3);
     R_e << 1, tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]), tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]),
       0, cos((*x_ptr)[E_R]), -sin((*x_ptr)[E_R]),
       0, sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
-    Vector3d d_e_w_x = R_e * Vector3d(1.0, 0, 0);
-    Vector3d d_e_w_y = R_e * Vector3d(0, 1.0, 0);
-    Vector3d d_e_w_z = R_e * Vector3d(0, 0, 1.0);
+    Eigen::Vector3d d_e_w_x = R_e * Eigen::Vector3d(1.0, 0, 0);
+    Eigen::Vector3d d_e_w_y = R_e * Eigen::Vector3d(0, 1.0, 0);
+    Eigen::Vector3d d_e_w_z = R_e * Eigen::Vector3d(0, 0, 1.0);
     MatrixXd R_e_r = MatrixXd::Zero(3, 3);
     R_e_r << 0, tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]), -tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]),
       0, -sin((*x_ptr)[E_R]), -cos((*x_ptr)[E_R]),
       0, cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), -sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
-    Vector3d d_e_e_r = R_e_r * w;
+    Eigen::Vector3d d_e_e_r = R_e_r * w;
     MatrixXd R_e_p = MatrixXd::Zero(3, 3);
     double d_cosp = sin((*x_ptr)[E_P]) / pow(cos((*x_ptr)[E_P]), 2.0);
     R_e_p << 0, sin((*x_ptr)[E_R]) / pow(cos((*x_ptr)[E_P]), 2.0), cos((*x_ptr)[E_R]) / pow(cos((*x_ptr)[E_P]), 2.0),
       0, 0, 0,
       0, sin((*x_ptr)[E_R]) * d_cosp, cos((*x_ptr)[E_R]) * d_cosp;
-    Vector3d d_e_e_p = R_e_p * w;
+    Eigen::Vector3d d_e_e_p = R_e_p * w;
     for (int i = E_R; i <= E_Y; ++i){
       (*A_ptr_)(i, W_X) = d_e_w_x(i - E_R);
       (*A_ptr_)(i, W_Y) = d_e_w_y(i - E_R);
@@ -588,17 +588,17 @@ namespace lqr_discrete{
     /* w_x, w_y, w_z */
     /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
     /* d w_w = I.inv() * (sigma - (d wi).cross(Ii * wi) - wi.cross(Ii * dwi) - dIi * dwi) */
-    w = Vector3d((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
-    Matrix3d I_sum = Matrix3d::Zero();
+    w = Eigen::Vector3d((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
+    Eigen::Matrix3d I_sum = Eigen::Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i)
       I_sum += I_vec_[time_id][i];
-    Matrix3d I_inv = I_sum.inverse();
-    std::vector<Vector3d> d_w_w_i_vec;
+    Eigen::Matrix3d I_inv = I_sum.inverse();
+    std::vector<Eigen::Vector3d> d_w_w_i_vec;
     for (int i = 0; i < 3; ++i){
-      Vector3d d_w_w_i = Vector3d::Zero();
-      Vector3d dwi = Vector3d::Zero(); dwi(i) = 1.0;
+      Eigen::Vector3d d_w_w_i = Eigen::Vector3d::Zero();
+      Eigen::Vector3d dwi = Eigen::Vector3d::Zero(); dwi(i) = 1.0;
       for (int j = 0; j < n_links_; ++j){
-        Vector3d wj = w + VectorXdTo3d(getJacobianW(j) * joint_dt_vec_[time_id]);
+        Eigen::Vector3d wj = w + VectorXdTo3d(getJacobianW(j) * joint_dt_vec_[time_id]);
         d_w_w_i = d_w_w_i + (-dwi.cross(VectorXdTo3d(I_vec_[time_id][j] * wj))
                              - wj.cross(VectorXdTo3d(I_vec_[time_id][j] * dwi))
                              - VectorXdTo3d(I_dt_vec_[time_id][i] * dwi));
@@ -647,15 +647,15 @@ namespace lqr_discrete{
     /* w_x, w_y, w_z */
     /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
     /* d w_u_i = I.inv() * (ri.cross(d fi) + [0;0;d fi * M_z(i)]) */
-    Matrix3d I_sum = Matrix3d::Zero();
+    Eigen::Matrix3d I_sum = Eigen::Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i)
       I_sum += I_vec_[time_id][i];
-    Matrix3d I_inv = I_sum.inverse();
+    Eigen::Matrix3d I_inv = I_sum.inverse();
     for (int i = 0; i < n_links_; ++i){
-      Vector3d dw_u_i = I_inv *
+      Eigen::Vector3d dw_u_i = I_inv *
         ((link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id])
-         .cross(Vector3d(0, 0, 1.0))
-         + Vector3d(0, 0, M_z_(i)));
+         .cross(Eigen::Vector3d(0, 0, 1.0))
+         + Eigen::Vector3d(0, 0, M_z_(i)));
       for (int j = 0; j < 3; ++j)
         (*B_ptr_)(W_X + j, U_1 + i) = dw_u_i(j);
     }
@@ -694,34 +694,34 @@ namespace lqr_discrete{
 
     /* e_r, e_p, e_y */
     /* d e = R_e * w_b */
-    Vector3d w((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
+    Eigen::Vector3d w((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
     MatrixXd R_e = MatrixXd::Zero(3, 3);
     R_e << 1, tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]), tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]),
       0, cos((*x_ptr)[E_R]), -sin((*x_ptr)[E_R]),
       0, sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
-    Vector3d d_e = R_e * w;
+    Eigen::Vector3d d_e = R_e * w;
     for (int i = E_R; i <= E_Y; ++i)
       dev_x(i) = d_e(i - E_R);
 
     /* w_x, w_y, w_z */
     /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
-    Vector3d dw;
-    Vector3d mid_result = Vector3d::Zero();
+    Eigen::Vector3d dw;
+    Eigen::Vector3d mid_result = Eigen::Vector3d::Zero();
     VectorXd dq = joint_dt_vec_[time_id];
     VectorXd ddq = getCurrentJoint(time_id/control_freq_, 2);
     for (int i = 0; i < n_links_; ++i){
       MatrixXd JW_mat = getJacobianW(i);
-      Vector3d wi = w + VectorXdTo3d(JW_mat * dq);
+      Eigen::Vector3d wi = w + VectorXdTo3d(JW_mat * dq);
       double fi = (*u_ptr)[i] + (*un_ptr_)[i];
       mid_result +=
         (link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id]).
-        cross(Vector3d(0, 0, fi))
-        + Vector3d(0, 0, fi * M_z_(i))
+        cross(Eigen::Vector3d(0, 0, fi))
+        + Eigen::Vector3d(0, 0, fi * M_z_(i))
         - I_vec_[time_id][i] * JW_mat * ddq
         - wi.cross(VectorXdTo3d(I_vec_[time_id][i] * wi))
         - I_dt_vec_[time_id][i] * wi;
     }
-    Matrix3d I_sum = Matrix3d::Zero();
+    Eigen::Matrix3d I_sum = Eigen::Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i)
       I_sum += I_vec_[time_id][i];
     dw = I_sum.inverse() * (mid_result);
@@ -752,11 +752,11 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlHydrus::getHydrusInertialTensor(VectorXd *joint_ptr, int time_id){
-    std::vector<Matrix3d> cur_I_vec;
-    std::vector<Matrix3d> cur_I_dt_vec;
+    std::vector<Eigen::Matrix3d> cur_I_vec;
+    std::vector<Eigen::Matrix3d> cur_I_dt_vec;
     for (int i = 0; i < n_links_; ++i){
-      Matrix3d cur_I = *I_ptr_;
-      Vector3d center_pos = link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id];
+      Eigen::Matrix3d cur_I = *I_ptr_;
+      Eigen::Vector3d center_pos = link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id];
       cur_I(0, 0) += link_weight_vec_[i] * (pow(center_pos(1), 2.0)
                                             + pow(center_pos(2), 2.0));
       cur_I(1, 1) += link_weight_vec_[i] * (pow(center_pos(0), 2.0)
@@ -772,8 +772,8 @@ namespace lqr_discrete{
 
       cur_I_vec.push_back(cur_I);
 
-      Matrix3d cur_I_dt = Matrix3d::Zero();
-      Vector3d center_pos_dt = link_center_pos_local_dt_vec_[time_id][i] - cog_pos_local_dt_vec_[time_id];
+      Eigen::Matrix3d cur_I_dt = Eigen::Matrix3d::Zero();
+      Eigen::Vector3d center_pos_dt = link_center_pos_local_dt_vec_[time_id][i] - cog_pos_local_dt_vec_[time_id];
       cur_I_dt(0, 0) = link_weight_vec_[i] * (2 * center_pos(1) * center_pos_dt(1)
                                               + 2 * center_pos(2) * center_pos_dt(2));
       cur_I_dt(1, 1) = link_weight_vec_[i] * (2 * center_pos(0) * center_pos_dt(0)
@@ -796,8 +796,8 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlHydrus::updateHydrusCogPosition(int time_id){
-    Vector3d cog_local_pos = Vector3d::Zero();
-    std::vector<Vector3d> center_local_pos_vec = link_center_pos_local_vec_[time_id];
+    Eigen::Vector3d cog_local_pos = Eigen::Vector3d::Zero();
+    std::vector<Eigen::Vector3d> center_local_pos_vec = link_center_pos_local_vec_[time_id];
     for (int i = 0; i < n_links_; ++i){
       cog_local_pos = cog_local_pos + link_weight_vec_[i] * center_local_pos_vec[i];
     }
@@ -806,8 +806,8 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlHydrus::updateHydrusCogPositionDerivative(int time_id){
-    Vector3d cog_local_pos_dt = Vector3d::Zero();
-    std::vector<Vector3d> center_local_pos_dt_vec = link_center_pos_local_dt_vec_[time_id];
+    Eigen::Vector3d cog_local_pos_dt = Eigen::Vector3d::Zero();
+    std::vector<Eigen::Vector3d> center_local_pos_dt_vec = link_center_pos_local_dt_vec_[time_id];
     for (int i = 0; i < n_links_; ++i){
       cog_local_pos_dt = cog_local_pos_dt + link_weight_vec_[i] * center_local_pos_dt_vec[i];
     }
@@ -816,57 +816,57 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenter(VectorXd *joint_ptr){
-    Matrix3d rot_default;
+    Eigen::Matrix3d rot_default;
     rot_default << -1, 0, 0,
       0, -1, 0,
       0 , 0, 1;
-    std::vector<Vector3d> links_center_vec;
-    Vector3d link1_center(link_length_ / 2.0, 0, 0);
+    std::vector<Eigen::Vector3d> links_center_vec;
+    Eigen::Vector3d link1_center(link_length_ / 2.0, 0, 0);
     link1_center = rot_default *  link1_center;
     links_center_vec.push_back(link1_center);
-    Vector3d prev_link_end(link_length_, 0, 0);
+    Eigen::Vector3d prev_link_end(link_length_, 0, 0);
     prev_link_end = rot_default * prev_link_end;
     double joint_ang = 0.0;
 
     // only considering 2d hydrus
     for (int i = 1; i < n_links_; ++i){
-      Vector3d link_center = Vector3d::Zero();
+      Eigen::Vector3d link_center = Eigen::Vector3d::Zero();
       joint_ang += (*joint_ptr)(i - 1);
-      Matrix3d rot;
+      Eigen::Matrix3d rot;
       rot << cos(joint_ang), -sin(joint_ang), 0,
         sin(joint_ang), cos(joint_ang), 0,
         0, 0, 1;
-      link_center = prev_link_end + rot_default * rot * Vector3d(link_length_ / 2.0, 0, 0);
+      link_center = prev_link_end + rot_default * rot * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
       links_center_vec.push_back(link_center);
-      prev_link_end = prev_link_end + rot_default * rot * Vector3d(link_length_, 0, 0);
+      prev_link_end = prev_link_end + rot_default * rot * Eigen::Vector3d(link_length_, 0, 0);
     }
     link_center_pos_local_vec_.push_back(links_center_vec);
   }
 
   void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr){
-    std::vector<Vector3d> links_center_dt_vec;
-    Vector3d link1_center_dt(0.0, 0, 0);
+    std::vector<Eigen::Vector3d> links_center_dt_vec;
+    Eigen::Vector3d link1_center_dt(0.0, 0, 0);
     links_center_dt_vec.push_back(link1_center_dt);
-    Vector3d prev_link_end_dt(0, 0, 0);
+    Eigen::Vector3d prev_link_end_dt(0, 0, 0);
     double joint_ang = 0.0;
     double joint_ang_dt = 0.0;
-    Matrix3d rot_default;
+    Eigen::Matrix3d rot_default;
     rot_default << -1, 0, 0,
       0, -1, 0,
       0 , 0, 1;
     // only considering 2d hydrus
     for (int i = 1; i < n_links_; ++i){
-      Vector3d link_center_dt = Vector3d::Zero();
+      Eigen::Vector3d link_center_dt = Eigen::Vector3d::Zero();
       joint_ang += (*joint_ptr)(i - 1);
       joint_ang_dt += (*joint_dt_ptr)(i - 1);
-      Matrix3d rot_dt;
+      Eigen::Matrix3d rot_dt;
       rot_dt << -sin(joint_ang), -cos(joint_ang), 0,
         cos(joint_ang), -sin(joint_ang), 0,
         0, 0, 0;
       rot_dt = rot_dt * joint_ang_dt;
-      link_center_dt = prev_link_end_dt + rot_default * rot_dt * Vector3d(link_length_ / 2.0, 0, 0);
+      link_center_dt = prev_link_end_dt + rot_default * rot_dt * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
       links_center_dt_vec.push_back(link_center_dt);
-      prev_link_end_dt = prev_link_end_dt + rot_default * rot_dt * Vector3d(link_length_, 0, 0);
+      prev_link_end_dt = prev_link_end_dt + rot_default * rot_dt * Eigen::Vector3d(link_length_, 0, 0);
     }
     link_center_pos_local_dt_vec_.push_back(links_center_dt_vec);
   }
@@ -977,8 +977,8 @@ namespace lqr_discrete{
     ROS_INFO("[SLQ] LQR init finished");
   }
 
-  Vector3d SlqFiniteDiscreteControlHydrus::VectorXdTo3d(VectorXd vec){
-    Vector3d vec3;
+  Eigen::Vector3d SlqFiniteDiscreteControlHydrus::VectorXdTo3d(VectorXd vec){
+    Eigen::Vector3d vec3;
     for (int i = 0; i < 3; ++i)
       vec3(i) = vec(i);
     return vec3;
