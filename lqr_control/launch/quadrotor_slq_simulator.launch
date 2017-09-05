@@ -2,6 +2,7 @@
   <node pkg="lqr_control" type="dareSolver.py" name="dare_solver" output="screen">
   </node>
   <node pkg="lqr_control" type="quadrotor_simulator_node" name="quadrotor_simulator" output="screen" >
+    <param name="transform_movement_flag" value="true" />
     <param name="R_para" value="100.0" />
     <param name="Q_p_para" value="10.0" />
     <param name="Q_v_para" value="10.0" />

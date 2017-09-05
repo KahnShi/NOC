@@ -68,6 +68,7 @@ namespace lqr_discrete{
     bool debug_;
     double uav_rotor_thrust_min_;
     double uav_rotor_thrust_max_;
+    bool transform_movement_flag_;
     /* slq */
     bool not_first_slq_flag_;
     MatrixXd *H_ptr_;

@@ -42,6 +42,7 @@ namespace lqr_discrete{
     not_first_slq_flag_ = false;
     /* ros param */
     double R_para, Q_p_para, Q_v_para, Q_e_para, Q_w_para, Q_z_para;
+    nhp_.param("transform_movement_flag", transform_movement_flag_, false);
     nhp_.param("R_para", R_para, 400.0);
     nhp_.param("Q_p_para", Q_p_para, 10.0);
     nhp_.param("Q_v_para", Q_v_para, 10.0);
@@ -453,24 +454,27 @@ namespace lqr_discrete{
         joint(i) = 3.14159 / 2.0;
     }
     // example: end time is 6s: [0, 5] 1.57; [5, 5.5] 1.57-3.14*(t-5.0)^2; [5.5, 6] 3.14*(t-6.0)^2
-    if (order == 0){
-      if (time > end_time_ - 0.5)
-        joint(2) = 3.14 * pow(time - end_time_, 2.0);
-      else if(time > end_time_ - 1.0)
-        joint(2) = 1.57 - 3.14 * pow(time - end_time_ + 1.0, 2.0);
+    if (transform_movement_flag_){
+      if (order == 0){
+        if (time > end_time_ - 0.5)
+          joint(2) = 3.14 * pow(time - end_time_, 2.0);
+        else if(time > end_time_ - 1.0)
+          joint(2) = 1.57 - 3.14 * pow(time - end_time_ + 1.0, 2.0);
+      }
+      else if (order == 1){
+        if (time > end_time_ - 0.5)
+          joint(2) = 3.14 * 2 * (time-end_time_);
+        else if(time > end_time_ - 1.0)
+          joint(2) = -3.14 * 2 * (time - end_time_ + 1.0);
+      }
+      else if (order == 2){
+        if (time > end_time_ - 0.5)
+          joint(2) = 3.14 * 2;
+        else if(time > end_time_ - 1.0)
+          joint(2) = -3.14 * 2;
+      }
     }
-    else if (order == 1){
-      if (time > end_time_ - 0.5)
-        joint(2) = 3.14 * 2 * (time-end_time_);
-      else if(time > end_time_ - 1.0)
-        joint(2) = -3.14 * 2 * (time - end_time_ + 1.0);
-    }
-    else if (order == 2){
-      if (time > end_time_ - 0.5)
-        joint(2) = 3.14 * 2;
-      else if(time > end_time_ - 1.0)
-        joint(2) = -3.14 * 2;
-    }
+
     return joint;
   }
 
