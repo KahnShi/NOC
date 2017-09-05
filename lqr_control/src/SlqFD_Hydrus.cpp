@@ -434,7 +434,7 @@ namespace lqr_discrete{
   }
 
   VectorXd SlqFiniteDiscreteControlHydrus::highFrequencyFeedbackControl(double time, VectorXd *cur_real_x_ptr){
-    int id = floor(time * control_freq_);
+    int id = floor((time - (*time_ptr_)[0]) * control_freq_);
     if (id > iteration_times_){
       ROS_WARN("[SLQ][Feedback] Time is out of planned.");
       id = iteration_times_;
