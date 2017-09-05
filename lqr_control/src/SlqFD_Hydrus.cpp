@@ -354,7 +354,7 @@ namespace lqr_discrete{
 
     /* Update control by finding the best alpha */
     alpha_ = 1.0;
-    double alpha_candidate = 1.0, energy_min = -1.0;
+    double alpha_candidate_ = 1.0, energy_min = -1.0;
     double search_rate = 2.0;
     if (feedforwardConverged() && debug_)
       std::cout << "[SLQ] feedforward converge.";
@@ -401,20 +401,20 @@ namespace lqr_discrete{
 
         if (energy_sum < energy_min || energy_min < 0){
           energy_min = energy_sum;
-          alpha_candidate = alpha_;
+          alpha_candidate_ = alpha_;
         }
         alpha_ = alpha_ / search_rate;
       }
     }
     if (debug_)
-      std::cout << "\nAlpha selected: " << alpha_candidate << "\n\n";
+      std::cout << "\nAlpha selected: " << alpha_candidate_ << "\n\n";
 
     // test K with every new state
     VectorXd cur_x(x_size_);
     cur_x = x_vec_[0];
     for (int i = 0; i < iteration_times_; ++i){
       VectorXd cur_u(u_size_);
-      cur_u = u_vec_[i] + alpha_candidate * u_fw_vec_[i]
+      cur_u = u_vec_[i] + alpha_candidate_ * u_fw_vec_[i]
         + K_vec_[i] * (cur_x - x_vec_[i]);
       checkControlInputFeasible(&cur_u);
       VectorXd new_x(x_size_);
@@ -429,6 +429,20 @@ namespace lqr_discrete{
       if (i == iteration_times_ - 1)
         x_vec_[iteration_times_] = new_x;
     }
+
+  }
+
+  VectorXd SlqFiniteDiscreteControlHydrus::highFrequencyFeedbackControl(double time, VectorXd *cur_real_x_ptr){
+    int id = floor(time * control_freq_);
+    if (id > iteration_times_){
+      ROS_WARN("[SLQ][Feedback] Time is out of planned.");
+      id = iteration_times_;
+    }
+    VectorXd new_u = VectorXd::Zero(u_size_);
+    VectorXd cur_x = getRelativeState(cur_real_x_ptr);
+    new_u = u_vec_[id] + alpha_candidate_ * u_fw_vec_[id] + K_vec_[id] * (cur_x - x_vec_[id]);
+    new_u = new_u + *un_ptr_;
+    return new_u;
   }
 
   VectorXd SlqFiniteDiscreteControlHydrus::getCurrentJoint(double time, int order){
