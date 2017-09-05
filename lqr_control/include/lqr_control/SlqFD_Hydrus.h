@@ -104,7 +104,7 @@ namespace lqr_discrete{
     void iterativeOptimization();
     void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr, int time_id);
     bool feedforwardConverged();
-    VectorXd highFrequencyFeedbackControl(double time, VectorXd *cur_real_x_ptr);
+    VectorXd highFrequencyFeedbackControl(double relative_time, VectorXd *cur_real_x_ptr);
     VectorXd stateAddition(VectorXd *x1_ptr, VectorXd *x2_ptr);
     VectorXd stateSubtraction(VectorXd *x1_ptr, VectorXd *x2_ptr);
     VectorXd getAbsoluteState(VectorXd *relative_x_ptr);
