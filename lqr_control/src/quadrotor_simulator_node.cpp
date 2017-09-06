@@ -42,6 +42,7 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
   ros::NodeHandle nh_private("~");
   QuadrotorSimulator* quadrotor_sim_node = new QuadrotorSimulator(nh, nh_private);
+  sleep(1.0);
 
   std::vector<VectorXd> way_pts_vec;
   std::vector<double> period_vec;

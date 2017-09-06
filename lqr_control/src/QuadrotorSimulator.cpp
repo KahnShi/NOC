@@ -44,7 +44,7 @@ namespace quadrotor_simulator{
     pub_traj_way_points_ = nh_.advertise<visualization_msgs::MarkerArray>("end_points_markers", 1);
 
     oc_iteration_times_ = 0;
-    sleep(1.0);
+    //sleep(1.0);
   }
 
   void QuadrotorSimulator::initQuadrotorSimulator(std::vector<VectorXd> *waypoints_ptr, std::vector<double> *time_ptr, double controller_freq){
