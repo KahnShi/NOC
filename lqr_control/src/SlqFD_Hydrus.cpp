@@ -37,7 +37,7 @@
 namespace lqr_discrete{
   void SlqFiniteDiscreteControlHydrus::initHydrus(){
     /* Ros service */
-    dare_client_ = nh_.serviceClient<lqr_control::Dare>("dare_solver");
+    dare_client_ = nh_.serviceClient<lqr_control::Dare>("/dare_solver");
 
     not_first_slq_flag_ = false;
     /* ros param */
@@ -115,7 +115,7 @@ namespace lqr_discrete{
     u0_ptr_ = new VectorXd(u_size_);
     un_ptr_ = new VectorXd(u_size_);
 
-
+    ROS_INFO("[SLQ] Hydrus init finished.");
   }
 
   void SlqFiniteDiscreteControlHydrus::initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr){
