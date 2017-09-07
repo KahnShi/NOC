@@ -133,6 +133,9 @@ namespace lqr_discrete{
     std::cout << "[SLQ] Trajectory period: " << end_time_
               << ", Itetation times: " << iteration_times_ << "\n";
 
+    std::cout << "[SLQ] Start position: " << (*waypoints_ptr)[0].transpose() << "\n";
+    std::cout << "[SLQ] End position: " << (*waypoints_ptr)[waypoints_ptr->size()  - 1].transpose() << "\n";
+
     waypoints_ptr_ = waypoints_ptr;
 
     *A_ptr_ = MatrixXd::Zero(x_size_, x_size_);
