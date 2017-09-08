@@ -446,6 +446,22 @@ namespace lqr_discrete{
     VectorXd new_u = VectorXd::Zero(u_size_);
     VectorXd cur_x = getRelativeState(cur_real_x_ptr);
     new_u = u_vec_[id] + alpha_candidate_ * u_fw_vec_[id] + K_vec_[id] * (cur_x - x_vec_[id]);
+    checkControlInputFeasible(&new_u);
+    new_u = new_u + *un_ptr_;
+    return new_u;
+  }
+
+  VectorXd SlqFiniteDiscreteControlHydrus::highFrequencyLQRFeedbackControl(double relative_time, VectorXd *cur_real_x_ptr){
+    // relative_time is (current time - start time)
+    int id = floor(relative_time * control_freq_);
+    if (id > iteration_times_){
+      ROS_WARN("[SLQ][Feedback] Time is out of planned.");
+      id = iteration_times_;
+    }
+    VectorXd new_u = VectorXd::Zero(u_size_);
+    VectorXd cur_x = getRelativeState(cur_real_x_ptr);
+    new_u = -lqr_F_vec_[iteration_times_ - 1 - id] * cur_x;
+    checkControlInputFeasible(&new_u);
     new_u = new_u + *un_ptr_;
     return new_u;
   }
@@ -948,7 +964,6 @@ namespace lqr_discrete{
     *joint_ptr_ = joint_vec_[0];
     updateMatrixAB(0);
 
-    std::vector<MatrixXd> F_vec;
     MatrixXd P(x_size_, x_size_);
     P = *Q_ptr_;
     for (int i = 0; i < iteration_times_; ++i){
@@ -958,12 +973,12 @@ namespace lqr_discrete{
       P = A_ptr_->transpose() * P * (*A_ptr_)
         - (A_ptr_->transpose() * P * (*B_ptr_)) * F
         + (*Q_ptr_);
-      F_vec.push_back(F);
+      lqr_F_vec_.push_back(F);
     }
 
     VectorXd x = getRelativeState(x0_ptr_);
     for (int i = iteration_times_ - 1; i >= 0; --i){
-      VectorXd u = -F_vec[i] * x;
+      VectorXd u = -lqr_F_vec_[i] * x;
       VectorXd new_x(x_size_);
       updateNewState(&new_x, &x, &u, i);
       x = new_x;

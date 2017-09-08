@@ -85,6 +85,7 @@ namespace lqr_discrete{
     double alpha_;
     double alpha_candidate_;
     int line_search_steps_;
+    std::vector<MatrixXd> lqr_F_vec_;
     std::vector<Vector4d> u_fw_vec_;
     std::vector<Vector4d> u_fb_vec_;
     std::vector<MatrixXd> K_vec_;
@@ -105,6 +106,7 @@ namespace lqr_discrete{
     void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr, int time_id);
     bool feedforwardConverged();
     VectorXd highFrequencyFeedbackControl(double relative_time, VectorXd *cur_real_x_ptr);
+    VectorXd highFrequencyLQRFeedbackControl(double relative_time, VectorXd *cur_real_x_ptr);
     VectorXd stateAddition(VectorXd *x1_ptr, VectorXd *x2_ptr);
     VectorXd stateSubtraction(VectorXd *x1_ptr, VectorXd *x2_ptr);
     VectorXd getAbsoluteState(VectorXd *relative_x_ptr);
