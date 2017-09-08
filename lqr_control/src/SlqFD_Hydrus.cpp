@@ -836,16 +836,12 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenter(VectorXd *joint_ptr){
-    Eigen::Matrix3d rot_default;
-    rot_default << -1, 0, 0,
-      0, -1, 0,
-      0 , 0, 1;
     std::vector<Eigen::Vector3d> links_center_vec;
     Eigen::Vector3d link1_center(link_length_ / 2.0, 0, 0);
-    link1_center = rot_default *  link1_center;
+    link1_center = link1_center;
     links_center_vec.push_back(link1_center);
     Eigen::Vector3d prev_link_end(link_length_, 0, 0);
-    prev_link_end = rot_default * prev_link_end;
+    prev_link_end = prev_link_end;
     double joint_ang = 0.0;
 
     // only considering 2d hydrus
@@ -856,9 +852,9 @@ namespace lqr_discrete{
       rot << cos(joint_ang), -sin(joint_ang), 0,
         sin(joint_ang), cos(joint_ang), 0,
         0, 0, 1;
-      link_center = prev_link_end + rot_default * rot * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
+      link_center = prev_link_end + rot * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
       links_center_vec.push_back(link_center);
-      prev_link_end = prev_link_end + rot_default * rot * Eigen::Vector3d(link_length_, 0, 0);
+      prev_link_end = prev_link_end + rot * Eigen::Vector3d(link_length_, 0, 0);
     }
     link_center_pos_local_vec_.push_back(links_center_vec);
   }
@@ -870,10 +866,6 @@ namespace lqr_discrete{
     Eigen::Vector3d prev_link_end_dt(0, 0, 0);
     double joint_ang = 0.0;
     double joint_ang_dt = 0.0;
-    Eigen::Matrix3d rot_default;
-    rot_default << -1, 0, 0,
-      0, -1, 0,
-      0 , 0, 1;
     // only considering 2d hydrus
     for (int i = 1; i < n_links_; ++i){
       Eigen::Vector3d link_center_dt = Eigen::Vector3d::Zero();
@@ -884,9 +876,9 @@ namespace lqr_discrete{
         cos(joint_ang), -sin(joint_ang), 0,
         0, 0, 0;
       rot_dt = rot_dt * joint_ang_dt;
-      link_center_dt = prev_link_end_dt + rot_default * rot_dt * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
+      link_center_dt = prev_link_end_dt + rot_dt * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
       links_center_dt_vec.push_back(link_center_dt);
-      prev_link_end_dt = prev_link_end_dt + rot_default * rot_dt * Eigen::Vector3d(link_length_, 0, 0);
+      prev_link_end_dt = prev_link_end_dt + rot_dt * Eigen::Vector3d(link_length_, 0, 0);
     }
     link_center_pos_local_dt_vec_.push_back(links_center_dt_vec);
   }
