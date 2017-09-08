@@ -159,9 +159,10 @@ namespace lqr_discrete{
 
     /* Assume initial and final state is still, namely dx = [v, a] = 0 */
     for (int i = 0; i < 4; ++i){
-      (*u0_ptr_)(i) = hydrus_weight_ * 9.78 / 4.0;
-      (*un_ptr_)(i) = hydrus_weight_ * 9.78 / 4.0;
+      (*u0_ptr_)(i) = link_weight_vec_[i] * 9.78;
+      (*un_ptr_)(i) = link_weight_vec_[i] * 9.78;
     }
+    //(*un_ptr_) << 9.34459, 9.70679, 8.71779, 8.35559; // adapt to simulator
 
     /* SLQ special initialization */
     // todo: assume start point the quadrotor is hovering
@@ -358,7 +359,8 @@ namespace lqr_discrete{
 
     /* Update control by finding the best alpha */
     alpha_ = 1.0;
-    double alpha_candidate_ = 1.0, energy_min = -1.0;
+    alpha_candidate_ = 1.0;
+    double energy_min = -1.0;
     double search_rate = 2.0;
     if (feedforwardConverged() && debug_)
       std::cout << "[SLQ] feedforward converge.";
@@ -423,7 +425,7 @@ namespace lqr_discrete{
       checkControlInputFeasible(&cur_u);
       VectorXd new_x(x_size_);
       updateNewState(&new_x, &cur_x, &cur_u, i);
-      if ((i % 100 == 0 || i == iteration_times_ - 1) && debug_){
+      if ((i % int(control_freq_) == 0 || i == iteration_times_ - 1) && debug_){
         printStateInfo(&cur_x, i);
         printControlInfo(&cur_u, i);
       }
@@ -439,24 +441,29 @@ namespace lqr_discrete{
   VectorXd SlqFiniteDiscreteControlHydrus::highFrequencyFeedbackControl(double relative_time, VectorXd *cur_real_x_ptr){
     // relative_time is (current time - start time)
     int id = floor(relative_time * control_freq_);
-    if (id > iteration_times_){
+    if (id > iteration_times_ - 1){
       ROS_WARN("[SLQ][Feedback] Time is out of planned.");
-      id = iteration_times_;
+      id = iteration_times_ - 1;
     }
     VectorXd new_u = VectorXd::Zero(u_size_);
     VectorXd cur_x = getRelativeState(cur_real_x_ptr);
     new_u = u_vec_[id] + alpha_candidate_ * u_fw_vec_[id] + K_vec_[id] * (cur_x - x_vec_[id]);
     checkControlInputFeasible(&new_u);
-    new_u = new_u + *un_ptr_;
+    // method 1:
+    VectorXd un = VectorXd(4);
+    un << 9.34459, 9.70679, 8.71779, 8.35559; // to adapt to simulation
+    new_u = new_u + un;
+    // method 2:
+    // new_u = new_u + *un_ptr_;
     return new_u;
   }
 
   VectorXd SlqFiniteDiscreteControlHydrus::highFrequencyLQRFeedbackControl(double relative_time, VectorXd *cur_real_x_ptr){
     // relative_time is (current time - start time)
     int id = floor(relative_time * control_freq_);
-    if (id > iteration_times_){
+    if (id > iteration_times_ - 1){
       ROS_WARN("[SLQ][Feedback] Time is out of planned.");
-      id = iteration_times_;
+      id = iteration_times_ - 1;
     }
     VectorXd new_u = VectorXd::Zero(u_size_);
     VectorXd cur_x = getRelativeState(cur_real_x_ptr);
