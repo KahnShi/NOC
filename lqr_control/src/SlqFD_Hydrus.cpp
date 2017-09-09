@@ -448,13 +448,6 @@ namespace lqr_discrete{
     VectorXd cur_x = getRelativeState(cur_real_x_ptr);
     new_u = u_vec_[id] + alpha_candidate_ * u_fw_vec_[id] + K_vec_[id] * (cur_x - x_vec_[id]);
     checkControlInputFeasible(&new_u);
-    // test
-    static int h_cnt = 0;
-    if (h_cnt % 50 == 0){
-      std::cout << "\nid: " << id << ", relative x: \n" << cur_x.transpose()
-                << "\nnew relative u: " << new_u.transpose() << "\n\n";
-    }
-    ++h_cnt;
     // method 1:
     // VectorXd un = VectorXd(4);
     // un << 9.34459, 9.70679, 8.71779, 8.35559; // to adapt to simulation
@@ -462,7 +455,16 @@ namespace lqr_discrete{
     // method 2:
     // new_u = new_u + *un_ptr_;
     // method 3:
-    // use relative u
+    VectorXd stable_u = getStableThrust(id);
+    new_u = new_u + stable_u;
+    // test
+    static int h_cnt = 0;
+    if (h_cnt % 50 == 0){
+      std::cout << "\nid: " << id << ", relative x: \n" << cur_x.transpose()
+                << "\nnew relative u: " << new_u.transpose() << "\n"
+                << "stable u: " << stable_u.transpose() << "\n\n";
+    }
+    ++h_cnt;
     return new_u;
   }
 
@@ -479,6 +481,39 @@ namespace lqr_discrete{
     checkControlInputFeasible(&new_u);
     new_u = new_u + *un_ptr_;
     return new_u;
+  }
+
+  VectorXd SlqFiniteDiscreteControlHydrus::getStableThrust(int time_id){
+    VectorXd stable_u = VectorXd::Zero(u_size_);
+    VectorXd g = VectorXd::Zero(u_size_);
+    g(3) = hydrus_weight_ * 9.78;
+    MatrixXd H = MatrixXd::Zero(u_size_, u_size_);
+    for (int i = 0; i < 4; ++i)
+      H(3, i) = 1;
+    // momentum
+    MatrixXd H_minor = MatrixXd::Zero(u_size_ - 1, u_size_);
+    for (int i = 0; i < 4; ++i){
+      MatrixXd u_param = MatrixXd::Zero(u_size_ - 1, u_size_);
+      u_param(u_size_ - 2, i) = 1.0;
+      H_minor +=
+        S_operation(link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id])
+        * u_param;
+    }
+    // z momentum
+    for (int i = 0; i < 4; ++i)
+      H_minor(2, i) += M_z_(i);
+    H.block<3, 4>(0, 0) = H_minor;
+    /* lagrange mothod */
+    // issue: min u_t * u; constraint: g = H * u  (stable point)
+    //lamda: [4:0]
+    // u = H_t * lamba
+    // (H_  * H_t) * lamda = g
+    // u = H_t * (H_ * H_t).inv * g
+    Eigen::FullPivLU<Eigen::MatrixXd> solver((H * H.transpose()));
+    Eigen::VectorXd lamda;
+    lamda = solver.solve(g);
+    stable_u = H.transpose() * lamda;
+    return stable_u;
   }
 
   VectorXd SlqFiniteDiscreteControlHydrus::getCurrentJoint(double time, int order){
@@ -1026,6 +1061,14 @@ namespace lqr_discrete{
       else if ((*u)(j) + (*un_ptr_)(j) > uav_rotor_thrust_max_)
         (*u)(j) = uav_rotor_thrust_max_ - (*un_ptr_)(j);
     }
+  }
+
+  MatrixXd SlqFiniteDiscreteControlHydrus::S_operation(VectorXd vec){
+    MatrixXd mat = MatrixXd::Zero(3, 3);
+    mat << 0.0, -vec(2), vec(1),
+      vec(2), 0.0, -vec(0),
+      -vec(1), vec(0), 0.0;
+    return mat;
   }
 
   void SlqFiniteDiscreteControlHydrus::printStateInfo(VectorXd *x, int id){
