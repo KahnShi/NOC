@@ -47,15 +47,20 @@ int main(int argc, char **argv)
   std::vector<VectorXd> way_pts_vec;
   std::vector<double> period_vec;
   VectorXd start_state = VectorXd::Zero(12);
-  start_state(0) = 10.0;
-  start_state(1) = 5.0;
-  start_state(2) = 3.0;
+  nh_private.param("start_x", start_state(0), 10.0);
+  nh_private.param("start_y", start_state(1), 5.0);
+  nh_private.param("start_z", start_state(2), 3.0);
+  double start_time;
+  nh_private.param("start_time", start_time, 0.0);
+  // start_state(0) = 10.0;
+  // start_state(1) = 5.0;
+  // start_state(2) = 3.0;
   // start_state(E_R) = 0.0;
   // start_state(E_P) = 0.0;
   // start_state(E_Y) = 0.0;
   //start_state(Q_W) = 1.0;
   way_pts_vec.push_back(start_state);
-  period_vec.push_back(0.0);
+  period_vec.push_back(start_time);
 
   // VectorXd mid_state = VectorXd::Zero(12);
   // mid_state(0) = 8.0;
@@ -68,16 +73,21 @@ int main(int argc, char **argv)
   // period_vec.push_back(3.0);
 
   VectorXd end_state = VectorXd::Zero(12);
-  end_state(0) = 12.0;
-  end_state(1) = 3.0;
-  end_state(2) = 6.0;
+  nh_private.param("end_x", end_state(0), 10.0);
+  nh_private.param("end_y", end_state(1), 5.0);
+  nh_private.param("end_z", end_state(2), 3.0);
+  double end_time;
+  nh_private.param("end_time", end_time, 6.0);
+  // end_state(0) = 12.0;
+  // end_state(1) = 3.0;
+  // end_state(2) = 6.0;
   // end_state(E_R) = 3.14 / 6.0;
   // end_state(E_P) = 3.14 / 6.0;
   // end_state(E_P) = 3.14 / 6.0;
   // end_state(E_R) = 3.14 / 6.0;
   //end_state(Q_W) = 1.0;
   way_pts_vec.push_back(end_state);
-  period_vec.push_back(6.0);
+  period_vec.push_back(end_time);
 
   quadrotor_sim_node->initQuadrotorSimulator(&way_pts_vec, &period_vec, 20.0);
   quadrotor_sim_node->planOptimalTrajectory();
