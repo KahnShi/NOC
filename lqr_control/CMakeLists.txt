@@ -13,6 +13,7 @@ set(PACKAGE_DEPENDENCIES
   std_msgs
   message_generation
   message_runtime
+  tf
   )
 
 find_package(catkin REQUIRED COMPONENTS ${PACKAGE_DEPENDENCIES})

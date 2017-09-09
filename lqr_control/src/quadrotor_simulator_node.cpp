@@ -68,16 +68,16 @@ int main(int argc, char **argv)
   // period_vec.push_back(3.0);
 
   VectorXd end_state = VectorXd::Zero(12);
-  end_state(0) = 5.0;
-  end_state(1) = -5.0;
-  end_state(2) = 0.0;
+  end_state(0) = 12.0;
+  end_state(1) = 3.0;
+  end_state(2) = 6.0;
   // end_state(E_R) = 3.14 / 6.0;
   // end_state(E_P) = 3.14 / 6.0;
   // end_state(E_P) = 3.14 / 6.0;
   // end_state(E_R) = 3.14 / 6.0;
   //end_state(Q_W) = 1.0;
   way_pts_vec.push_back(end_state);
-  period_vec.push_back(5.0);
+  period_vec.push_back(6.0);
 
   quadrotor_sim_node->initQuadrotorSimulator(&way_pts_vec, &period_vec, 20.0);
   quadrotor_sim_node->planOptimalTrajectory();

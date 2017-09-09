@@ -36,12 +36,14 @@
 #include <lqr_control/QuadrotorSimulator.h>
 namespace quadrotor_simulator{
   QuadrotorSimulator::QuadrotorSimulator(ros::NodeHandle nh, ros::NodeHandle nhp): nh_(nh), nhp_(nhp){
+    nhp_.param("anime_mode", anime_mode_, false);
     // controller_ptr_ = new SlqFiniteDiscreteControlQuadrotor(nh_, nhp_);
     controller_ptr_ = new SlqFiniteDiscreteControlHydrus(nh_, nhp_);
     controller_ptr_->initHydrus();
 
     pub_traj_path_ = nh_.advertise<nav_msgs::Path>("/lqr_path", 1);
     pub_traj_way_points_ = nh_.advertise<visualization_msgs::MarkerArray>("/end_points_markers", 1);
+    pub_anime_joint_state_ = nh_.advertise<sensor_msgs::JointState>("/hydrusx/joint_states", 1);
 
     oc_iteration_times_ = 0;
     //sleep(1.0);
@@ -66,15 +68,18 @@ namespace quadrotor_simulator{
     // slq
     while (1){
       std::cout << "\n[QuadrotorSimulator] Iteration times: " << oc_iteration_times_ << "\n";
-      std::cout << "[press 1 to continue, 2 to break, 5 to continue 5 groups, 10 to continue 10 groups]\n";
+      std::cout << "[press 1 to continue, 2 to break, 5 to continue 5 groups, 11 to use anime visualization]\n";
       int id, repeat_times = 1;
       std::cin >> id;
       if (id == 2)
         break;
       else if (id == 5)
         repeat_times = 5;
-      else if (id == 10)
-        repeat_times = 10;
+      else if (id == 11 && anime_mode_){
+        std::cout << "[Quadrotor Simulator] Anime mode starts\n";
+        animizeTrajectory();
+        repeat_times = 0;
+      }
       else
         repeat_times = 1;
       for (int i = 0; i < repeat_times; ++i){
@@ -91,7 +96,10 @@ namespace quadrotor_simulator{
     visualization_msgs::MarkerArray waypoints_markers;
     visualization_msgs::Marker point_marker;
     point_marker.ns = "waypoints";
-    point_marker.header.frame_id = std::string("/world");
+    if (anime_mode_)
+      point_marker.header.frame_id = std::string("/shi_world");
+    else
+      point_marker.header.frame_id = std::string("/world");
     point_marker.header.stamp = ros::Time().now();
     point_marker.action = visualization_msgs::Marker::ADD;
     point_marker.type = visualization_msgs::Marker::SPHERE;
@@ -135,7 +143,10 @@ namespace quadrotor_simulator{
 
     pub_traj_way_points_.publish(waypoints_markers);
 
-    traj_.header.frame_id = std::string("/world");
+    if (anime_mode_)
+      traj_.header.frame_id = std::string("/shi_world");
+    else
+      traj_.header.frame_id = std::string("/world");
     traj_.header.stamp = ros::Time().now();
     geometry_msgs::PoseStamped pose_stamped;
     pose_stamped.header = traj_.header;
@@ -151,6 +162,47 @@ namespace quadrotor_simulator{
       traj_.poses.push_back(pose_stamped);
     }
     pub_traj_path_.publish(traj_);
+  }
+
+  void QuadrotorSimulator::animizeTrajectory(){
+    // init
+    sensor_msgs::JointState joint_state;
+    joint_state.name.push_back("joint1");
+    joint_state.name.push_back("joint2");
+    joint_state.name.push_back("joint3");
+    for (int i = 0; i < 3; ++i){
+      joint_state.position.push_back(0.0);
+      joint_state.velocity.push_back(0.0);
+    }
+    tf::TransformBroadcaster br;
+
+    for (int i = 0; i < int(controller_freq_ * period_); ++i){
+      joint_state.header.seq = i;
+      joint_state.header.stamp = ros::Time::now();
+      for (int j = 0; j < 3; ++j){
+        joint_state.position[j] = controller_ptr_->joint_vec_[i](j);
+        joint_state.velocity[j] = controller_ptr_->joint_dt_vec_[i](j);
+      }
+      pub_anime_joint_state_.publish(joint_state);
+
+      tf::Transform world2cog_transform_;
+      geometry_msgs::Pose cog_pose;
+      cog_pose.position.x = controller_ptr_->x_vec_[i](P_X) + (*controller_ptr_->xn_ptr_)(P_X);
+      cog_pose.position.y = controller_ptr_->x_vec_[i](P_Y) + (*controller_ptr_->xn_ptr_)(P_Y);
+      cog_pose.position.z = controller_ptr_->x_vec_[i](P_Z) + (*controller_ptr_->xn_ptr_)(P_Z);
+      tf::Quaternion q = tf::createQuaternionFromRPY
+        (controller_ptr_->x_vec_[i](E_R) + (*controller_ptr_->xn_ptr_)(E_R),
+         controller_ptr_->x_vec_[i](E_P) + (*controller_ptr_->xn_ptr_)(E_P),
+         controller_ptr_->x_vec_[i](E_Y) + (*controller_ptr_->xn_ptr_)(E_Y));
+      cog_pose.orientation.w = q.w();
+      cog_pose.orientation.x = q.x();
+      cog_pose.orientation.y = q.y();
+      cog_pose.orientation.z = q.z();
+      tf::poseMsgToTF(cog_pose, world2cog_transform_);
+      br.sendTransform(tf::StampedTransform(world2cog_transform_.inverse(), ros::Time::now(), "cog", "shi_world"));
+
+      ros::Duration(1.0 / controller_freq_).sleep();
+    }
   }
 }
 

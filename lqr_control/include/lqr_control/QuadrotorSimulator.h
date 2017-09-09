@@ -43,6 +43,7 @@
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/Empty.h>
+#include <sensor_msgs/JointState.h>
 
 using namespace lqr_discrete;
 namespace quadrotor_simulator{
@@ -52,6 +53,7 @@ namespace quadrotor_simulator{
     ~QuadrotorSimulator(){};
     ros::NodeHandle nh_;
     ros::NodeHandle nhp_;
+    bool anime_mode_;
     // SlqFiniteDiscreteControlQuadrotor *controller_ptr_;
     SlqFiniteDiscreteControlHydrus *controller_ptr_;
     std::vector<VectorXd> *waypoints_ptr_;
@@ -63,10 +65,12 @@ namespace quadrotor_simulator{
     nav_msgs::Path traj_;
     ros::Publisher pub_traj_path_;
     ros::Publisher pub_traj_way_points_;
+    ros::Publisher pub_anime_joint_state_;
 
     void initQuadrotorSimulator(std::vector<VectorXd> *waypoints_ptr, std::vector<double> *time_ptr, double controller_freq);
     void planOptimalTrajectory();
     void visualizeTrajectory();
+    void animizeTrajectory();
   };
 }
 
