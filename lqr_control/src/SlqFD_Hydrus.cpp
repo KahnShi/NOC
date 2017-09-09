@@ -42,7 +42,7 @@ namespace lqr_discrete{
     not_first_slq_flag_ = false;
     /* ros param */
     double R_para, Q_p_para, Q_v_para, Q_e_para, Q_w_para, Q_z_para;
-    nhp_.param("transform_movement_flag", transform_movement_flag_, false);
+    nhp_.param("transform_movement_flag", transform_movement_flag_, true);
     nhp_.param("R_para", R_para, 100.0);
     nhp_.param("Q_p_para", Q_p_para, 10.0);
     nhp_.param("Q_v_para", Q_v_para, 10.0);
@@ -460,9 +460,7 @@ namespace lqr_discrete{
     // test
     static int h_cnt = 0;
     if (h_cnt % 50 == 0){
-      std::cout << "\nid: " << id << ", relative x: \n" << cur_x.transpose()
-                << "\nnew relative u: " << new_u.transpose() << "\n"
-                << "stable u: " << stable_u.transpose() << "\n\n";
+      std::cout << "\nid: " << id << "stable u: " << stable_u.transpose() << "\n\n";
     }
     ++h_cnt;
     return new_u;
@@ -503,6 +501,24 @@ namespace lqr_discrete{
     for (int i = 0; i < 4; ++i)
       H_minor(2, i) += M_z_(i);
     H.block<3, 4>(0, 0) = H_minor;
+
+    // momentum from multi-link model
+    Eigen::Vector3d w = Eigen::Vector3d::Zero();
+    Eigen::Vector3d dw;
+    Eigen::Vector3d momentum = Eigen::Vector3d::Zero();
+    VectorXd dq = joint_dt_vec_[time_id];
+    VectorXd ddq = getCurrentJoint(time_id/control_freq_, 2);
+    for (int i = 0; i < n_links_; ++i){
+      MatrixXd JW_mat = getJacobianW(i);
+      Eigen::Vector3d wi = w + VectorXdTo3d(JW_mat * dq);
+      momentum +=
+        I_vec_[time_id][i] * JW_mat * ddq
+        + wi.cross(VectorXdTo3d(I_vec_[time_id][i] * wi))
+        + I_dt_vec_[time_id][i] * wi;
+    }
+    for (int i = 0; i < 3; ++i)
+      g(i) = momentum(i);
+
     /* lagrange mothod */
     // issue: min u_t * u; constraint: g = H * u  (stable point)
     //lamda: [4:0]
@@ -525,32 +541,32 @@ namespace lqr_discrete{
     }
 
     // example: end time is 6s: [0, 5] 1.57; [5, 5.5] 1.57-3.14*(t-5.0)^2; [5.5, 6] 3.14*(t-6.0)^2
-    double action_start_time = end_time_ - 1.0;
-    double action_period = 1.0;
+    double action_period = 2.0;
+    double action_start_time = end_time_ - action_period - 1.0;
     if (transform_movement_flag_){
       if (order == 0){
         if (time > action_start_time + action_period)
           joint(2) = 0.0;
         else if (time > action_start_time + action_period / 2.0)
-          joint(2) = 3.14 * pow(time - action_period - action_start_time, 2.0);
+          joint(2) = 3.14 * pow((time - action_period - action_start_time) / action_period, 2.0);
         else if(time > action_start_time)
-          joint(2) = 1.57 - 3.14 * pow(time - action_start_time, 2.0);
+          joint(2) = 1.57 - 3.14 * pow((time - action_start_time) / action_period, 2.0);
       }
       else if (order == 1){
         if (time > action_start_time + action_period)
           joint(2) = 0.0;
         else if (time > action_start_time + action_period / 2.0)
-          joint(2) = 3.14 * 2 * (time - action_period - action_start_time);
+          joint(2) = 3.14 * 2 * (time - action_period - action_start_time) / (action_period * action_period);
         else if(time > action_start_time)
-          joint(2) = -3.14 * 2 * (time - action_start_time);
+          joint(2) = -3.14 * 2 * (time - action_start_time) / (action_period * action_period);
       }
       else if (order == 2){
         if (time > action_start_time + action_period)
           joint(2) = 0.0;
         else if (time > action_start_time + action_period / 2.0)
-          joint(2) = 3.14 * 2;
+          joint(2) = 3.14 * 2 / (action_period * action_period);
         else if(time > action_start_time)
-          joint(2) = -3.14 * 2;
+          joint(2) = -3.14 * 2 / (action_period * action_period);
       }
     }
 
