@@ -442,19 +442,27 @@ namespace lqr_discrete{
     // relative_time is (current time - start time)
     int id = floor(relative_time * control_freq_);
     if (id > iteration_times_ - 1){
-      ROS_WARN("[SLQ][Feedback] Time is out of planned.");
       id = iteration_times_ - 1;
     }
     VectorXd new_u = VectorXd::Zero(u_size_);
     VectorXd cur_x = getRelativeState(cur_real_x_ptr);
     new_u = u_vec_[id] + alpha_candidate_ * u_fw_vec_[id] + K_vec_[id] * (cur_x - x_vec_[id]);
     checkControlInputFeasible(&new_u);
+    // test
+    static int h_cnt = 0;
+    if (h_cnt % 50 == 0){
+      std::cout << "\nid: " << id << ", relative x: \n" << cur_x.transpose()
+                << "\nnew relative u: " << new_u.transpose() << "\n\n";
+    }
+    ++h_cnt;
     // method 1:
-    VectorXd un = VectorXd(4);
-    un << 9.34459, 9.70679, 8.71779, 8.35559; // to adapt to simulation
-    new_u = new_u + un;
+    // VectorXd un = VectorXd(4);
+    // un << 9.34459, 9.70679, 8.71779, 8.35559; // to adapt to simulation
+    // new_u = new_u + un;
     // method 2:
     // new_u = new_u + *un_ptr_;
+    // method 3:
+    // use relative u
     return new_u;
   }
 
@@ -480,24 +488,33 @@ namespace lqr_discrete{
       for (int i = 0; i < n_links_ - 1; ++i)
         joint(i) = 3.14159 / 2.0;
     }
+
     // example: end time is 6s: [0, 5] 1.57; [5, 5.5] 1.57-3.14*(t-5.0)^2; [5.5, 6] 3.14*(t-6.0)^2
+    double action_start_time = end_time_ - 1.0;
+    double action_period = 1.0;
     if (transform_movement_flag_){
       if (order == 0){
-        if (time > end_time_ - 0.5)
-          joint(2) = 3.14 * pow(time - end_time_, 2.0);
-        else if(time > end_time_ - 1.0)
-          joint(2) = 1.57 - 3.14 * pow(time - end_time_ + 1.0, 2.0);
+        if (time > action_start_time + action_period)
+          joint(2) = 0.0;
+        else if (time > action_start_time + action_period / 2.0)
+          joint(2) = 3.14 * pow(time - action_period - action_start_time, 2.0);
+        else if(time > action_start_time)
+          joint(2) = 1.57 - 3.14 * pow(time - action_start_time, 2.0);
       }
       else if (order == 1){
-        if (time > end_time_ - 0.5)
-          joint(2) = 3.14 * 2 * (time-end_time_);
-        else if(time > end_time_ - 1.0)
-          joint(2) = -3.14 * 2 * (time - end_time_ + 1.0);
+        if (time > action_start_time + action_period)
+          joint(2) = 0.0;
+        else if (time > action_start_time + action_period / 2.0)
+          joint(2) = 3.14 * 2 * (time - action_period - action_start_time);
+        else if(time > action_start_time)
+          joint(2) = -3.14 * 2 * (time - action_start_time);
       }
       else if (order == 2){
-        if (time > end_time_ - 0.5)
+        if (time > action_start_time + action_period)
+          joint(2) = 0.0;
+        else if (time > action_start_time + action_period / 2.0)
           joint(2) = 3.14 * 2;
-        else if(time > end_time_ - 1.0)
+        else if(time > action_start_time)
           joint(2) = -3.14 * 2;
       }
     }
