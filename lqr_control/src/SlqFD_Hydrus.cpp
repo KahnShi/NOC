@@ -483,7 +483,7 @@ namespace lqr_discrete{
 
   VectorXd SlqFiniteDiscreteControlHydrus::getStableThrust(int time_id){
     VectorXd stable_u = VectorXd::Zero(u_size_);
-    VectorXd g = VectorXd::Zero(u_size_);
+    VectorXd g = VectorXd::Zero(4);
     g(3) = hydrus_weight_ * 9.78;
     MatrixXd H = MatrixXd::Zero(u_size_, u_size_);
     for (int i = 0; i < 4; ++i)
@@ -516,8 +516,8 @@ namespace lqr_discrete{
         + wi.cross(VectorXdTo3d(I_vec_[time_id][i] * wi))
         + I_dt_vec_[time_id][i] * wi;
     }
-    for (int i = 0; i < 3; ++i)
-      g(i) = momentum(i);
+    //for (int i = 0; i < 3; ++i)
+    //g(i) = momentum(i);
 
     /* lagrange mothod */
     // issue: min u_t * u; constraint: g = H * u  (stable point)
@@ -537,36 +537,68 @@ namespace lqr_discrete{
     // keep quadrotor model, neglecting time, order
     if (order == 0){
       for (int i = 0; i < n_links_ - 1; ++i)
-        joint(i) = 3.14159 / 2.0;
+        joint(i) = PI / 2.0;
     }
 
     // example: end time is 6s: [0, 5] 1.57; [5, 5.5] 1.57-3.14*(t-5.0)^2; [5.5, 6] 3.14*(t-6.0)^2
-    double action_period = 2.0;
+    // double action_period = 2.0;
+    // double action_start_time = end_time_ - action_period - 1.0;
+    // if (transform_movement_flag_){
+    //   if (order == 0){
+    //     if (time > action_start_time + action_period)
+    //       joint(2) = 0.0;
+    //     else if (time > action_start_time + action_period / 2.0)
+    //       joint(2) = 3.14 * pow((time - action_period - action_start_time) / action_period, 2.0);
+    //     else if(time > action_start_time)
+    //       joint(2) = 1.57 - 3.14 * pow((time - action_start_time) / action_period, 2.0);
+    //   }
+    //   else if (order == 1){
+    //     if (time > action_start_time + action_period)
+    //       joint(2) = 0.0;
+    //     else if (time > action_start_time + action_period / 2.0)
+    //       joint(2) = 3.14 * 2 * (time - action_period - action_start_time) / (action_period * action_period);
+    //     else if(time > action_start_time)
+    //       joint(2) = -3.14 * 2 * (time - action_start_time) / (action_period * action_period);
+    //   }
+    //   else if (order == 2){
+    //     if (time > action_start_time + action_period)
+    //       joint(2) = 0.0;
+    //     else if (time > action_start_time + action_period / 2.0)
+    //       joint(2) = 3.14 * 2 / (action_period * action_period);
+    //     else if(time > action_start_time)
+    //       joint(2) = -3.14 * 2 / (action_period * action_period);
+    //   }
+    // }
+
+    double action_period = 3.0;
     double action_start_time = end_time_ - action_period - 1.0;
+    double start_ang = PI / 2.0;
+    double end_ang = 0.0;
+    // example: sin function
     if (transform_movement_flag_){
       if (order == 0){
         if (time > action_start_time + action_period)
-          joint(2) = 0.0;
-        else if (time > action_start_time + action_period / 2.0)
-          joint(2) = 3.14 * pow((time - action_period - action_start_time) / action_period, 2.0);
+          joint(2) = end_ang;
         else if(time > action_start_time)
-          joint(2) = 1.57 - 3.14 * pow((time - action_start_time) / action_period, 2.0);
+          joint(2) = (start_ang + end_ang) / 2.0
+            + (start_ang - end_ang) / 2.0
+            * cos(PI / action_period * (time - action_start_time));
       }
       else if (order == 1){
         if (time > action_start_time + action_period)
           joint(2) = 0.0;
-        else if (time > action_start_time + action_period / 2.0)
-          joint(2) = 3.14 * 2 * (time - action_period - action_start_time) / (action_period * action_period);
         else if(time > action_start_time)
-          joint(2) = -3.14 * 2 * (time - action_start_time) / (action_period * action_period);
+          joint(2) = -(start_ang - end_ang) / 2.0
+            * sin(PI / action_period * (time - action_start_time))
+            * PI / action_period;
       }
       else if (order == 2){
         if (time > action_start_time + action_period)
           joint(2) = 0.0;
-        else if (time > action_start_time + action_period / 2.0)
-          joint(2) = 3.14 * 2 / (action_period * action_period);
         else if(time > action_start_time)
-          joint(2) = -3.14 * 2 / (action_period * action_period);
+          joint(2) = -(start_ang - end_ang) / 2.0
+            * cos(PI / action_period * (time - action_start_time))
+            * pow(PI / action_period, 2.0);
       }
     }
 

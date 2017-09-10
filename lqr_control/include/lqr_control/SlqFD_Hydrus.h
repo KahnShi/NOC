@@ -46,6 +46,7 @@
 #include <tf/transform_broadcaster.h>
 
 namespace lqr_discrete{
+#define PI 3.141592653
   class SlqFiniteDiscreteControlHydrus: public LqrDiscreteControlBase{
   public:
     SlqFiniteDiscreteControlHydrus(ros::NodeHandle nh, ros::NodeHandle nhp):
