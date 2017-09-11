@@ -834,22 +834,17 @@ namespace lqr_discrete{
       dev_x(i) = d_e(i - E_R);
 
     /* w_x, w_y, w_z */
-    /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
+    /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - dIi * w0 - w0.cross(Ii * w0) - ri.cross(dvi)) */
     Eigen::Vector3d dw;
     Eigen::Vector3d mid_result = Eigen::Vector3d::Zero();
-    VectorXd dq = joint_dt_vec_[time_id];
-    VectorXd ddq = getCurrentJoint(time_id/control_freq_, 2);
     for (int i = 0; i < n_links_; ++i){
-      MatrixXd JW_mat = getJacobianW(i);
-      Eigen::Vector3d wi = w + VectorXdTo3d(JW_mat * dq);
       double fi = (*u_ptr)[i] + (*un_ptr_)[i];
       mid_result +=
-        (link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id]).
-        cross(Eigen::Vector3d(0, 0, fi))
+        link_center_pos_local_vec_[time_id][i].cross(Eigen::Vector3d(0, 0, fi))
         + Eigen::Vector3d(0, 0, fi * M_z_(i))
-        - I_vec_[time_id][i] * JW_mat * ddq
-        - wi.cross(VectorXdTo3d(I_vec_[time_id][i] * wi))
-        - I_dt_vec_[time_id][i] * wi;
+        - I_dt_vec_[time_id][i] * w
+        - w.cross(VectorXdTo3d(I_vec_[time_id][i] * w))
+        - link_center_pos_local_vec_[time_id][i].cross(link_center_pos_local_ddt_vec_[time_id][i]);
     }
     Eigen::Matrix3d I_sum = Eigen::Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i)
