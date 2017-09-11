@@ -716,7 +716,7 @@ namespace lqr_discrete{
     }
 
     /* w_x, w_y, w_z */
-    /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - dIi * w0 - w0.cross(Ii * w0) - ri.cross(dvi) + cog.cross(-R_t * mg)) */
+    /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - dIi * w0 - w0.cross(Ii * w0) - ri.cross(mi * dvi) + cog.cross(-R_t * mg)) */
     /* d w_w = I.inv() * (sigma - (d w0).cross(Ii * w0) - w0.cross(Ii * dw0) - dIi * dw0) */
     w = Eigen::Vector3d((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
     Eigen::Matrix3d I_sum = Eigen::Matrix3d::Zero();
@@ -791,7 +791,7 @@ namespace lqr_discrete{
     /* all 0 */
 
     /* w_x, w_y, w_z */
-    /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - dIi * w0 - w0.cross(Ii * w0) - ri.cross(dvi) + cog.cross(-R_t * mg)) */
+    /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - dIi * w0 - w0.cross(Ii * w0) - ri.cross(mi * dvi) + cog.cross(-R_t * mg)) */
     /* d w_u_i = I.inv() * (sigma ri.cross(d fi) + [0;0;d fi * M_z(i)]) */
     Eigen::Matrix3d I_sum = Eigen::Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i)
@@ -849,7 +849,7 @@ namespace lqr_discrete{
       dev_x(i) = d_e(i - E_R);
 
     /* w_x, w_y, w_z */
-    /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - dIi * w0 - w0.cross(Ii * w0) - ri.cross(dvi) + cog.cross(-R_t * mg)) */
+    /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - dIi * w0 - w0.cross(Ii * w0) - ri.cross(mi * dvi) + cog.cross(-R_t * mg)) */
     Eigen::Vector3d dw;
     Eigen::Vector3d mid_result = Eigen::Vector3d::Zero();
     for (int i = 0; i < n_links_; ++i){
@@ -859,7 +859,8 @@ namespace lqr_discrete{
         + Eigen::Vector3d(0, 0, fi * M_z_(i))
         - I_dt_vec_[time_id][i] * w
         - w.cross(VectorXdTo3d(I_vec_[time_id][i] * w))
-        - link_center_pos_local_vec_[time_id][i].cross(link_center_pos_local_ddt_vec_[time_id][i]);
+        - link_center_pos_local_vec_[time_id][i].
+        cross(link_weight_vec_[i] * link_center_pos_local_ddt_vec_[time_id][i]);
     }
     Eigen::Vector3d R_t_z;
     R_t_z(0) = -sin((*x_ptr)[E_P]);
