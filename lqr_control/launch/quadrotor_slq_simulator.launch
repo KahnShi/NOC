@@ -5,7 +5,7 @@
   <node pkg="lqr_control" type="quadrotor_simulator_node" name="quadrotor_simulator" output="screen" >
     <param name="transform_movement_flag" value="true" />
     <param name="anime_mode" value="$(arg anime_mode)" />
-    <param name="R_para" value="100.0" />
+    <param name="R_para" value="10.0" />
     <param name="Q_p_para" value="10.0" />
     <param name="Q_v_para" value="10.0" />
     <param name="Q_w_para" value="1.0" />
