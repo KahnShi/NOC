@@ -123,7 +123,7 @@ namespace lqr_discrete{
     Eigen::Matrix3d getCurrentRotationMatrix(Eigen::Vector3d euler_angle, int order = 0);
     void getHydrusLinksCenter(VectorXd *joint_ptr);
     void getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr);
-    void getHydrusLinksCenterSecondDerivative(VectorXd *joint_ptr, VectorXd *joint_ddt_ptr);
+    void getHydrusLinksCenterSecondDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr, VectorXd *joint_ddt_ptr);
     void getHydrusInertialTensor(VectorXd *joint_ptr, int time_id);
     void updateHydrusCogPosition(int time_id);
     void updateHydrusCogPositionDerivative(int time_id);
