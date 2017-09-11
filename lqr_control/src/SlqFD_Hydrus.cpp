@@ -774,16 +774,15 @@ namespace lqr_discrete{
     /* all 0 */
 
     /* w_x, w_y, w_z */
-    /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
-    /* d w_u_i = I.inv() * (ri.cross(d fi) + [0;0;d fi * M_z(i)]) */
+    /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - dIi * w0 - w0.cross(Ii * w0) - ri.cross(dvi)) */
+    /* d w_u_i = I.inv() * (sigma ri.cross(d fi) + [0;0;d fi * M_z(i)]) */
     Eigen::Matrix3d I_sum = Eigen::Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i)
       I_sum += I_vec_[time_id][i];
     Eigen::Matrix3d I_inv = I_sum.inverse();
     for (int i = 0; i < n_links_; ++i){
       Eigen::Vector3d dw_u_i = I_inv *
-        ((link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id])
-         .cross(Eigen::Vector3d(0, 0, 1.0))
+        (link_center_pos_local_vec_[time_id][i].cross(Eigen::Vector3d(0, 0, 1.0))
          + Eigen::Vector3d(0, 0, M_z_(i)));
       for (int j = 0; j < 3; ++j)
         (*B_ptr_)(W_X + j, U_1 + i) = dw_u_i(j);
