@@ -716,8 +716,8 @@ namespace lqr_discrete{
     }
 
     /* w_x, w_y, w_z */
-    /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
-    /* d w_w = I.inv() * (sigma - (d wi).cross(Ii * wi) - wi.cross(Ii * dwi) - dIi * dwi) */
+    /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - dIi * w0 - w0.cross(Ii * w0) - ri.cross(dvi)) */
+    /* d w_w = I.inv() * (sigma - (d w0).cross(Ii * w0) - w0.cross(Ii * dw0) - dIi * dw0) */
     w = Eigen::Vector3d((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
     Eigen::Matrix3d I_sum = Eigen::Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i)
@@ -726,12 +726,11 @@ namespace lqr_discrete{
     std::vector<Eigen::Vector3d> d_w_w_i_vec;
     for (int i = 0; i < 3; ++i){
       Eigen::Vector3d d_w_w_i = Eigen::Vector3d::Zero();
-      Eigen::Vector3d dwi = Eigen::Vector3d::Zero(); dwi(i) = 1.0;
+      Eigen::Vector3d dw0 = Eigen::Vector3d::Zero(); dw0(i) = 1.0;
       for (int j = 0; j < n_links_; ++j){
-        Eigen::Vector3d wj = w + VectorXdTo3d(getJacobianW(j) * joint_dt_vec_[time_id]);
-        d_w_w_i = d_w_w_i + (-dwi.cross(VectorXdTo3d(I_vec_[time_id][j] * wj))
-                             - wj.cross(VectorXdTo3d(I_vec_[time_id][j] * dwi))
-                             - VectorXdTo3d(I_dt_vec_[time_id][i] * dwi));
+        d_w_w_i = d_w_w_i + (-dw0.cross(VectorXdTo3d(I_vec_[time_id][j] * w))
+                             - w.cross(VectorXdTo3d(I_vec_[time_id][j] * dw0))
+                             - VectorXdTo3d(I_dt_vec_[time_id][i] * dw0));
       }
       d_w_w_i_vec.push_back(I_inv * d_w_w_i);
     }
