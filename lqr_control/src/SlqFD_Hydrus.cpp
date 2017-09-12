@@ -435,14 +435,29 @@ namespace lqr_discrete{
       if (i == iteration_times_ - 1)
         x_vec_[iteration_times_] = new_x;
     }
-
+    infinite_feedback_update_flag_ = false;
   }
 
   VectorXd SlqFiniteDiscreteControlHydrus::highFrequencyFeedbackControl(double relative_time, VectorXd *cur_real_x_ptr){
+    // save for infinite state
+    if (!infinite_feedback_update_flag_){
+      infinite_feedback_update_flag_ = true;
+      u_vec_last_ = u_vec_[iteration_times_ - 1];
+      alpha_candidate_last_ = alpha_candidate_;
+      u_fw_vec_last_ = u_fw_vec_[iteration_times_ - 1];
+      K_vec_last_ = K_vec_[iteration_times_ - 1];
+      x_vec_last_ = x_vec_[iteration_times_ - 1];
+      stable_u_last_ = getStableThrust(iteration_times_ - 1);
+      xn_last_ = *xn_ptr_;
+      ROS_ERROR("\n\nINfinite is updated\n\n");
+    }
+
     // relative_time is (current time - start time)
     int id = floor(relative_time * control_freq_);
     if (id > iteration_times_ - 1){
       id = iteration_times_ - 1;
+      // test
+      return infiniteFeedbackControl(cur_real_x_ptr);
     }
     VectorXd new_u = VectorXd::Zero(u_size_);
     VectorXd cur_x = getRelativeState(cur_real_x_ptr);
@@ -463,6 +478,15 @@ namespace lqr_discrete{
       std::cout << "\nid: " << id << "stable u: " << stable_u.transpose() << "\n\n";
     }
     ++h_cnt;
+    return new_u;
+  }
+
+  VectorXd SlqFiniteDiscreteControlHydrus::infiniteFeedbackControl(VectorXd *cur_real_x_ptr){
+    VectorXd new_u = VectorXd::Zero(u_size_);
+    VectorXd cur_x = stateSubtraction(cur_real_x_ptr, &xn_last_);
+    new_u = u_vec_last_ + alpha_candidate_last_ * u_fw_vec_last_ + K_vec_last_ * (cur_x - x_vec_last_);
+    checkControlInputFeasible(&new_u);
+    new_u = new_u + stable_u_last_;
     return new_u;
   }
 

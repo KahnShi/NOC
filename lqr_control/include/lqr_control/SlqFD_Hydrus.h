@@ -96,6 +96,16 @@ namespace lqr_discrete{
     std::vector<double> *time_ptr_;
     LqrFiniteDiscreteControlQuadrotor *lqr_controller_ptr_;
 
+    /* infinite state */
+    VectorXd u_vec_last_;
+    double alpha_candidate_last_;
+    VectorXd u_fw_vec_last_;
+    MatrixXd K_vec_last_;
+    VectorXd x_vec_last_;
+    VectorXd stable_u_last_;
+    VectorXd xn_last_;
+    bool infinite_feedback_update_flag_;
+
     /* Ros service */
     ros::ServiceClient dare_client_;
 
@@ -108,6 +118,7 @@ namespace lqr_discrete{
     void iterativeOptimization();
     void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr, int time_id);
     bool feedforwardConverged();
+    VectorXd infiniteFeedbackControl(VectorXd *cur_real_x_ptr);
     VectorXd highFrequencyFeedbackControl(double relative_time, VectorXd *cur_real_x_ptr);
     VectorXd highFrequencyLQRFeedbackControl(double relative_time, VectorXd *cur_real_x_ptr);
     VectorXd stateAddition(VectorXd *x1_ptr, VectorXd *x2_ptr);
