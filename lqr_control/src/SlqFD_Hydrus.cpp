@@ -449,14 +449,12 @@ namespace lqr_discrete{
       x_vec_last_ = x_vec_[iteration_times_ - 1];
       stable_u_last_ = getStableThrust(iteration_times_ - 1);
       xn_last_ = *xn_ptr_;
-      ROS_ERROR("\n\nINfinite is updated\n\n");
     }
 
     // relative_time is (current time - start time)
     int id = floor(relative_time * control_freq_);
     if (id > iteration_times_ - 1){
       id = iteration_times_ - 1;
-      // test
       return infiniteFeedbackControl(cur_real_x_ptr);
     }
     VectorXd new_u = VectorXd::Zero(u_size_);
@@ -540,8 +538,8 @@ namespace lqr_discrete{
         + wi.cross(VectorXdTo3d(I_vec_[time_id][i] * wi))
         + I_dt_vec_[time_id][i] * wi;
     }
-    //for (int i = 0; i < 3; ++i)
-    //g(i) = momentum(i);
+    for (int i = 0; i < 3; ++i)
+      g(i) = -momentum(i);
 
     /* lagrange mothod */
     // issue: min u_t * u; constraint: g = H * u  (stable point)
