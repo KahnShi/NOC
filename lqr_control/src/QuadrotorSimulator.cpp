@@ -112,9 +112,9 @@ namespace quadrotor_simulator{
     point_marker.pose.orientation.y = 0.0;
     point_marker.pose.orientation.z = 0.0;
     point_marker.pose.orientation.w = 1.0;
-    point_marker.scale.x = 0.3;
-    point_marker.scale.y = 0.3;
-    point_marker.scale.z = 0.3;
+    point_marker.scale.x = 0.2;
+    point_marker.scale.y = 0.2;
+    point_marker.scale.z = 0.2;
     point_marker.color.a = 1;
     point_marker.color.r = 0.0f;
     point_marker.color.g = 1.0f;
