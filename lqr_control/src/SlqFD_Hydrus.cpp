@@ -183,6 +183,8 @@ namespace lqr_discrete{
       joint_dt_vec_.clear();
       I_vec_.clear();
       I_dt_vec_.clear();
+      I_sum_vec_.clear();
+      I_sum_inv_vec_.clear();
       link_center_pos_local_vec_.clear();
       link_center_pos_local_dt_vec_.clear();
       cog_pos_local_vec_.clear();
@@ -567,6 +569,7 @@ namespace lqr_discrete{
       if (plan_traj_id_ >= 2)
         joint(1) = 0.3;
     }
+    return joint;
     // test
     if (plan_traj_id_ >= 2)
       return joint;
@@ -749,10 +752,6 @@ namespace lqr_discrete{
     /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
     /* d w_w = I.inv() * (sigma - (d wi).cross(Ii * wi) - wi.cross(Ii * dwi) - dIi * dwi) */
     w = Eigen::Vector3d((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
-    Eigen::Matrix3d I_sum = Eigen::Matrix3d::Zero();
-    for (int i = 0; i < n_links_; ++i)
-      I_sum += I_vec_[time_id][i];
-    Eigen::Matrix3d I_inv = I_sum.inverse();
     std::vector<Eigen::Vector3d> d_w_w_i_vec;
     for (int i = 0; i < 3; ++i){
       Eigen::Vector3d d_w_w_i = Eigen::Vector3d::Zero();
@@ -763,7 +762,7 @@ namespace lqr_discrete{
                              - wj.cross(VectorXdTo3d(I_vec_[time_id][j] * dwi))
                              - VectorXdTo3d(I_dt_vec_[time_id][i] * dwi));
       }
-      d_w_w_i_vec.push_back(I_inv * d_w_w_i);
+      d_w_w_i_vec.push_back(I_sum_inv_vec_[time_id] * d_w_w_i);
     }
 
     for (int i = W_X; i <= W_Z; ++i){
@@ -807,12 +806,8 @@ namespace lqr_discrete{
     /* w_x, w_y, w_z */
     /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
     /* d w_u_i = I.inv() * (ri.cross(d fi) + [0;0;d fi * M_z(i)]) */
-    Eigen::Matrix3d I_sum = Eigen::Matrix3d::Zero();
-    for (int i = 0; i < n_links_; ++i)
-      I_sum += I_vec_[time_id][i];
-    Eigen::Matrix3d I_inv = I_sum.inverse();
     for (int i = 0; i < n_links_; ++i){
-      Eigen::Vector3d dw_u_i = I_inv *
+      Eigen::Vector3d dw_u_i = I_sum_inv_vec_[time_id] *
         ((link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id])
          .cross(Eigen::Vector3d(0, 0, 1.0))
          + Eigen::Vector3d(0, 0, M_z_(i)));
@@ -881,10 +876,7 @@ namespace lqr_discrete{
         - wi.cross(VectorXdTo3d(I_vec_[time_id][i] * wi))
         - I_dt_vec_[time_id][i] * wi;
     }
-    Eigen::Matrix3d I_sum = Eigen::Matrix3d::Zero();
-    for (int i = 0; i < n_links_; ++i)
-      I_sum += I_vec_[time_id][i];
-    dw = I_sum.inverse() * (mid_result);
+    dw = I_sum_inv_vec_[time_id] * (mid_result);
     for (int i = 0; i < 3; ++i)
       dev_x(W_X + i) = dw(i);
 
@@ -914,6 +906,7 @@ namespace lqr_discrete{
   void SlqFiniteDiscreteControlHydrus::getHydrusInertialTensor(VectorXd *joint_ptr, int time_id){
     std::vector<Eigen::Matrix3d> cur_I_vec;
     std::vector<Eigen::Matrix3d> cur_I_dt_vec;
+    Eigen::Matrix3d I_sum = Eigen::Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i){
       Eigen::Matrix3d cur_I = *I_ptr_;
       Eigen::Vector3d center_pos = link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id];
@@ -931,6 +924,8 @@ namespace lqr_discrete{
       cur_I(2, 1) = cur_I(1, 2);
 
       cur_I_vec.push_back(cur_I);
+
+      I_sum += cur_I;
 
       Eigen::Matrix3d cur_I_dt = Eigen::Matrix3d::Zero();
       Eigen::Vector3d center_pos_dt = link_center_pos_local_dt_vec_[time_id][i] - cog_pos_local_dt_vec_[time_id];
@@ -953,6 +948,8 @@ namespace lqr_discrete{
     }
     I_vec_.push_back(cur_I_vec);
     I_dt_vec_.push_back(cur_I_dt_vec);
+    I_sum_vec_.push_back(I_sum);
+    I_sum_inv_vec_.push_back(I_sum.inverse());
   }
 
   void SlqFiniteDiscreteControlHydrus::updateHydrusCogPosition(int time_id){
@@ -1098,12 +1095,14 @@ namespace lqr_discrete{
 
     MatrixXd P(x_size_, x_size_);
     P = *Q_ptr_;
+    MatrixXd A_trans = A_ptr_->transpose();
+    MatrixXd B_trans = B_ptr_->transpose();
     for (int i = 0; i < iteration_times_; ++i){
       MatrixXd F = MatrixXd::Zero(u_size_, x_size_);
-      F = ((*R_ptr_) + B_ptr_->transpose() * P * (*B_ptr_)).inverse()
-        * (B_ptr_->transpose() * P * (*A_ptr_));
-      P = A_ptr_->transpose() * P * (*A_ptr_)
-        - (A_ptr_->transpose() * P * (*B_ptr_)) * F
+      F = ((*R_ptr_) + B_trans * P * (*B_ptr_)).inverse()
+        * (B_trans * P * (*A_ptr_));
+      P = A_trans * P * (*A_ptr_)
+        - (A_trans * P * (*B_ptr_)) * F
         + (*Q_ptr_);
       lqr_F_vec_.push_back(F);
     }
@@ -1120,7 +1119,7 @@ namespace lqr_discrete{
       checkControlInputFeasible(&u);
       u_vec_[iteration_times_ - i] = u;
 
-      if ((i % 100 == 0 || i == iteration_times_ - 1) && debug_){
+      if (debug_ && (i % 100 == 0 || i == iteration_times_ - 1)){
         printStateInfo(&x, i);
         printControlInfo(&u, i);
       }

@@ -50,6 +50,7 @@ namespace quadrotor_simulator{
   }
 
   void QuadrotorSimulator::initQuadrotorSimulator(std::vector<VectorXd> *waypoints_ptr, std::vector<double> *time_ptr, double controller_freq){
+    ROS_INFO("[QuadrotorSimulator] init starts.");
     waypoints_ptr_ = waypoints_ptr;
     time_ptr_ = time_ptr;
     period_ = (*time_ptr)[time_ptr->size() - 1] - (*time_ptr)[0];
@@ -64,6 +65,13 @@ namespace quadrotor_simulator{
     // lqr
     // controller_ptr_->updateAll();
     // std::cout << "[QuadrotorSimulator] updateAll finished\n";
+
+    // test speed
+    for (int i = 0; i < 5; ++i){
+      controller_ptr_->iterativeOptimization();
+    }
+    ROS_INFO("test: 5 times optimization finished.");
+    visualizeTrajectory();
 
     // slq
     while (1){

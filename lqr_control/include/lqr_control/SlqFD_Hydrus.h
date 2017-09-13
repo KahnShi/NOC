@@ -64,6 +64,8 @@ namespace lqr_discrete{
     Eigen::Matrix3d *I_ptr_;
     std::vector<std::vector<Eigen::Matrix3d> > I_vec_;
     std::vector<std::vector<Eigen::Matrix3d> > I_dt_vec_;
+    std::vector<Eigen::Matrix3d> I_sum_vec_;
+    std::vector<Eigen::Matrix3d> I_sum_inv_vec_;
     std::vector<std::vector<Eigen::Vector3d> > link_center_pos_local_vec_;
     std::vector<std::vector<Eigen::Vector3d> > link_center_pos_local_dt_vec_;
     std::vector<Eigen::Vector3d> cog_pos_local_vec_;
