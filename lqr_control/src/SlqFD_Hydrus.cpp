@@ -45,10 +45,10 @@ namespace lqr_discrete{
     nhp_.param("transform_movement_flag", transform_movement_flag_, true);
     nhp_.param("R_para", R_para, 10.0);
     nhp_.param("Q_p_para", Q_p_para, 10.0);
-    nhp_.param("Q_v_para", Q_v_para, 10.0);
+    nhp_.param("Q_v_para", Q_v_para, 1.0);
     nhp_.param("Q_z_para", Q_z_para, 10.0);
-    nhp_.param("Q_w_para", Q_w_para, 10.0);
-    nhp_.param("Q_e_para", Q_e_para, 10.0);
+    nhp_.param("Q_w_para", Q_w_para, 1.0);
+    nhp_.param("Q_e_para", Q_e_para, 1.0);
 
     /* hydrus */
     link_length_ = 0.6;
@@ -543,7 +543,7 @@ namespace lqr_discrete{
         + I_dt_vec_[time_id][i] * wi;
     }
     //for (int i = 0; i < 3; ++i)
-    // g(i) = -momentum(i);
+    //g(i) = -momentum(i);
 
     /* lagrange mothod */
     // issue: min u_t * u; constraint: g = H * u  (stable point)
@@ -566,13 +566,10 @@ namespace lqr_discrete{
         joint(i) = PI / 2.0;
       if (plan_traj_id_ >= 2)
         joint(1) = 0.3;
-      else if (plan_traj_id_ == 1){
-        if (end_time_ - time < 0.5)
-          joint(1) = 0.3;
-      }
     }
     // test
-    return joint;
+    if (plan_traj_id_ >= 2)
+      return joint;
 
 
 
@@ -606,37 +603,37 @@ namespace lqr_discrete{
     //   }
     // }
 
-    // double action_period = 3.0;
-    // double action_start_time = end_time_ - action_period;
-    // double start_ang = 0.0;
-    // double end_ang = PI / 2.0;
-    // // example: sin function
-    // if (transform_movement_flag_){
-    //   if (order == 0){
-    //     if (time > action_start_time + action_period)
-    //       joint(2) = end_ang;
-    //     else if(time > action_start_time)
-    //       joint(2) = (start_ang + end_ang) / 2.0
-    //         + (start_ang - end_ang) / 2.0
-    //         * cos(PI / action_period * (time - action_start_time));
-    //   }
-    //   else if (order == 1){
-    //     if (time > action_start_time + action_period)
-    //       joint(2) = 0.0;
-    //     else if(time > action_start_time)
-    //       joint(2) = -(start_ang - end_ang) / 2.0
-    //         * sin(PI / action_period * (time - action_start_time))
-    //         * PI / action_period;
-    //   }
-    //   else if (order == 2){
-    //     if (time > action_start_time + action_period)
-    //       joint(2) = 0.0;
-    //     else if(time > action_start_time)
-    //       joint(2) = -(start_ang - end_ang) / 2.0
-    //         * cos(PI / action_period * (time - action_start_time))
-    //         * pow(PI / action_period, 2.0);
-    //   }
-    // }
+    double action_period = 2.0;
+    double action_start_time = end_time_ - action_period - 3.0;
+    double start_ang = PI / 2.0;
+    double end_ang = 0.0;
+    // example: sin function
+    if (transform_movement_flag_){
+      if (order == 0){
+        if (time > action_start_time + action_period)
+          joint(1) = end_ang;
+        else if(time > action_start_time)
+          joint(1) = (start_ang + end_ang) / 2.0
+            + (start_ang - end_ang) / 2.0
+            * cos(PI / action_period * (time - action_start_time));
+      }
+      else if (order == 1){
+        if (time > action_start_time + action_period)
+          joint(1) = 0.0;
+        else if(time > action_start_time)
+          joint(1) = -(start_ang - end_ang) / 2.0
+            * sin(PI / action_period * (time - action_start_time))
+            * PI / action_period;
+      }
+      else if (order == 2){
+        if (time > action_start_time + action_period)
+          joint(1) = 0.0;
+        else if(time > action_start_time)
+          joint(1) = -(start_ang - end_ang) / 2.0
+            * cos(PI / action_period * (time - action_start_time))
+            * pow(PI / action_period, 2.0);
+      }
+    }
 
     return joint;
   }
