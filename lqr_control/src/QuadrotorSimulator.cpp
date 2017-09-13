@@ -67,11 +67,12 @@ namespace quadrotor_simulator{
     // std::cout << "[QuadrotorSimulator] updateAll finished\n";
 
     // test speed
-    for (int i = 0; i < 5; ++i){
+    for (int i = 0; i < 4; ++i){
       controller_ptr_->iterativeOptimization();
     }
-    ROS_INFO("test: 5 times optimization finished.");
+    ROS_INFO("test: 3 times optimization finished.");
     visualizeTrajectory();
+    controller_ptr_->printStateInfo(&(controller_ptr_->x_vec_[controller_ptr_->iteration_times_]), controller_ptr_->iteration_times_);
 
     // slq
     while (1){

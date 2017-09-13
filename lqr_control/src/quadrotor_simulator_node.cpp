@@ -67,14 +67,14 @@ int main(int argc, char **argv)
   period_vec.push_back(start_time);
 
   // VectorXd mid_state = VectorXd::Zero(12);
-  // mid_state(0) = 11.0;
-  // mid_state(1) = 6.0;
-  // mid_state(2) = 4.0;
-  // mid_state(3) = 1.0;
+  // mid_state(0) = 10.0;
+  // mid_state(1) = 9.0;
+  // mid_state(2) = 3.0;
+  // mid_state(3) = 0.0;
   // mid_state(4) = 1.0;
-  // mid_state(5) = 1.0;
+  // mid_state(5) = 0.0;
   // way_pts_vec.push_back(mid_state);
-  // period_vec.push_back(3.0);
+  // period_vec.push_back(4.0);
 
   VectorXd end_state = VectorXd::Zero(12);
   nh_private.param("end_x", end_state(0), 10.0);
@@ -97,7 +97,7 @@ int main(int argc, char **argv)
   way_pts_vec.push_back(end_state);
   period_vec.push_back(end_time);
 
-  quadrotor_sim_node->initQuadrotorSimulator(&way_pts_vec, &period_vec, 20.0);
+  quadrotor_sim_node->initQuadrotorSimulator(&way_pts_vec, &period_vec, 10.0);
   quadrotor_sim_node->planOptimalTrajectory();
   quadrotor_sim_node->visualizeTrajectory();
 

@@ -44,6 +44,8 @@
 #include <lqr_control/float64Array.h>
 #include <geometry_msgs/Pose.h>
 #include <tf/transform_broadcaster.h>
+#include <omp.h>
+#include <math.h>
 
 namespace lqr_discrete{
 #define PI 3.141592653
@@ -136,8 +138,8 @@ namespace lqr_discrete{
     void checkControlInputFeasible(VectorXd *u);
     VectorXd getCurrentJoint(double time, int order = 0);
     Eigen::Matrix3d getCurrentRotationMatrix(Eigen::Vector3d euler_angle, int order = 0);
-    void getHydrusLinksCenter(VectorXd *joint_ptr);
-    void getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr);
+    void getHydrusLinksCenter(VectorXd *joint_ptr, int id);
+    void getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr, int id);
     void getHydrusInertialTensor(VectorXd *joint_ptr, int time_id);
     void updateHydrusCogPosition(int time_id);
     void updateHydrusCogPositionDerivative(int time_id);

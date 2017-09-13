@@ -196,26 +196,44 @@ namespace lqr_discrete{
     else
       not_first_slq_flag_ = true;
 
+    ROS_INFO("[SLQ] Before push_up.");
+    x_vec_.resize(iteration_times_ + 1);
+    u_vec_.resize(iteration_times_ + 1);
+    joint_vec_.resize(iteration_times_ + 1);
+    joint_dt_vec_.resize(iteration_times_ + 1);
+    I_vec_.resize(iteration_times_ + 1);
+    I_dt_vec_.resize(iteration_times_ + 1);
+    I_sum_vec_.resize(iteration_times_ + 1);
+    I_sum_inv_vec_.resize(iteration_times_ + 1);
+    link_center_pos_local_vec_.resize(iteration_times_ + 1);
+    link_center_pos_local_dt_vec_.resize(iteration_times_ + 1);
+    cog_pos_local_vec_.resize(iteration_times_ + 1);
+    cog_pos_local_dt_vec_.resize(iteration_times_ + 1);
+    u_fw_vec_.resize(iteration_times_ + 1);
+    u_fb_vec_.resize(iteration_times_ + 1);
+    K_vec_.resize(iteration_times_ + 1);
+#pragma omp parallel for num_threads(8)
     for (int i = 0; i <= iteration_times_; ++i){
-      x_vec_.push_back(x_init);
-      u_vec_.push_back(u_init);
+      x_vec_[i] = x_init;
+      u_vec_[i] = u_init;
       VectorXd cur_joint = getCurrentJoint(double(i)/control_freq_);
       VectorXd cur_joint_dt = getCurrentJoint(double(i)/control_freq_, 1);
-      joint_vec_.push_back(cur_joint);
-      joint_dt_vec_.push_back(cur_joint_dt);
-      getHydrusLinksCenter(&cur_joint);
-      getHydrusLinksCenterDerivative(&cur_joint, &cur_joint_dt);
+      joint_vec_[i] = cur_joint;
+      joint_dt_vec_[i] = cur_joint_dt;
+      getHydrusLinksCenter(&cur_joint, i);
+      getHydrusLinksCenterDerivative(&cur_joint, &cur_joint_dt, i);
       updateHydrusCogPosition(i);
       updateHydrusCogPositionDerivative(i);
       getHydrusInertialTensor(&cur_joint, i);
-      u_fw_vec_.push_back(u_init);
-      u_fb_vec_.push_back(u_init);
-      K_vec_.push_back(MatrixXd::Zero(u_size_, x_size_));
+      u_fw_vec_[i] = u_init;
+      u_fb_vec_[i] = u_init;
+      K_vec_[i] = MatrixXd::Zero(u_size_, x_size_);
     }
 
-    line_search_steps_ = 4;
+    line_search_steps_ = 3;
 
     debug_ = false;
+    ROS_INFO("[SLQ] Starts LQR.");
     FDLQR();
     getRiccatiH();
     ROS_INFO("[SLQ] Initialization finished.");
@@ -569,7 +587,7 @@ namespace lqr_discrete{
       if (plan_traj_id_ >= 2)
         joint(1) = 0.3;
     }
-    return joint;
+    //return joint;
     // test
     if (plan_traj_id_ >= 2)
       return joint;
@@ -607,7 +625,7 @@ namespace lqr_discrete{
     // }
 
     double action_period = 2.0;
-    double action_start_time = end_time_ - action_period - 3.0;
+    double action_start_time = end_time_ - action_period - 0.0;
     double start_ang = PI / 2.0;
     double end_ang = 0.0;
     // example: sin function
@@ -722,13 +740,17 @@ namespace lqr_discrete{
     /* e_r, e_p, e_y */
     /* d e = R_e * w_b */
     Eigen::Vector3d w((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
-    MatrixXd R_e = MatrixXd::Zero(3, 3);
-    R_e << 1, tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]), tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]),
-      0, cos((*x_ptr)[E_R]), -sin((*x_ptr)[E_R]),
-      0, sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
-    Eigen::Vector3d d_e_w_x = R_e * Eigen::Vector3d(1.0, 0, 0);
-    Eigen::Vector3d d_e_w_y = R_e * Eigen::Vector3d(0, 1.0, 0);
-    Eigen::Vector3d d_e_w_z = R_e * Eigen::Vector3d(0, 0, 1.0);
+    // MatrixXd R_e = MatrixXd::Zero(3, 3);
+    // R_e << 1, tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]), tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]),
+    //   0, cos((*x_ptr)[E_R]), -sin((*x_ptr)[E_R]),
+    //   0, sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
+    // Eigen::Vector3d d_e_w_x = R_e * Eigen::Vector3d(1.0, 0, 0);
+    // Eigen::Vector3d d_e_w_y = R_e * Eigen::Vector3d(0, 1.0, 0);
+    // Eigen::Vector3d d_e_w_z = R_e * Eigen::Vector3d(0, 0, 1.0);
+    // speedup
+    Eigen::Vector3d d_e_w_x(1, 0, 0);
+    Eigen::Vector3d d_e_w_y(tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]), cos((*x_ptr)[E_R]), sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]));
+    Eigen::Vector3d d_e_w_z(tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]), -sin((*x_ptr)[E_R]), cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]));
     MatrixXd R_e_r = MatrixXd::Zero(3, 3);
     R_e_r << 0, tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]), -tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]),
       0, -sin((*x_ptr)[E_R]), -cos((*x_ptr)[E_R]),
@@ -887,6 +909,8 @@ namespace lqr_discrete{
   }
 
   bool SlqFiniteDiscreteControlHydrus::feedforwardConverged(){
+    // speedup
+    return false;
     double fw_max = 0.0;
     for (int i = 0; i < iteration_times_; ++i){
       double control_sum = 0.0;
@@ -946,10 +970,10 @@ namespace lqr_discrete{
       cur_I_dt(2, 1) = cur_I_dt(1, 2);
       cur_I_dt_vec.push_back(cur_I_dt);
     }
-    I_vec_.push_back(cur_I_vec);
-    I_dt_vec_.push_back(cur_I_dt_vec);
-    I_sum_vec_.push_back(I_sum);
-    I_sum_inv_vec_.push_back(I_sum.inverse());
+    I_vec_[time_id] = cur_I_vec;
+    I_dt_vec_[time_id] = cur_I_dt_vec;
+    I_sum_vec_[time_id] = I_sum;
+    I_sum_inv_vec_[time_id] = I_sum.inverse();
   }
 
   void SlqFiniteDiscreteControlHydrus::updateHydrusCogPosition(int time_id){
@@ -959,7 +983,7 @@ namespace lqr_discrete{
       cog_local_pos = cog_local_pos + link_weight_vec_[i] * center_local_pos_vec[i];
     }
     cog_local_pos = cog_local_pos / hydrus_weight_;
-    cog_pos_local_vec_.push_back(cog_local_pos);
+    cog_pos_local_vec_[time_id] = cog_local_pos;
   }
 
   void SlqFiniteDiscreteControlHydrus::updateHydrusCogPositionDerivative(int time_id){
@@ -969,10 +993,10 @@ namespace lqr_discrete{
       cog_local_pos_dt = cog_local_pos_dt + link_weight_vec_[i] * center_local_pos_dt_vec[i];
     }
     cog_local_pos_dt = cog_local_pos_dt / hydrus_weight_;
-    cog_pos_local_dt_vec_.push_back(cog_local_pos_dt);
+    cog_pos_local_dt_vec_[time_id] = cog_local_pos_dt;
   }
 
-  void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenter(VectorXd *joint_ptr){
+  void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenter(VectorXd *joint_ptr, int id){
     std::vector<Eigen::Vector3d> links_center_vec;
     Eigen::Vector3d link1_center(link_length_ / 2.0, 0, 0);
     link1_center = link1_center;
@@ -993,10 +1017,10 @@ namespace lqr_discrete{
       links_center_vec.push_back(link_center);
       prev_link_end = prev_link_end + rot * Eigen::Vector3d(link_length_, 0, 0);
     }
-    link_center_pos_local_vec_.push_back(links_center_vec);
+    link_center_pos_local_vec_[id] = links_center_vec;
   }
 
-  void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr){
+  void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr, int id){
     std::vector<Eigen::Vector3d> links_center_dt_vec;
     Eigen::Vector3d link1_center_dt(0.0, 0, 0);
     links_center_dt_vec.push_back(link1_center_dt);
@@ -1017,7 +1041,7 @@ namespace lqr_discrete{
       links_center_dt_vec.push_back(link_center_dt);
       prev_link_end_dt = prev_link_end_dt + rot_dt * Eigen::Vector3d(link_length_, 0, 0);
     }
-    link_center_pos_local_dt_vec_.push_back(links_center_dt_vec);
+    link_center_pos_local_dt_vec_[id] = links_center_dt_vec;
   }
 
   MatrixXd SlqFiniteDiscreteControlHydrus::getJacobianW(int id){
