@@ -45,7 +45,7 @@ namespace lqr_discrete{
     nhp_.param("transform_movement_flag", transform_movement_flag_, true);
     nhp_.param("R_para", R_para, 50.0);
     nhp_.param("Q_p_para", Q_p_para, 50.0);
-    nhp_.param("Q_v_para", Q_v_para, 30);
+    nhp_.param("Q_v_para", Q_v_para, 30.0);
     nhp_.param("Q_z_para", Q_z_para, 100.0);
     nhp_.param("Q_w_para", Q_w_para, 10.0);
     nhp_.param("Q_e_para", Q_e_para, 10.0);
