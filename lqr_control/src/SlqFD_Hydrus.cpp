@@ -43,12 +43,12 @@ namespace lqr_discrete{
     /* ros param */
     double R_para, Q_p_para, Q_v_para, Q_e_para, Q_w_para, Q_z_para;
     nhp_.param("transform_movement_flag", transform_movement_flag_, true);
-    nhp_.param("R_para", R_para, 100.0);
+    nhp_.param("R_para", R_para, 10.0);
     nhp_.param("Q_p_para", Q_p_para, 10.0);
     nhp_.param("Q_v_para", Q_v_para, 10.0);
-    nhp_.param("Q_z_para", Q_z_para, 100.0);
+    nhp_.param("Q_z_para", Q_z_para, 20.0);
     nhp_.param("Q_w_para", Q_w_para, 1.0);
-    nhp_.param("Q_e_para", Q_e_para, 1.0);
+    nhp_.param("Q_e_para", Q_e_para, 20.0);
 
     /* hydrus */
     link_length_ = 0.6;
@@ -546,8 +546,8 @@ namespace lqr_discrete{
         + wi.cross(VectorXdTo3d(I_vec_[time_id][i] * wi))
         + I_dt_vec_[time_id][i] * wi;
     }
-    for (int i = 0; i < 3; ++i)
-      g(i) = -momentum(i);
+    //for (int i = 0; i < 3; ++i)
+    //g(i) = momentum(i);
 
     /* lagrange mothod */
     // issue: min u_t * u; constraint: g = H * u  (stable point)
@@ -600,7 +600,7 @@ namespace lqr_discrete{
     //   }
     // }
 
-    double action_period = 3.0;
+    double action_period = 2.0;
     double action_start_time = end_time_ - action_period - 1.0;
     double start_ang = PI / 2.0;
     double end_ang = 0.0;
