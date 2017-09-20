@@ -47,27 +47,33 @@ int main(int argc, char **argv)
   std::vector<VectorXd> way_pts_vec;
   std::vector<double> period_vec;
   VectorXd start_state = VectorXd::Zero(12);
-  nh_private.param("start_x", start_state(0), 10.0);
-  nh_private.param("start_y", start_state(1), 5.0);
-  nh_private.param("start_z", start_state(2), 3.0);
+  nh_private.param("start_x", start_state(0), 1.3);
+  nh_private.param("start_y", start_state(1), -0.3);
+  nh_private.param("start_z", start_state(2), 0.5);
   double start_time;
   nh_private.param("start_time", start_time, 0.0);
   way_pts_vec.push_back(start_state);
-  period_vec.push_back(start_time);
+  period_vec.push_back(0.0);
 
   VectorXd mid_state = VectorXd::Zero(12);
-  mid_state(0) = 12.0;
-  mid_state(1) = 7.0;
-  mid_state(2) = 3.0;
+  mid_state(0) = 0.5;
+  mid_state(1) = 3.0;
+  mid_state(2) = 0.5;
   way_pts_vec.push_back(mid_state);
-  period_vec.push_back(4.0);
+  period_vec.push_back(5.0);
+
+  mid_state(0) = 0.5;
+  mid_state(1) = 5.0;
+  mid_state(2) = 0.5;
+  way_pts_vec.push_back(mid_state);
+  period_vec.push_back(9.0);
 
   VectorXd end_state = VectorXd::Zero(12);
-  nh_private.param("end_x", end_state(0), 14.0);
-  nh_private.param("end_y", end_state(1), 5.0);
-  nh_private.param("end_z", end_state(2), 3.0);
+  nh_private.param("end_x", end_state(0), -1.0);
+  nh_private.param("end_y", end_state(1), 7.5);
+  nh_private.param("end_z", end_state(2), 0.5);
   double end_time;
-  nh_private.param("end_time", end_time, 8.0);
+  nh_private.param("end_time", end_time, 14.0);
   way_pts_vec.push_back(end_state);
   period_vec.push_back(end_time);
 

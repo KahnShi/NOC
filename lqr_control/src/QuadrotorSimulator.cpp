@@ -147,7 +147,7 @@ namespace quadrotor_simulator{
     }
 
     wall_marker.id = point_marker.id + 1;
-    wall_marker.pose.position.x = 6.1;
+    wall_marker.pose.position.x = 6.0;
     wall_marker.pose.position.y = 4.0;
     wall_marker.pose.position.z = 0.0;
     wall_marker.pose.orientation.x = 0.0;

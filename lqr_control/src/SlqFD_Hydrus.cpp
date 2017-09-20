@@ -45,8 +45,8 @@ namespace lqr_discrete{
     nhp_.param("transform_movement_flag", transform_movement_flag_, true);
     nhp_.param("R_para", R_para, 10.0);
     nhp_.param("Q_p_para", Q_p_para, 10.0);
-    nhp_.param("Q_v_para", Q_v_para, 1.0);
-    nhp_.param("Q_z_para", Q_z_para, 50.0);
+    nhp_.param("Q_v_para", Q_v_para, 10.0);
+    nhp_.param("Q_z_para", Q_z_para, 10.0);
     nhp_.param("Q_w_para", Q_w_para, 1.0);
     nhp_.param("Q_e_para", Q_e_para, 10.0);
 
@@ -106,7 +106,6 @@ namespace lqr_discrete{
       (*Q0_ptr_)(i, i) = Q_e_para;
     // test: weight on z
     (*Q0_ptr_)(P_Z, P_Z) = (*Q0_ptr_)(V_Z, V_Z) = Q_z_para;
-    (*Q0_ptr_)(E_Y, E_Y) = Q_z_para;
 
     *R_ptr_ = R_para * MatrixXd::Identity(u_size_, u_size_);
 
