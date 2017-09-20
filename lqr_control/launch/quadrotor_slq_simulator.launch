@@ -16,19 +16,19 @@
     <param name="start_y" value="5.0" />
     <param name="start_z" value="3.0" />
     <param name="start_vx" value="0.0" />
-    <param name="start_vy" value="-0.6" />
+    <param name="start_vy" value="0.0" />
     <param name="start_vz" value="0.0" />
-    <param name="start_ey" value="0.5" />
+    <param name="start_ey" value="0.0" />
     <param name="start_time" value="0.0" />
 
     <param name="end_x" value="10.0" />
-    <param name="end_y" value="7.0" />
+    <param name="end_y" value="9.0" />
     <param name="end_z" value="3.0" />
     <param name="end_vx" value="0.0" />
     <param name="end_vy" value="0.0" />
     <param name="end_vz" value="0.0" />
     <param name="end_er" value="0.0" />
-    <param name="end_time" value="4.0" />
+    <param name="end_time" value="8.0" />
   </node>
   <group if="$(arg anime_mode)">
     <node pkg="rviz" type="rviz" name="rviz" args="-d $(find lqr_control)/config/traj_anime_mode.rviz" />

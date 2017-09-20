@@ -38,8 +38,15 @@ namespace quadrotor_simulator{
   QuadrotorSimulator::QuadrotorSimulator(ros::NodeHandle nh, ros::NodeHandle nhp): nh_(nh), nhp_(nhp){
     nhp_.param("anime_mode", anime_mode_, false);
     // controller_ptr_ = new SlqFiniteDiscreteControlQuadrotor(nh_, nhp_);
-    controller_ptr_ = new SlqFiniteDiscreteControlHydrus(nh_, nhp_);
-    controller_ptr_->initHydrus();
+    controller1_ptr_ = new SlqFiniteDiscreteControlHydrus(nh_, nhp_);
+    //controller1_ptr_->initHydrus();
+    controller2_ptr_ = new SlqFiniteDiscreteControlHydrus(nh_, nhp_);
+    //controller2_ptr_->initHydrus();
+    controller3_ptr_ = new SlqFiniteDiscreteControlHydrus(nh_, nhp_);
+    //controller3_ptr_->initHydrus();
+    controller_ptr_vec_.push_back(controller1_ptr_);
+    controller_ptr_vec_.push_back(controller2_ptr_);
+    controller_ptr_vec_.push_back(controller3_ptr_);
 
     pub_traj_path_ = nh_.advertise<nav_msgs::Path>("/lqr_path", 1);
     pub_traj_way_points_ = nh_.advertise<visualization_msgs::MarkerArray>("/end_points_markers", 1);
@@ -54,43 +61,37 @@ namespace quadrotor_simulator{
     time_ptr_ = time_ptr;
     period_ = (*time_ptr)[time_ptr->size() - 1] - (*time_ptr)[0];
     controller_freq_ = controller_freq;
-    // controller_ptr_->initLQR(controller_freq_, period_, start_state_ptr_, end_state_ptr_);
-    controller_ptr_->initSLQ(controller_freq_, time_ptr_, waypoints_ptr_);
-    visualizeTrajectory();
     ROS_INFO("[QuadrotorSimulator] init finished.");
   }
 
   void QuadrotorSimulator::planOptimalTrajectory(){
-    // lqr
-    // controller_ptr_->updateAll();
-    // std::cout << "[QuadrotorSimulator] updateAll finished\n";
-
-    // slq
-    while (1){
-      std::cout << "\n[QuadrotorSimulator] Iteration times: " << oc_iteration_times_ << "\n";
-      std::cout << "[press 1 to continue, 2 to break, 5 to continue 5 groups, 11 to use anime visualization]\n";
-      int id, repeat_times = 1;
-      std::cin >> id;
-      if (id == 2)
-        break;
-      else if (id == 5)
-        repeat_times = 5;
-      else if (id == 11 && anime_mode_){
-        std::cout << "[Quadrotor Simulator] Anime mode starts\n";
-        animizeTrajectory();
-        repeat_times = 0;
+    std::vector<std::vector<VectorXd> > waypoints_vec;
+    for (int id = 0; id < waypoints_ptr_->size() - 1; ++id){
+      std::vector<VectorXd> waypoints;
+      waypoints.push_back((*waypoints_ptr_)[id]);
+      waypoints.push_back((*waypoints_ptr_)[id+1]);
+      waypoints_vec.push_back(waypoints);
+    }
+    for (int id = 0; id < waypoints_ptr_->size() - 1; ++id){
+      controller_ptr_vec_[id]->initHydrus();
+      controller_ptr_vec_[id]->plan_traj_id_ = id;
+      std::vector<double> time_vec;
+      time_vec.push_back(0);
+      time_vec.push_back((*time_ptr_)[id+1] - (*time_ptr_)[id]);
+      controller_ptr_vec_[id]->initSLQ(controller_freq_, &time_vec, &(waypoints_vec[id]));
+      for (int i = 0; i < 5; ++i){
+        controller_ptr_vec_[id]->iterativeOptimization();
+        // todo
+        visualizeTrajectory(id);
       }
-      else
-        repeat_times = 1;
-      for (int i = 0; i < repeat_times; ++i){
-        controller_ptr_->iterativeOptimization();
-        ++oc_iteration_times_;
-        visualizeTrajectory();
-      }
+      ROS_WARN("Trajectory optimization finished.\n");
+      // if (id < waypoints_ptr_->size() - 2){
+      //   waypoints_vec[id+1][0] = controller_ptr_vec_[id]->x_vec_[controller_ptr_vec_[id]->iteration_times_];
+      // }
     }
   }
 
-  void QuadrotorSimulator::visualizeTrajectory(){
+  void QuadrotorSimulator::visualizeTrajectory(int id){
     int n_waypoints = waypoints_ptr_->size();
     traj_.poses.clear();
     visualization_msgs::MarkerArray waypoints_markers;
@@ -154,8 +155,8 @@ namespace quadrotor_simulator{
     pose_stamped.pose.orientation.y = 0.0f;
     pose_stamped.pose.orientation.z = 0.0f;
     pose_stamped.pose.orientation.w = 1.0f;
-    for (int i = 0; i < controller_ptr_->x_vec_.size(); ++i){
-      VectorXd result = controller_ptr_->getAbsoluteState(&(controller_ptr_->x_vec_[i]));
+    for (int i = 0; i < controller_ptr_vec_[id]->x_vec_.size(); ++i){
+      VectorXd result = controller_ptr_vec_[id]->getAbsoluteState(&(controller_ptr_vec_[id]->x_vec_[i]));
       pose_stamped.pose.position.x = (result)(0);
       pose_stamped.pose.position.y = (result)(1);
       pose_stamped.pose.position.z = (result)(2);
@@ -164,7 +165,7 @@ namespace quadrotor_simulator{
     pub_traj_path_.publish(traj_);
   }
 
-  void QuadrotorSimulator::animizeTrajectory(){
+  void QuadrotorSimulator::animizeTrajectory(int id){
     // init
     sensor_msgs::JointState joint_state;
     joint_state.name.push_back("joint1");
@@ -180,20 +181,20 @@ namespace quadrotor_simulator{
       joint_state.header.seq = i;
       joint_state.header.stamp = ros::Time::now();
       for (int j = 0; j < 3; ++j){
-        joint_state.position[j] = controller_ptr_->joint_vec_[i](j);
-        joint_state.velocity[j] = controller_ptr_->joint_dt_vec_[i](j);
+        joint_state.position[j] = controller_ptr_vec_[id]->joint_vec_[i](j);
+        joint_state.velocity[j] = controller_ptr_vec_[id]->joint_dt_vec_[i](j);
       }
       pub_anime_joint_state_.publish(joint_state);
 
       tf::Transform world2cog_transform_;
       geometry_msgs::Pose cog_pose;
-      cog_pose.position.x = controller_ptr_->x_vec_[i](P_X) + (*controller_ptr_->xn_ptr_)(P_X);
-      cog_pose.position.y = controller_ptr_->x_vec_[i](P_Y) + (*controller_ptr_->xn_ptr_)(P_Y);
-      cog_pose.position.z = controller_ptr_->x_vec_[i](P_Z) + (*controller_ptr_->xn_ptr_)(P_Z);
+      cog_pose.position.x = controller_ptr_vec_[id]->x_vec_[i](P_X) + (*controller_ptr_vec_[id]->xn_ptr_)(P_X);
+      cog_pose.position.y = controller_ptr_vec_[id]->x_vec_[i](P_Y) + (*controller_ptr_vec_[id]->xn_ptr_)(P_Y);
+      cog_pose.position.z = controller_ptr_vec_[id]->x_vec_[i](P_Z) + (*controller_ptr_vec_[id]->xn_ptr_)(P_Z);
       tf::Quaternion q = tf::createQuaternionFromRPY
-        (controller_ptr_->x_vec_[i](E_R) + (*controller_ptr_->xn_ptr_)(E_R),
-         controller_ptr_->x_vec_[i](E_P) + (*controller_ptr_->xn_ptr_)(E_P),
-         controller_ptr_->x_vec_[i](E_Y) + (*controller_ptr_->xn_ptr_)(E_Y));
+        (controller_ptr_vec_[id]->x_vec_[i](E_R) + (*controller_ptr_vec_[id]->xn_ptr_)(E_R),
+         controller_ptr_vec_[id]->x_vec_[i](E_P) + (*controller_ptr_vec_[id]->xn_ptr_)(E_P),
+         controller_ptr_vec_[id]->x_vec_[i](E_Y) + (*controller_ptr_vec_[id]->xn_ptr_)(E_Y));
       cog_pose.orientation.w = q.w();
       cog_pose.orientation.x = q.x();
       cog_pose.orientation.y = q.y();

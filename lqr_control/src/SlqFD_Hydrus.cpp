@@ -562,13 +562,14 @@ namespace lqr_discrete{
     VectorXd joint = VectorXd::Zero(n_links_ - 1);
     // keep quadrotor model, neglecting time, order
     if (order == 0){
-      for (int i = 0; i < n_links_ - 1; ++i)
-        joint(i) = PI / 2.0;
-      if (plan_traj_id_ >= 2)
-        joint(1) = 0.0;
+      if (plan_traj_id_ == 0)
+        joint << PI / 2.0, PI / 2.0, PI / 2.0;
+      else if (plan_traj_id_ == 1)
+        joint << PI / 2.0, 0, PI / 2.0;
+      else
+        joint << PI / 2.0, 0, PI / 2.0;
     }
-    // test
-    if (plan_traj_id_ >= 2)
+    if (plan_traj_id_ >= 1)
       return joint;
 
     double action_period = 3.0;
@@ -863,6 +864,7 @@ namespace lqr_discrete{
   }
 
   bool SlqFiniteDiscreteControlHydrus::feedforwardConverged(){
+    return false;
     double fw_max = 0.0;
     for (int i = 0; i < iteration_times_; ++i){
       double control_sum = 0.0;

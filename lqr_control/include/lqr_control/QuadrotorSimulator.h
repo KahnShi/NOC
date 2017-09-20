@@ -55,7 +55,10 @@ namespace quadrotor_simulator{
     ros::NodeHandle nhp_;
     bool anime_mode_;
     // SlqFiniteDiscreteControlQuadrotor *controller_ptr_;
-    SlqFiniteDiscreteControlHydrus *controller_ptr_;
+    SlqFiniteDiscreteControlHydrus *controller1_ptr_;
+    SlqFiniteDiscreteControlHydrus *controller2_ptr_;
+    SlqFiniteDiscreteControlHydrus *controller3_ptr_;
+    std::vector<SlqFiniteDiscreteControlHydrus *> controller_ptr_vec_;
     std::vector<VectorXd> *waypoints_ptr_;
     std::vector<double> *time_ptr_;
     double period_;
@@ -69,8 +72,8 @@ namespace quadrotor_simulator{
 
     void initQuadrotorSimulator(std::vector<VectorXd> *waypoints_ptr, std::vector<double> *time_ptr, double controller_freq);
     void planOptimalTrajectory();
-    void visualizeTrajectory();
-    void animizeTrajectory();
+    void visualizeTrajectory(int id);
+    void animizeTrajectory(int id);
   };
 }
 
