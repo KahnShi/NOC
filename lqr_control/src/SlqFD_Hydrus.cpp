@@ -573,9 +573,9 @@ namespace lqr_discrete{
       if (plan_traj_id_ == 0)
         joint << PI / 2.0, PI / 2.0, PI / 2.0;
       else if (plan_traj_id_ == 1)
-        joint << PI / 2.0, PI / 9.0, PI / 2.0;
+        joint << PI / 2.0, PI / 100.0, PI / 2.0;
       else
-        joint << PI / 2.0, PI / 9.0, PI / 2.0;
+        joint << PI / 2.0, PI / 100.0, PI / 2.0;
     }
     if (plan_traj_id_ == 1)
       return joint;
@@ -585,10 +585,10 @@ namespace lqr_discrete{
     double start_ang, end_ang;
     if (plan_traj_id_ == 0){
       start_ang = PI / 2.0;
-      end_ang = PI / 9.0;
+      end_ang = PI / 100.0;
     }
     else if (plan_traj_id_ == 2){
-      start_ang = PI / 9.0;
+      start_ang = PI / 100.0;
       end_ang = PI / 2.0;
     }
     // example: sin function
