@@ -80,7 +80,7 @@ namespace quadrotor_simulator{
       time_vec.push_back((*time_ptr_)[id+1] - (*time_ptr_)[id]);
 
       controller_ptr_vec_[id]->initSLQ(controller_freq_, &time_vec, &(waypoints_vec[id]));
-      for (int i = 0; i < 5; ++i){
+      for (int i = 0; i < 4; ++i){
         controller_ptr_vec_[id]->iterativeOptimization();
         // todo
         visualizeTrajectory(id);

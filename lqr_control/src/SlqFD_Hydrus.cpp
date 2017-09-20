@@ -106,6 +106,7 @@ namespace lqr_discrete{
       (*Q0_ptr_)(i, i) = Q_e_para;
     // test: weight on z
     (*Q0_ptr_)(P_Z, P_Z) = (*Q0_ptr_)(V_Z, V_Z) = Q_z_para;
+    (*Q0_ptr_)(E_Y, E_Y) = Q_z_para;
 
     *R_ptr_ = R_para * MatrixXd::Identity(u_size_, u_size_);
 
@@ -441,6 +442,14 @@ namespace lqr_discrete{
     infinite_feedback_update_flag_ = false;
   }
 
+  VectorXd SlqFiniteDiscreteControlHydrus::getCurrentIdealPosition(double relative_time){
+    int id = floor(relative_time * control_freq_);
+    if (id > iteration_times_ - 1){
+      id = iteration_times_ - 1;
+    }
+    return getAbsoluteState(&(x_vec_[id]));
+  }
+
   VectorXd SlqFiniteDiscreteControlHydrus::highFrequencyFeedbackControl(double relative_time, VectorXd *cur_real_x_ptr){
     // save for infinite state
     if (!infinite_feedback_update_flag_){
@@ -565,9 +574,9 @@ namespace lqr_discrete{
       if (plan_traj_id_ == 0)
         joint << PI / 2.0, PI / 2.0, PI / 2.0;
       else if (plan_traj_id_ == 1)
-        joint << PI / 2.0, 0, PI / 2.0;
+        joint << PI / 2.0, PI / 9.0, PI / 2.0;
       else
-        joint << PI / 2.0, 0, PI / 2.0;
+        joint << PI / 2.0, PI / 9.0, PI / 2.0;
     }
     if (plan_traj_id_ == 1)
       return joint;
@@ -577,10 +586,10 @@ namespace lqr_discrete{
     double start_ang, end_ang;
     if (plan_traj_id_ == 0){
       start_ang = PI / 2.0;
-      end_ang = 0.0;
+      end_ang = PI / 9.0;
     }
     else if (plan_traj_id_ == 2){
-      start_ang = 0.0;
+      start_ang = PI / 9.0;
       end_ang = PI / 2.0;
     }
     // example: sin function
