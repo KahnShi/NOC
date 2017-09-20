@@ -96,7 +96,7 @@ namespace quadrotor_simulator{
     int n_waypoints = waypoints_ptr_->size();
     traj_.poses.clear();
     visualization_msgs::MarkerArray waypoints_markers;
-    visualization_msgs::Marker point_marker;
+    visualization_msgs::Marker point_marker, wall_marker;
     point_marker.ns = "waypoints";
     if (anime_mode_)
       point_marker.header.frame_id = std::string("/shi_world");
@@ -105,6 +105,9 @@ namespace quadrotor_simulator{
     point_marker.header.stamp = ros::Time().now();
     point_marker.action = visualization_msgs::Marker::ADD;
     point_marker.type = visualization_msgs::Marker::SPHERE;
+
+    wall_marker = point_marker;
+    wall_marker.type = visualization_msgs::Marker::CUBE;
 
     point_marker.id = 0;
     point_marker.pose.position.x = (*waypoints_ptr_)[0](0);
@@ -142,6 +145,27 @@ namespace quadrotor_simulator{
       point_marker.color.b = 0.0f;
       waypoints_markers.markers.push_back(point_marker);
     }
+
+    wall_marker.id = point_marker.id + 1;
+    wall_marker.pose.position.x = 6.1;
+    wall_marker.pose.position.y = 4.0;
+    wall_marker.pose.position.z = 0.0;
+    wall_marker.pose.orientation.x = 0.0;
+    wall_marker.pose.orientation.y = 0.0;
+    wall_marker.pose.orientation.z = 0.0;
+    wall_marker.pose.orientation.w = 1.0;
+    wall_marker.scale.x = 10;
+    wall_marker.scale.y = 0.2;
+    wall_marker.scale.z = 5;
+    wall_marker.color.a = 1;
+    wall_marker.color.r = 0.6f;
+    wall_marker.color.g = 0.45f;
+    wall_marker.color.b = 0.15f;
+    waypoints_markers.markers.push_back(wall_marker);
+
+    wall_marker.id += 1;
+    wall_marker.pose.position.x = -5.0;
+    waypoints_markers.markers.push_back(wall_marker);
 
     pub_traj_way_points_.publish(waypoints_markers);
 
