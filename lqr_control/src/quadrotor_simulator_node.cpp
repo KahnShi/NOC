@@ -63,7 +63,7 @@ int main(int argc, char **argv)
   period_vec.push_back(4.0);
 
   VectorXd end_state = VectorXd::Zero(12);
-  nh_private.param("end_x", end_state(0), 10.0);
+  nh_private.param("end_x", end_state(0), 14.0);
   nh_private.param("end_y", end_state(1), 5.0);
   nh_private.param("end_z", end_state(2), 3.0);
   double end_time;

@@ -1033,6 +1033,11 @@ namespace lqr_discrete{
     return stateSubtraction(absolute_x_ptr, xn_ptr_);
   }
 
+  VectorXd SlqFiniteDiscreteControlHydrus::getFinalAbsoluteState(){
+    VectorXd final_state = getAbsoluteState(&(x_vec_[iteration_times_]));
+    return final_state;
+  }
+
   void SlqFiniteDiscreteControlHydrus::updateWaypointWeightMatrix(double time, double end_time, MatrixXd *W_ptr, bool goal_flag){
     double rho = 1.0;
     double weight = exp(-rho / 2 * pow(time - end_time, 2.0));

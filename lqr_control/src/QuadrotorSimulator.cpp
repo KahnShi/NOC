@@ -78,6 +78,7 @@ namespace quadrotor_simulator{
       std::vector<double> time_vec;
       time_vec.push_back(0);
       time_vec.push_back((*time_ptr_)[id+1] - (*time_ptr_)[id]);
+
       controller_ptr_vec_[id]->initSLQ(controller_freq_, &time_vec, &(waypoints_vec[id]));
       for (int i = 0; i < 5; ++i){
         controller_ptr_vec_[id]->iterativeOptimization();
@@ -85,8 +86,9 @@ namespace quadrotor_simulator{
         visualizeTrajectory(id);
       }
       ROS_WARN("Trajectory optimization finished.\n");
-      //if (id < waypoints_ptr_->size() - 2)
-      //waypoints_vec[id+1][0] = controller_ptr_vec_[id]->x_vec_[controller_ptr_vec_[id]->iteration_times_];
+      if (id < waypoints_ptr_->size() - 2){
+        waypoints_vec[id+1][0] = controller_ptr_vec_[id]->getFinalAbsoluteState();
+      }
     }
   }
 
