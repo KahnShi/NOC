@@ -85,9 +85,8 @@ namespace quadrotor_simulator{
         visualizeTrajectory(id);
       }
       ROS_WARN("Trajectory optimization finished.\n");
-      // if (id < waypoints_ptr_->size() - 2){
-      //   waypoints_vec[id+1][0] = controller_ptr_vec_[id]->x_vec_[controller_ptr_vec_[id]->iteration_times_];
-      // }
+      //if (id < waypoints_ptr_->size() - 2)
+      //waypoints_vec[id+1][0] = controller_ptr_vec_[id]->x_vec_[controller_ptr_vec_[id]->iteration_times_];
     }
   }
 

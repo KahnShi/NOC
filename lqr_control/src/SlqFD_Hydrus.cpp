@@ -569,13 +569,20 @@ namespace lqr_discrete{
       else
         joint << PI / 2.0, 0, PI / 2.0;
     }
-    if (plan_traj_id_ >= 1)
+    if (plan_traj_id_ == 1)
       return joint;
 
-    double action_period = 3.0;
+    double action_period = 2.5;
     double action_start_time = end_time_ - action_period - 2.0;
-    double start_ang = PI / 2.0;
-    double end_ang = 0.0;
+    double start_ang, end_ang;
+    if (plan_traj_id_ == 0){
+      start_ang = PI / 2.0;
+      end_ang = 0.0;
+    }
+    else if (plan_traj_id_ == 2){
+      start_ang = 0.0;
+      end_ang = PI / 2.0;
+    }
     // example: sin function
     if (transform_movement_flag_){
       if (order == 0){
