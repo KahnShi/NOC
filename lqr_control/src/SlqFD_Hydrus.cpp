@@ -1108,13 +1108,13 @@ namespace lqr_discrete{
     VectorXd x = getRelativeState(x0_ptr_);
     for (int i = iteration_times_ - 1; i >= 0; --i){
       VectorXd u = -lqr_F_vec_[i] * x;
+      // Guarantee control is in bound
+      checkControlInputFeasible(&u);
+
       VectorXd new_x(x_size_);
       updateNewState(&new_x, &x, &u, i);
       x = new_x;
       x_vec_[iteration_times_ - i] = x;
-
-      // Guarantee control is in bound
-      checkControlInputFeasible(&u);
       u_vec_[iteration_times_ - i] = u;
 
       if ((i % 100 == 0 || i == iteration_times_ - 1) && debug_){
