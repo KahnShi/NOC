@@ -94,6 +94,8 @@ namespace lqr_discrete{
     l_ptr_ = new VectorXd(u_size_);
     r_ptr_ = new VectorXd(u_size_);
     q_ptr_ = new VectorXd(x_size_);
+    waypoints_ptr_ = new std::vector<VectorXd>();
+    time_ptr_ = new std::vector<double>();
 
     /* init Q and R matrice */
     *Q0_ptr_ = MatrixXd::Zero(x_size_, x_size_);
@@ -118,7 +120,6 @@ namespace lqr_discrete{
 
   void SlqFiniteDiscreteControlHydrus::initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr){
     control_freq_ = freq;
-    time_ptr_ = time_ptr;
     double period = (*time_ptr)[time_ptr->size() - 1] - (*time_ptr)[0];
     if (floor(freq * period) < freq * period){
       end_time_ = (floor(freq * period) + 1.0) / freq;
@@ -134,7 +135,14 @@ namespace lqr_discrete{
     std::cout << "[SLQ] Start position: " << (*waypoints_ptr)[0].transpose() << "\n";
     std::cout << "[SLQ] End position: " << (*waypoints_ptr)[waypoints_ptr->size()  - 1].transpose() << "\n";
 
-    waypoints_ptr_ = waypoints_ptr;
+    if (waypoints_ptr_->size())
+      waypoints_ptr_->clear();
+    for (int i = 0; i < waypoints_ptr->size(); ++i)
+      waypoints_ptr_->push_back((*waypoints_ptr)[i]);
+    if (time_ptr_->size())
+      time_ptr_->clear();
+    for (int i = 0; i < time_ptr->size(); ++i)
+      time_ptr_->push_back((*time_ptr)[i]);
 
     *A_ptr_ = MatrixXd::Zero(x_size_, x_size_);
     *B_ptr_ = MatrixXd::Zero(x_size_, u_size_);
