@@ -113,9 +113,6 @@ namespace lqr_discrete{
     uav_rotor_thrust_min_ = 0.0;
     uav_rotor_thrust_max_ = 18.0;
 
-    u0_ptr_ = new VectorXd(u_size_);
-    un_ptr_ = new VectorXd(u_size_);
-
     ROS_INFO("[SLQ] Hydrus init finished.");
   }
 
@@ -158,20 +155,11 @@ namespace lqr_discrete{
     *xn_ptr_ = (*waypoints_ptr)[waypoints_ptr->size() - 1];
     *Q_ptr_ = (*Q0_ptr_);
 
-    /* Assume initial and final state is still, namely dx = [v, a] = 0 */
-    for (int i = 0; i < 4; ++i){
-      (*u0_ptr_)(i) = link_weight_vec_[i] * 9.78;
-      (*un_ptr_)(i) = link_weight_vec_[i] * 9.78;
-    }
-    //(*un_ptr_) << 9.34459, 9.70679, 8.71779, 8.35559; // adapt to simulator
-
     /* SLQ special initialization */
     // todo: assume start point the quadrotor is hovering
     VectorXd x_init(x_size_), u_init(u_size_);
     x_init = getRelativeState(x0_ptr_);
     u_init = VectorXd::Zero(u_size_);
-    // test: real u
-    // u_init = (*un_ptr_);
 
     /* Clear assigned vector */
     if (not_first_slq_flag_){
@@ -188,6 +176,7 @@ namespace lqr_discrete{
       u_fw_vec_.clear();
       u_fb_vec_.clear();
       K_vec_.clear();
+      un_vec_.clear();
     }
     else
       not_first_slq_flag_ = true;
@@ -207,6 +196,8 @@ namespace lqr_discrete{
       u_fw_vec_.push_back(u_init);
       u_fb_vec_.push_back(u_init);
       K_vec_.push_back(MatrixXd::Zero(u_size_, x_size_));
+      VectorXd stable_u = getStableThrust(i);
+      un_vec_.push_back(stable_u);
     }
 
     line_search_steps_ = 4;
@@ -387,7 +378,7 @@ namespace lqr_discrete{
             W_vec.push_back(W);
           }
 
-          VectorXd real_u = cur_u + (*un_ptr_);
+          VectorXd real_u = cur_u + un_vec_[i];
           // method 1: use "relative" u when calculting whole energy
           // energy_sum += (cur_x.transpose() * (*Q_ptr_) * cur_x
           //                + cur_u.transpose() * (*R_ptr_) * cur_u)(0);
@@ -514,7 +505,7 @@ namespace lqr_discrete{
     else{
       new_u = -lqr_F_vec_[iteration_times_ - 1 - id] * cur_x;
       checkControlInputFeasible(&new_u);
-      new_u = new_u + *un_ptr_;
+      new_u = new_u + un_vec_[id];
     }
     return new_u;
   }
@@ -699,7 +690,7 @@ namespace lqr_discrete{
     /* v_x, v_y, v_z */
     double u = 0.0;
     for (int i = 0; i < u_size_; ++i)
-      u += ((*u_ptr)[i] + (*un_ptr_)[i]);
+      u += ((*u_ptr)[i] + un_vec_[time_id][i]);
       // test: real u
       // u += (*u_ptr)[i];
 
@@ -842,7 +833,7 @@ namespace lqr_discrete{
     /* v_x, v_y, v_z */
     double u = 0.0;
     for (int i = 0; i < u_size_; ++i)
-       u += ((*u_ptr)[i] + (*un_ptr_)[i]);
+       u += ((*u_ptr)[i] + un_vec_[time_id][i]);
       // test: real u
       // u += (*u_ptr)[i];
     /* d v_x = (sin y * sin r + cos y * sin p * cos r) * (u1 + u2 + u3 + u4) / m */
@@ -877,7 +868,7 @@ namespace lqr_discrete{
     for (int i = 0; i < n_links_; ++i){
       MatrixXd JW_mat = getJacobianW(i);
       Eigen::Vector3d wi = w + VectorXdTo3d(JW_mat * dq);
-      double fi = (*u_ptr)[i] + (*un_ptr_)[i];
+      double fi = (*u_ptr)[i] + un_vec_[time_id][i];
       mid_result +=
         (link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id]).
         cross(Eigen::Vector3d(0, 0, fi))
@@ -1169,7 +1160,7 @@ namespace lqr_discrete{
   void SlqFiniteDiscreteControlHydrus::printControlInfo(VectorXd *u, int id){
     std::cout << "[debug] id[" << id << "]print current u:\n";
     for (int j = 0; j < u_size_; ++j)
-      std::cout << (*u)(j) + (*un_ptr_)(j) << ", ";
+      std::cout << (*u)(j) + un_vec_[id](j) << ", ";
     std::cout << "\n";
   }
 

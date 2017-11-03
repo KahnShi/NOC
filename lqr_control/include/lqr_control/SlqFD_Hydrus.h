@@ -92,6 +92,7 @@ namespace lqr_discrete{
     std::vector<MatrixXd> lqr_F_vec_;
     std::vector<Vector4d> u_fw_vec_;
     std::vector<Vector4d> u_fb_vec_;
+    std::vector<VectorXd> un_vec_;
     std::vector<MatrixXd> K_vec_;
     std::vector<VectorXd> *waypoints_ptr_;
     std::vector<double> *time_ptr_;
