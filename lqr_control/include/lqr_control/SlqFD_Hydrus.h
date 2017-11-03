@@ -140,6 +140,7 @@ namespace lqr_discrete{
     void updateHydrusCogPositionDerivative(int time_id);
     MatrixXd getJacobianW(int id);
     VectorXd getStableThrust(int id);
+    double calculateCostFunction();
     Eigen::Vector3d VectorXdTo3d(VectorXd vec);
     MatrixXd S_operation(VectorXd vec);
     void printStateInfo(VectorXd *x, int id);

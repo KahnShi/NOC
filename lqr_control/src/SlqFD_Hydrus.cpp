@@ -217,6 +217,10 @@ namespace lqr_discrete{
     *IDlqr_F_ptr_ = (*R_ptr_ +
                      B_ptr_->transpose() * (*Riccati_P_ptr_) * (*B_ptr_)).inverse()
       * (B_ptr_->transpose() * (*Riccati_P_ptr_) * (*A_ptr_));
+
+    double lqr_cost = calculateCostFunction();
+    if (debug_)
+      std::cout << "\n Cost: " << lqr_cost << "\n\n";
     ROS_INFO("[SLQ] Initialization finished.");
   }
 
@@ -429,6 +433,8 @@ namespace lqr_discrete{
       if (i == iteration_times_ - 1)
         x_vec_[iteration_times_] = new_x;
     }
+    double traj_cost = calculateCostFunction();
+    std::cout << "\n Cost: " << traj_cost << "\n\n";
     infinite_feedback_update_flag_ = false;
   }
 
@@ -1117,6 +1123,16 @@ namespace lqr_discrete{
       }
     }
     ROS_INFO("[SLQ] LQR init finished");
+  }
+
+  double SlqFiniteDiscreteControlHydrus::calculateCostFunction(){
+    double cost = 0.0;
+    for (int i = 0; i < iteration_times_; ++i){
+      cost += (u_vec_[i].transpose() * (*R_ptr_) * u_vec_[i]
+               + x_vec_[i].transpose() * (*Q0_ptr_) * x_vec_[i])(0);
+    }
+    cost += (x_vec_[iteration_times_].transpose() * (*Riccati_P_ptr_) * x_vec_[iteration_times_])(0);
+    return cost;
   }
 
   Eigen::Vector3d SlqFiniteDiscreteControlHydrus::VectorXdTo3d(VectorXd vec){
