@@ -84,6 +84,7 @@ namespace lqr_discrete{
     x_ptr_ = new VectorXd(x_size_);
     u_ptr_ = new VectorXd(u_size_);
     Riccati_P_ptr_ = new MatrixXd(x_size_, x_size_);
+    IDlqr_F_ptr_ = new MatrixXd(u_size_, x_size_);
     P_ptr_ = new MatrixXd(x_size_, x_size_);
     p_ptr_ = new VectorXd(x_size_);
     H_ptr_ = new MatrixXd(u_size_, u_size_);
@@ -213,6 +214,9 @@ namespace lqr_discrete{
     debug_ = true;
     FDLQR();
     getRiccatiH();
+    *IDlqr_F_ptr_ = (*R_ptr_ +
+                     B_ptr_->transpose() * (*Riccati_P_ptr_) * (*B_ptr_)).inverse()
+      * (B_ptr_->transpose() * (*Riccati_P_ptr_) * (*A_ptr_));
     ROS_INFO("[SLQ] Initialization finished.");
   }
 
@@ -490,24 +494,28 @@ namespace lqr_discrete{
   VectorXd SlqFiniteDiscreteControlHydrus::infiniteFeedbackControl(VectorXd *cur_real_x_ptr){
     VectorXd new_u = VectorXd::Zero(u_size_);
     VectorXd cur_x = stateSubtraction(cur_real_x_ptr, &xn_last_);
-    new_u = u_vec_last_ + alpha_candidate_last_ * u_fw_vec_last_ + K_vec_last_ * (cur_x - x_vec_last_);
+    new_u = -(*IDlqr_F_ptr_) * cur_x;
     checkControlInputFeasible(&new_u);
     new_u = new_u + stable_u_last_;
     return new_u;
   }
 
   VectorXd SlqFiniteDiscreteControlHydrus::highFrequencyLQRFeedbackControl(double relative_time, VectorXd *cur_real_x_ptr){
+    VectorXd new_u = VectorXd::Zero(u_size_);
+    VectorXd cur_x = getRelativeState(cur_real_x_ptr);
     // relative_time is (current time - start time)
     int id = floor(relative_time * control_freq_);
     if (id > iteration_times_ - 1){
-      ROS_WARN("[SLQ][Feedback] Time is out of planned.");
-      id = iteration_times_ - 1;
+      id = iteration_times_;
+      new_u = -(*IDlqr_F_ptr_) * cur_x;
+      checkControlInputFeasible(&new_u);
+      new_u = new_u + stable_u_last_;
     }
-    VectorXd new_u = VectorXd::Zero(u_size_);
-    VectorXd cur_x = getRelativeState(cur_real_x_ptr);
-    new_u = -lqr_F_vec_[iteration_times_ - 1 - id] * cur_x;
-    checkControlInputFeasible(&new_u);
-    new_u = new_u + *un_ptr_;
+    else{
+      new_u = -lqr_F_vec_[iteration_times_ - 1 - id] * cur_x;
+      checkControlInputFeasible(&new_u);
+      new_u = new_u + *un_ptr_;
+    }
     return new_u;
   }
 
