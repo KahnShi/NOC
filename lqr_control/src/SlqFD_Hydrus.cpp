@@ -199,6 +199,7 @@ namespace lqr_discrete{
       VectorXd stable_u = getStableThrust(i);
       un_vec_.push_back(stable_u);
     }
+    stable_u_last_ = un_vec_[iteration_times_];
 
     line_search_steps_ = 4;
 
@@ -450,7 +451,6 @@ namespace lqr_discrete{
       u_fw_vec_last_ = u_fw_vec_[iteration_times_ - 1];
       K_vec_last_ = K_vec_[iteration_times_ - 1];
       x_vec_last_ = x_vec_[iteration_times_ - 1];
-      stable_u_last_ = getStableThrust(iteration_times_ - 1);
       xn_last_ = *xn_ptr_;
     }
 
