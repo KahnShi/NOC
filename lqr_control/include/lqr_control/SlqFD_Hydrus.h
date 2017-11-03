@@ -76,6 +76,7 @@ namespace lqr_discrete{
     bool not_first_slq_flag_;
     MatrixXd *H_ptr_;
     MatrixXd *Riccati_P_ptr_;
+    MatrixXd *IDlqr_F_ptr_;
     MatrixXd *P_ptr_;
     VectorXd *p_ptr_;
     MatrixXd *K_ptr_;
@@ -91,6 +92,7 @@ namespace lqr_discrete{
     std::vector<MatrixXd> lqr_F_vec_;
     std::vector<Vector4d> u_fw_vec_;
     std::vector<Vector4d> u_fb_vec_;
+    std::vector<VectorXd> un_vec_;
     std::vector<MatrixXd> K_vec_;
     std::vector<VectorXd> *waypoints_ptr_;
     std::vector<double> *time_ptr_;
@@ -116,7 +118,7 @@ namespace lqr_discrete{
     void updateMatrixAB(int time_id);
     void getRiccatiH();
     void iterativeOptimization();
-    void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr, int time_id);
+    void updateNewState(VectorXd *new_relative_x_ptr, VectorXd *relative_x_ptr, VectorXd *relative_u_ptr, int time_id);
     bool feedforwardConverged();
     VectorXd infiniteFeedbackControl(VectorXd *cur_real_x_ptr);
     VectorXd highFrequencyFeedbackControl(double relative_time, VectorXd *cur_real_x_ptr);
@@ -128,7 +130,7 @@ namespace lqr_discrete{
     void updateWaypointWeightMatrix(double time, double end_time, MatrixXd *W_ptr, bool goal_flag);
     void updateSLQEquations();
     void FDLQR();
-    void checkControlInputFeasible(VectorXd *u);
+    void checkControlInputFeasible(VectorXd *u, int time_id);
     VectorXd getCurrentJoint(double time, int order = 0);
     Eigen::Matrix3d getCurrentRotationMatrix(Eigen::Vector3d euler_angle, int order = 0);
     void getHydrusLinksCenter(VectorXd *joint_ptr);
@@ -138,6 +140,7 @@ namespace lqr_discrete{
     void updateHydrusCogPositionDerivative(int time_id);
     MatrixXd getJacobianW(int id);
     VectorXd getStableThrust(int id);
+    double calculateCostFunction();
     Eigen::Vector3d VectorXdTo3d(VectorXd vec);
     MatrixXd S_operation(VectorXd vec);
     void printStateInfo(VectorXd *x, int id);
