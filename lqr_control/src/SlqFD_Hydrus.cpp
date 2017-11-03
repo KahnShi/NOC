@@ -44,11 +44,11 @@ namespace lqr_discrete{
     double R_para, Q_p_para, Q_v_para, Q_e_para, Q_w_para, Q_z_para;
     nhp_.param("transform_movement_flag", transform_movement_flag_, true);
     nhp_.param("R_para", R_para, 10.0);
-    nhp_.param("Q_p_para", Q_p_para, 10.0);
+    nhp_.param("Q_p_para", Q_p_para, 5.0);
     nhp_.param("Q_v_para", Q_v_para, 10.0);
-    nhp_.param("Q_z_para", Q_z_para, 20.0);
-    nhp_.param("Q_w_para", Q_w_para, 1.0);
-    nhp_.param("Q_e_para", Q_e_para, 20.0);
+    nhp_.param("Q_z_para", Q_z_para, 50.0);
+    nhp_.param("Q_w_para", Q_w_para, 10.0);
+    nhp_.param("Q_e_para", Q_e_para, 100.0);
 
     /* hydrus */
     link_length_ = 0.6;
@@ -572,6 +572,7 @@ namespace lqr_discrete{
       for (int i = 0; i < n_links_ - 1; ++i)
         joint(i) = PI / 2.0;
     }
+    // return joint;
 
     // example: end time is 6s: [0, 5] 1.57; [5, 5.5] 1.57-3.14*(t-5.0)^2; [5.5, 6] 3.14*(t-6.0)^2
     // double action_period = 2.0;
