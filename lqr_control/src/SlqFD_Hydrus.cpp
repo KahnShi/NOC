@@ -368,7 +368,7 @@ namespace lqr_discrete{
           VectorXd cur_u(u_size_);
           cur_u = u_vec_[i] + alpha_ * u_fw_vec_[i]
             + K_vec_[i] * (cur_x - x_vec_[i]);
-          checkControlInputFeasible(&cur_u);
+          checkControlInputFeasible(&cur_u, i);
           // calculate energy
           // add weight for waypoints
           std::vector<MatrixXd> W_vec;
@@ -417,7 +417,7 @@ namespace lqr_discrete{
       VectorXd cur_u(u_size_);
       cur_u = u_vec_[i] + alpha_candidate_ * u_fw_vec_[i]
         + K_vec_[i] * (cur_x - x_vec_[i]);
-      checkControlInputFeasible(&cur_u);
+      checkControlInputFeasible(&cur_u, i);
       VectorXd new_x(x_size_);
       updateNewState(&new_x, &cur_x, &cur_u, i);
       if ((i % int(control_freq_) == 0 || i == iteration_times_ - 1) && debug_){
@@ -463,7 +463,7 @@ namespace lqr_discrete{
     VectorXd new_u = VectorXd::Zero(u_size_);
     VectorXd cur_x = getRelativeState(cur_real_x_ptr);
     new_u = u_vec_[id] + alpha_candidate_ * u_fw_vec_[id] + K_vec_[id] * (cur_x - x_vec_[id]);
-    checkControlInputFeasible(&new_u);
+    checkControlInputFeasible(&new_u, id);
     // method 1:
     // VectorXd un = VectorXd(4);
     // un << 9.34459, 9.70679, 8.71779, 8.35559; // to adapt to simulation
@@ -486,7 +486,7 @@ namespace lqr_discrete{
     VectorXd new_u = VectorXd::Zero(u_size_);
     VectorXd cur_x = stateSubtraction(cur_real_x_ptr, &xn_last_);
     new_u = -(*IDlqr_F_ptr_) * cur_x;
-    checkControlInputFeasible(&new_u);
+    checkControlInputFeasible(&new_u, iteration_times_);
     new_u = new_u + stable_u_last_;
     return new_u;
   }
@@ -499,12 +499,12 @@ namespace lqr_discrete{
     if (id > iteration_times_ - 1){
       id = iteration_times_;
       new_u = -(*IDlqr_F_ptr_) * cur_x;
-      checkControlInputFeasible(&new_u);
+      checkControlInputFeasible(&new_u, id);
       new_u = new_u + stable_u_last_;
     }
     else{
       new_u = -lqr_F_vec_[iteration_times_ - 1 - id] * cur_x;
-      checkControlInputFeasible(&new_u);
+      checkControlInputFeasible(&new_u, id);
       new_u = new_u + un_vec_[id];
     }
     return new_u;
@@ -1108,7 +1108,7 @@ namespace lqr_discrete{
     for (int i = iteration_times_ - 1; i >= 0; --i){
       VectorXd u = -lqr_F_vec_[i] * x;
       // Guarantee control is in bound
-      checkControlInputFeasible(&u);
+      checkControlInputFeasible(&u, i);
 
       VectorXd new_x(x_size_);
       updateNewState(&new_x, &x, &u, i);
@@ -1131,12 +1131,12 @@ namespace lqr_discrete{
     return vec3;
   }
 
-  void SlqFiniteDiscreteControlHydrus::checkControlInputFeasible(VectorXd *u){
+  void SlqFiniteDiscreteControlHydrus::checkControlInputFeasible(VectorXd *u, int time_id){
     for (int j = 0; j < u_size_; ++j){
-      if ((*u)(j) + (*un_ptr_)(j) < uav_rotor_thrust_min_)
-        (*u)(j) = uav_rotor_thrust_min_ - (*un_ptr_)(j);
-      else if ((*u)(j) + (*un_ptr_)(j) > uav_rotor_thrust_max_)
-        (*u)(j) = uav_rotor_thrust_max_ - (*un_ptr_)(j);
+      if ((*u)(j) + un_vec_[time_id](j) < uav_rotor_thrust_min_)
+        (*u)(j) = uav_rotor_thrust_min_ - un_vec_[time_id](j);
+      else if ((*u)(j) + un_vec_[time_id](j) > uav_rotor_thrust_max_)
+        (*u)(j) = uav_rotor_thrust_max_ - un_vec_[time_id](j);
     }
   }
 

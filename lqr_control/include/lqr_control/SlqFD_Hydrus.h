@@ -130,7 +130,7 @@ namespace lqr_discrete{
     void updateWaypointWeightMatrix(double time, double end_time, MatrixXd *W_ptr, bool goal_flag);
     void updateSLQEquations();
     void FDLQR();
-    void checkControlInputFeasible(VectorXd *u);
+    void checkControlInputFeasible(VectorXd *u, int time_id);
     VectorXd getCurrentJoint(double time, int order = 0);
     Eigen::Matrix3d getCurrentRotationMatrix(Eigen::Vector3d euler_angle, int order = 0);
     void getHydrusLinksCenter(VectorXd *joint_ptr);
