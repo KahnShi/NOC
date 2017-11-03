@@ -1058,14 +1058,9 @@ namespace lqr_discrete{
     double rho = 1.0;
     double weight = exp(-rho / 2 * pow(time - end_time, 2.0));
     for (int j = 0; j < 6; ++j)
-      // (*W_ptr)(j, j) = 10.0 * weight;
       (*W_ptr)(j, j) = (*Q0_ptr_)(j, j) * weight;
     for (int j = 6; j < x_size_; ++j)
       (*W_ptr)(j, j) = (*Q0_ptr_)(j, j) * weight;
-    (*W_ptr)(E_Y, E_Y) = weight;
-    (*W_ptr)(W_Y, W_Y) = weight;
-    // test: weight on z
-    (*W_ptr)(2, 2) = (*W_ptr)(5, 5) = (*Q0_ptr_)(2, 2) * weight;
 
     // test: more weight on mid state
     if (!goal_flag)
