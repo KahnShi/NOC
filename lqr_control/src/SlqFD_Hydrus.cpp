@@ -116,6 +116,25 @@ namespace lqr_discrete{
     uav_rotor_thrust_max_ = 18.0;
 
     ROS_INFO("[SLQ] Hydrus init finished.");
+    // delete
+    Quaterniond qw( 0.685, -0.002, -0.691,  0.230);
+    Quaterniond q2( 0.929, -0.001, -0.351,  0.117);
+    VectorXd q2_vec(4); q2_vec << 0.929, -0.001, -0.351,  0.117;
+    normalizeQuaternion(&q2_vec);
+    MatrixXd q_m = MatrixXd::Zero(4, 4);
+    q_m << qw.w(), -qw.x(), -qw.y(), -qw.z(),
+      qw.x(), qw.w(), qw.z(), -qw.y(),
+      qw.y(), -qw.z(), qw.w(), qw.x(),
+      qw.z(), qw.y(), -qw.x(), qw.w();
+    VectorXd q_vec = q_m * q2_vec;
+    normalizeQuaternion(&q_vec);
+    std::cout << "\nFrom mat:\n";
+    for (int i = 0; i < 4; ++i)
+      std::cout << q_vec[i] << ", ";
+    std::cout << "\n";
+    Quaterniond q = qw * q2;
+    std::cout << "\nFrom q:\n";
+    std::cout << q.w() << ", " << q.x() << ", " << q.y() << ", " << q.z() << "\n\n";
   }
 
   void SlqFiniteDiscreteControlHydrus::initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr){
@@ -691,55 +710,94 @@ namespace lqr_discrete{
 
     /* u' = u / m */
     u = u / hydrus_weight_;
-    /* d v_x = (sin y * sin r + cos y * sin p * cos r) * u' */
-    (*A_ptr_)(V_X, E_R) = (sin((*x_ptr)[E_Y]) * cos((*x_ptr)[E_R]) -
-                           cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * sin((*x_ptr)[E_R])) * u;
-    (*A_ptr_)(V_X, E_P) = cos((*x_ptr)[E_Y]) * cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]) * u;
-    (*A_ptr_)(V_X, E_Y) = (cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) -
-                           sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R])) * u;
-    /* d v_y = (-cos y * sin r + sin y * sin p * cos r) * u' */
-    (*A_ptr_)(V_Y, E_R) = (-cos((*x_ptr)[E_Y]) * cos((*x_ptr)[E_R]) -
-                           sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]))* u;
-    (*A_ptr_)(V_Y, E_P) = sin((*x_ptr)[E_Y]) * cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]) * u;
-    (*A_ptr_)(V_Y, E_Y) = (sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
-                           cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))* u;
-    /* d v_z = (cos p * cos r) * u' */
-    (*A_ptr_)(V_Z, E_P) = -sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]) * u;
-    (*A_ptr_)(V_Z, E_R) = -cos((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]) * u;
+    /* d v_x = (2 * q_w * q_y + 2 * q_x * q_z) * u' */
+    (*A_ptr_)(V_X, Q_W) = 2 * (*x_ptr)[Q_Y] * u;
+    (*A_ptr_)(V_X, Q_X) = 2 * (*x_ptr)[Q_Z] * u;
+    (*A_ptr_)(V_X, Q_Y) = 2 * (*x_ptr)[Q_W] * u;
+    (*A_ptr_)(V_X, Q_Z) = 2 * (*x_ptr)[Q_X] * u;
+    /* d v_y = (2 * q_y * q_z - 2 * q_w * q_x) * u' */
+    (*A_ptr_)(V_Y, Q_W) = -2 * (*x_ptr)[Q_X] * u;
+    (*A_ptr_)(V_Y, Q_X) = -2 * (*x_ptr)[Q_W] * u;
+    (*A_ptr_)(V_Y, Q_Y) = 2 * (*x_ptr)[Q_Z] * u;
+    (*A_ptr_)(V_Y, Q_Z) = 2 * (*x_ptr)[Q_Y] * u;
+    /* d v_z = (1 - 2 * q_x ^2 - 2 * q_y ^2) * u' */
+    (*A_ptr_)(V_Z, Q_X) = -4 * (*x_ptr)[Q_X] * u;
+    (*A_ptr_)(V_Z, Q_Y) = -4 * (*x_ptr)[Q_Y] * u;
 
-    /* e_r, e_p, e_y */
-    /* d e = R_e * w_b */
-    Eigen::Vector3d w((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
-    MatrixXd R_e = MatrixXd::Zero(3, 3);
-    R_e << 1, tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]), tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]),
-      0, cos((*x_ptr)[E_R]), -sin((*x_ptr)[E_R]),
-      0, sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
-    Eigen::Vector3d d_e_w_x = R_e * Eigen::Vector3d(1.0, 0, 0);
-    Eigen::Vector3d d_e_w_y = R_e * Eigen::Vector3d(0, 1.0, 0);
-    Eigen::Vector3d d_e_w_z = R_e * Eigen::Vector3d(0, 0, 1.0);
-    MatrixXd R_e_r = MatrixXd::Zero(3, 3);
-    R_e_r << 0, tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]), -tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]),
-      0, -sin((*x_ptr)[E_R]), -cos((*x_ptr)[E_R]),
-      0, cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), -sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
-    Eigen::Vector3d d_e_e_r = R_e_r * w;
-    MatrixXd R_e_p = MatrixXd::Zero(3, 3);
-    double d_cosp = sin((*x_ptr)[E_P]) / pow(cos((*x_ptr)[E_P]), 2.0);
-    R_e_p << 0, sin((*x_ptr)[E_R]) / pow(cos((*x_ptr)[E_P]), 2.0), cos((*x_ptr)[E_R]) / pow(cos((*x_ptr)[E_P]), 2.0),
-      0, 0, 0,
-      0, sin((*x_ptr)[E_R]) * d_cosp, cos((*x_ptr)[E_R]) * d_cosp;
-    Eigen::Vector3d d_e_e_p = R_e_p * w;
-    for (int i = E_R; i <= E_Y; ++i){
-      (*A_ptr_)(i, W_X) = d_e_w_x(i - E_R);
-      (*A_ptr_)(i, W_Y) = d_e_w_y(i - E_R);
-      (*A_ptr_)(i, W_Z) = d_e_w_z(i - E_R);
-      (*A_ptr_)(i, E_R) = d_e_e_r(i - E_R);
-      (*A_ptr_)(i, E_P) = d_e_e_p(i - E_R);
+    /* q_w, q_x, q_y, q_z */
+    /* d q = 1/2 * q * [0, R * w_b]^T (the multiply opeation is under quaternion multiply) */
+    Quaterniond qw((*x_ptr)[Q_W], (*x_ptr)[Q_X], (*x_ptr)[Q_Y], (*x_ptr)[Q_Z]);
+    MatrixXd rot = qw.toRotationMatrix();
+    MatrixXd rot4 = MatrixXd::Zero(4, 4);
+    for (int i = 0; i < 3; ++i)
+      for (int j = 0; j < 3; ++j)
+        rot4(i+1, j+1) = rot(i, j);
+    MatrixXd q_m = MatrixXd::Zero(4, 4);
+    q_m << qw.w(), -qw.x(), -qw.y(), -qw.z(),
+      qw.x(), qw.w(), qw.z(), -qw.y(),
+      qw.y(), -qw.z(), qw.w(), qw.x(),
+      qw.z(), qw.y(), -qw.x(), qw.w();
+    Vector4d d_q_w_x = 0.5 * q_m * rot4 * Vector4d(0, 1, 0, 0);
+    Vector4d d_q_w_y = 0.5 * q_m * rot4 * Vector4d(0, 0, 1, 0);
+    Vector4d d_q_w_z = 0.5 * q_m * rot4 * Vector4d(0, 0, 0, 1);
+
+    /* d q q = 1/2 * (d q * [0 R] + q * [0 dR]) * [0, w_b]^T */
+    Vector4d w_b4(0, (*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
+    // d qw
+    MatrixXd q_m_w = MatrixXd::Zero(4, 4);
+    q_m_w(0, 0) = q_m_w(1, 1) = q_m_w(2, 2) = q_m_w(3, 3) = 1;
+    MatrixXd rot4_w = MatrixXd::Zero(4, 4);
+    rot4_w << 0, 0, 0, 0,
+      0, 0, -qw.z(), qw.y(),
+      0, qw.z(), 0, -qw.x(),
+      0, -qw.y(), qw.x(), 0;
+    rot4_w = 2 * rot4_w;
+    Vector4d d_q_q_w = 0.5 * (q_m_w * rot4 + q_m * rot4_w) * w_b4;
+    // d qx
+    MatrixXd q_m_x = MatrixXd::Zero(4, 4);
+    q_m_x(1, 0) = q_m_x(2, 3) = 1; q_m_x(0, 1) = q_m_x(3, 2) = -1;
+    MatrixXd rot4_x = MatrixXd::Zero(4, 4);
+    rot4_x << 0, 0, 0, 0,
+      0, 0, qw.y(), qw.z(),
+      0, qw.y(), -2*qw.x(), -qw.w(),
+      0, qw.z(), qw.w(), -2*qw.x();
+    rot4_x = 2 * rot4_x;
+    Vector4d d_q_q_x = 0.5 * (q_m_x * rot4 + q_m * rot4_x) * w_b4;
+    // d qy
+    MatrixXd q_m_y = MatrixXd::Zero(4, 4);
+    q_m_y(2, 0) = q_m_y(3, 1) = 1; q_m_y(0, 2) = q_m_y(1, 3) = -1;
+    MatrixXd rot4_y = MatrixXd::Zero(4, 4);
+    rot4_y << 0, 0, 0, 0,
+      0, -2*qw.y(), qw.x(), qw.w(),
+      0, qw.x(), 0, qw.z(),
+      0, -qw.w(), qw.z(), -2*qw.y();
+    rot4_y = 2 * rot4_y;
+    Vector4d d_q_q_y = 0.5 * (q_m_y * rot4 + q_m * rot4_y) * w_b4;
+    // d qz
+    MatrixXd q_m_z = MatrixXd::Zero(4, 4);
+    q_m_z(1, 2) = q_m_z(3, 0) = 1; q_m_z(2, 1) = q_m_z(0, 3) = -1;
+    MatrixXd rot4_z = MatrixXd::Zero(4, 4);
+    rot4_z << 0, 0, 0, 0,
+      0, -2*qw.z(), -qw.w(), qw.x(),
+      0, qw.w(), -2*qw.z(), qw.y(),
+      0, qw.x(), qw.y(), 0;
+    rot4_z = 2 * rot4_z;
+    Vector4d d_q_q_z = 0.5 * (q_m_z * rot4 + q_m * rot4_z) * w_b4;
+
+    for (int i = 0; i < 4; ++i){
+      (*A_ptr_)(Q_W + i, Q_W) = d_q_q_w(i);
+      (*A_ptr_)(Q_W + i, Q_X) = d_q_q_x(i);
+      (*A_ptr_)(Q_W + i, Q_Y) = d_q_q_y(i);
+      (*A_ptr_)(Q_W + i, Q_Z) = d_q_q_z(i);
+      (*A_ptr_)(Q_W + i, W_X) = d_q_w_x(i);
+      (*A_ptr_)(Q_W + i, W_Y) = d_q_w_y(i);
+      (*A_ptr_)(Q_W + i, W_Z) = d_q_w_z(i);
     }
 
     /* w_x, w_y, w_z */
     /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
     /* d w_w = I.inv() * (sigma - (d wi).cross(Ii * wi) - wi.cross(Ii * dwi) - dIi * dwi) */
-    w = Eigen::Vector3d((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
+    Eigen::Vector3d w = Eigen::Vector3d((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
     Eigen::Matrix3d I_sum = Eigen::Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i)
       I_sum += I_vec_[time_id][i];
@@ -776,17 +834,18 @@ namespace lqr_discrete{
     /* all 0 */
 
     /* v_x, v_y, v_z */
-    /* d v_x = (sin y * sin r + cos y * sin p * cos r) * (u1 + u2 + u3 + u4) / m */
-    (*B_ptr_)(V_X, U_1) = (sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
-                           cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
+    /* d v_x = (2 * q_w * q_y + 2 * q_x * q_z) * u' */
+    (*B_ptr_)(V_X, U_1) = (2 * (*x_ptr)[Q_W] * (*x_ptr)[Q_Y] +
+                           2 * (*x_ptr)[Q_X] * (*x_ptr)[Q_Z])
       / hydrus_weight_;
-    /* d v_y = (-cos y * sin r + sin y * sin p * cos r) * (u1 + u2 + u3 + u4) / m  */
-    (*B_ptr_)(V_Y, U_1) = (-cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
-                           sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
+    /* d v_y = (2 * q_y * q_z - 2 * q_w * q_x) * u' */
+    (*B_ptr_)(V_Y, U_1) = (2 * (*x_ptr)[Q_Y] * (*x_ptr)[Q_Z] -
+                           2 * (*x_ptr)[Q_W] * (*x_ptr)[Q_X])
       / hydrus_weight_;
-    /* d v_z = (cos p * cos r) * (u1 + u2 + u3 + u4) / m */
-    (*B_ptr_)(V_Z, U_1) = (cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
-      / hydrus_weight_;
+    /* d v_z = (1 - 2 * q_x ^2 - 2 * q_y ^2) * u' */
+    (*B_ptr_)(V_Z, U_1) = (1 - 2 * pow((*x_ptr)[Q_X], 2.0) -
+                  2 * pow((*x_ptr)[Q_Y], 2.0))
+      / hydrus_weight_ - 9.78;
     for (int i = V_X; i <= V_Z; ++i)
       for (int j = U_2; j <= U_4; ++j)
       (*B_ptr_)(i, j) = (*B_ptr_)(i, U_1);
@@ -832,28 +891,32 @@ namespace lqr_discrete{
     double u = 0.0;
     for (int i = 0; i < u_size_; ++i)
       u += (*u_ptr)[i];
-    /* d v_x = (sin y * sin r + cos y * sin p * cos r) * (u1 + u2 + u3 + u4) / m */
-    dev_x(V_X) = (sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
-                  cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
+    /* d v_x = (2 * q_w * q_y + 2 * q_x * q_z) * u' */
+    dev_x(V_X) = (2 * (*x_ptr)[Q_W] * (*x_ptr)[Q_Y] +
+                  2 * (*x_ptr)[Q_X] * (*x_ptr)[Q_Z])
       * u / hydrus_weight_;
-    /* d v_y = (-cos y * sin r + sin y * sin p * cos r) * (u1 + u2 + u3 + u4) / m  */
-    dev_x(V_Y) = (-cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
-                  sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
+    /* d v_y = (2 * q_y * q_z - 2 * q_w * q_x) * u' */
+    dev_x(V_Y) = (2 * (*x_ptr)[Q_Y] * (*x_ptr)[Q_Z] -
+                  2 * (*x_ptr)[Q_W] * (*x_ptr)[Q_X])
       * u / hydrus_weight_;
-    /* d v_z = (cos p * cos r) * (u1 + u2 + u3 + u4) / m */
-    dev_x(V_Z) = (cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
+    /* d v_z = (1 - 2 * q_x ^2 - 2 * q_y ^2) * u' */
+    dev_x(V_Z) = (1 - 2 * pow((*x_ptr)[Q_X], 2.0) -
+                  2 * pow((*x_ptr)[Q_Y], 2.0))
       * u / hydrus_weight_ - 9.78;
 
-    /* e_r, e_p, e_y */
-    /* d e = R_e * w_b */
-    Eigen::Vector3d w((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
-    MatrixXd R_e = MatrixXd::Zero(3, 3);
-    R_e << 1, tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]), tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]),
-      0, cos((*x_ptr)[E_R]), -sin((*x_ptr)[E_R]),
-      0, sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
-    Eigen::Vector3d d_e = R_e * w;
-    for (int i = E_R; i <= E_Y; ++i)
-      dev_x(i) = d_e(i - E_R);
+    /*q_w, ..., q_z */
+    /* d q = 1/2 * q * [0, R * w_b]^T (the multiply opeation is under quaternion multiply) */
+    Quaterniond q((*x_ptr)[Q_W], (*x_ptr)[Q_X], (*x_ptr)[Q_Y], (*x_ptr)[Q_Z]);
+    VectorXd w_b(3), w_w(3);
+    w_b << (*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z];
+    w_w = q.toRotationMatrix() * w_b;
+    // d q = q * ([0, R * w_b]^T / 2.0)
+    Quaterniond w_b_extend(0, w_w[0] / 2.0, w_w[1] / 2.0, w_w[2] / 2.0);
+    Quaterniond dev_q = q * w_b_extend;
+    dev_x(Q_W) = dev_q.w();
+    dev_x(Q_X) = dev_q.x();
+    dev_x(Q_Y) = dev_q.y();
+    dev_x(Q_Z) = dev_q.z();
 
     /* w_x, w_y, w_z */
     /* d w = I.inv() * (sigma ri.cross(fi) + [0;0;fi * M_z(i)] - Ii*Jq_i*ddq - wi.cross(Ii * wi) - dIi * wi) */
@@ -863,7 +926,7 @@ namespace lqr_discrete{
     VectorXd ddq = getCurrentJoint(time_id/control_freq_, 2);
     for (int i = 0; i < n_links_; ++i){
       MatrixXd JW_mat = getJacobianW(i);
-      Eigen::Vector3d wi = w + VectorXdTo3d(JW_mat * dq);
+      Eigen::Vector3d wi = w_b + VectorXdTo3d(JW_mat * dq);
       double fi = (*u_ptr)[i];
       mid_result +=
         (link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id]).
@@ -884,20 +947,29 @@ namespace lqr_discrete{
     *new_relative_x_ptr = getRelativeState(&new_x);
   }
 
-  void SlqFiniteDiscreteControlHydrus::normalizeQuaternion(VectorXd *new_x_ptr){
+  void SlqFiniteDiscreteControlHydrus::normalizeQuaternion(VectorXd *q_ptr){
     double q_sum = 0.0;
-    for (int i = Q_W; i <= Q_Z; ++i)
-      q_sum += pow((*new_x_ptr)(i), 2.0);
+    for (int i = 0; i < 4; ++i)
+      q_sum += pow((*q_ptr)(i), 2.0);
     q_sum = sqrt(q_sum);
     if (q_sum == 0.0){
-      (*new_x_ptr)(Q_W) = 1.0;
-      for (int i = Q_X; i <= Q_Z; ++i)
-        (*new_x_ptr)(i) = 0.0;
+      (*q_ptr)(0) = 1.0;
+      for (int i = 1; i < 4; ++i)
+        (*q_ptr)(i) = 0.0;
     }
     else{
-      for (int i = Q_W; i <= Q_Z; ++i)
-        (*new_x_ptr)(i) = (*new_x_ptr)(i) / q_sum;
+      for (int i = 0; i < 4; ++i)
+        (*q_ptr)(i) = (*q_ptr)(i) / q_sum;
     }
+  }
+
+  void SlqFiniteDiscreteControlHydrus::normalizeStateQuaternion(VectorXd *new_x_ptr){
+    VectorXd q(4);
+    for (int i = Q_W; i <= Q_Z; ++i)
+      q[i - Q_W] = (*new_x_ptr)(i);
+    normalizeQuaternion(&q);
+    for (int i = Q_W; i <= Q_Z; ++i)
+      (*new_x_ptr)(i) = q[i - Q_W];
   }
 
   bool SlqFiniteDiscreteControlHydrus::feedforwardConverged(){
@@ -1045,8 +1117,10 @@ namespace lqr_discrete{
     Quaterniond q1((*x1_ptr)[Q_W], (*x1_ptr)[Q_X], (*x1_ptr)[Q_Y], (*x1_ptr)[Q_Z]);
     Quaterniond q2((*x2_ptr)[Q_W], (*x2_ptr)[Q_X], (*x2_ptr)[Q_Y], (*x2_ptr)[Q_Z]);
     Quaterniond q = q1 * q2;
-    for (int i = Q_W; i <= Q_Z; ++i)
-      result(i) = q(i - Q_W);
+    result(Q_W) = q.w();
+    result(Q_X) = q.x();
+    result(Q_Y) = q.y();
+    result(Q_Z) = q.z();
     return result;
   }
 
@@ -1057,8 +1131,10 @@ namespace lqr_discrete{
     Quaterniond q1((*x1_ptr)[Q_W], (*x1_ptr)[Q_X], (*x1_ptr)[Q_Y], (*x1_ptr)[Q_Z]);
     Quaterniond q2((*x2_ptr)[Q_W], (*x2_ptr)[Q_X], (*x2_ptr)[Q_Y], (*x2_ptr)[Q_Z]);
     Quaterniond q = q1 * q2.inverse();
-    for (int i = Q_W; i <= Q_Z; ++i)
-      result(i) = q(i - Q_W);
+    result(Q_W) = q.w();
+    result(Q_X) = q.x();
+    result(Q_Y) = q.y();
+    result(Q_Z) = q.z();
     return result;
   }
 
