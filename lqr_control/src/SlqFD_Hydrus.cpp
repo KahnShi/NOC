@@ -413,7 +413,7 @@ namespace lqr_discrete{
     if (debug_)
       std::cout << "\nAlpha selected: " << alpha_candidate_ << "\n\n";
 
-    // test K with every new state
+    // update new state
     VectorXd cur_x(x_size_);
     cur_x = x_vec_[0];
     for (int i = 0; i < iteration_times_; ++i){
@@ -554,7 +554,7 @@ namespace lqr_discrete{
       for (int i = 0; i < n_links_ - 1; ++i)
         joint(i) = PI / 2.0;
     }
-    return joint;
+    // return joint;
 
     // example: end time is 6s: [0, 5] 1.57; [5, 5.5] 1.57-3.14*(t-5.0)^2; [5.5, 6] 3.14*(t-6.0)^2
     // double action_period = 2.0;
