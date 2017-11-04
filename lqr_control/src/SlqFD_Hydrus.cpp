@@ -218,9 +218,10 @@ namespace lqr_discrete{
                      B_ptr_->transpose() * (*Riccati_P_ptr_) * (*B_ptr_)).inverse()
       * (B_ptr_->transpose() * (*Riccati_P_ptr_) * (*A_ptr_));
 
-    double lqr_cost = calculateCostFunction();
-    if (debug_)
+    if (debug_){
+      double lqr_cost = calculateCostFunction();
       std::cout << "\n Cost: " << lqr_cost << "\n\n";
+    }
     ROS_INFO("[SLQ] Initialization finished.");
   }
 
@@ -366,7 +367,9 @@ namespace lqr_discrete{
     double energy_min = -1.0;
     double search_rate = 2.0;
     /* When there are no middle waypoints, feedforward term is 0. */
+    bool alpha_iteration_flag = true;
     if (waypoints_ptr_->size() == 2 || feedforwardConverged()){
+      alpha_iteration_flag = false;
       if (debug_)
         std::cout << "[SLQ] feedforward converge.";
     }
@@ -413,8 +416,10 @@ namespace lqr_discrete{
         alpha_ = alpha_ / search_rate;
       }
     }
-    if (debug_)
-      std::cout << "\nAlpha selected: " << alpha_candidate_ << "\n\n";
+    if (debug_ && alpha_iteration_flag){
+      std::cout << "\nMininum energy: " << energy_min << "\n";
+      std::cout << "Alpha selected: " << alpha_candidate_ << "\n\n";
+    }
 
     // update new state
     VectorXd cur_x(x_size_);
@@ -436,8 +441,10 @@ namespace lqr_discrete{
       if (i == iteration_times_ - 1)
         x_vec_[iteration_times_] = new_x;
     }
-    double traj_cost = calculateCostFunction();
-    std::cout << "\n Cost: " << traj_cost << "\n\n";
+    if (debug_ && !alpha_iteration_flag){
+      double traj_cost = calculateCostFunction();
+      std::cout << "\n Cost: " << traj_cost << "\n\n";
+    }
     infinite_feedback_update_flag_ = false;
   }
 
@@ -1109,9 +1116,19 @@ namespace lqr_discrete{
   double SlqFiniteDiscreteControlHydrus::calculateCostFunction(){
     double cost = 0.0;
     for (int i = 0; i < iteration_times_; ++i){
+      // normal cost
       cost += (u_vec_[i].transpose() * (*R_ptr_) * u_vec_[i]
                + x_vec_[i].transpose() * (*Q0_ptr_) * x_vec_[i])(0);
+      // waypoint cost
+      VectorXd real_x = getAbsoluteState(&(x_vec_[i]));
+      for (int j = 1; j < waypoints_ptr_->size(); ++j){
+        MatrixXd W = MatrixXd::Zero(x_size_, x_size_);
+        updateWaypointWeightMatrix(i * end_time_ / iteration_times_, (*time_ptr_)[j] - (*time_ptr_)[0], &W, j == (waypoints_ptr_->size() - 1));
+        VectorXd dx_pt = stateSubtraction(&real_x, &((*waypoints_ptr_)[j]));
+        cost += (dx_pt.transpose() * W * dx_pt)(0);
+      }
     }
+    // final time(tf) cost
     cost += (x_vec_[iteration_times_].transpose() * (*Riccati_P_ptr_) * x_vec_[iteration_times_])(0);
     return cost;
   }
