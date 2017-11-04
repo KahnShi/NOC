@@ -450,11 +450,6 @@ namespace lqr_discrete{
     // save for infinite state
     if (!infinite_feedback_update_flag_){
       infinite_feedback_update_flag_ = true;
-      u_vec_last_ = u_vec_[iteration_times_ - 1];
-      alpha_candidate_last_ = alpha_candidate_;
-      u_fw_vec_last_ = u_fw_vec_[iteration_times_ - 1];
-      K_vec_last_ = K_vec_[iteration_times_ - 1];
-      x_vec_last_ = x_vec_[iteration_times_ - 1];
       xn_last_ = *xn_ptr_;
     }
 
@@ -477,12 +472,6 @@ namespace lqr_discrete{
     // method 3:
     VectorXd stable_u = getStableThrust(id);
     new_u = new_u + stable_u;
-    // test
-    static int h_cnt = 0;
-    if (h_cnt % 50 == 0){
-      std::cout << "\nid: " << id << "stable u: " << stable_u.transpose() << "\n\n";
-    }
-    ++h_cnt;
     return new_u;
   }
 
@@ -572,7 +561,7 @@ namespace lqr_discrete{
       for (int i = 0; i < n_links_ - 1; ++i)
         joint(i) = PI / 2.0;
     }
-    // return joint;
+    return joint;
 
     // example: end time is 6s: [0, 5] 1.57; [5, 5.5] 1.57-3.14*(t-5.0)^2; [5.5, 6] 3.14*(t-6.0)^2
     // double action_period = 2.0;

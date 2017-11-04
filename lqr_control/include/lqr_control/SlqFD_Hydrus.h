@@ -99,11 +99,6 @@ namespace lqr_discrete{
     LqrFiniteDiscreteControlQuadrotor *lqr_controller_ptr_;
 
     /* infinite state */
-    VectorXd u_vec_last_;
-    double alpha_candidate_last_;
-    VectorXd u_fw_vec_last_;
-    MatrixXd K_vec_last_;
-    VectorXd x_vec_last_;
     VectorXd stable_u_last_;
     VectorXd xn_last_;
     bool infinite_feedback_update_flag_;
