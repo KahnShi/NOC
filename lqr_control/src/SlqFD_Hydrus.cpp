@@ -365,7 +365,8 @@ namespace lqr_discrete{
     alpha_candidate_ = 1.0;
     double energy_min = -1.0;
     double search_rate = 2.0;
-    if (feedforwardConverged()){
+    /* When there are no middle waypoints, feedforward term is 0. */
+    if (waypoints_ptr_->size() == 2 || feedforwardConverged()){
       if (debug_)
         std::cout << "[SLQ] feedforward converge.";
     }
