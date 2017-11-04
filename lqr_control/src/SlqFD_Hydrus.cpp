@@ -463,14 +463,7 @@ namespace lqr_discrete{
     VectorXd cur_x = getRelativeState(cur_real_x_ptr);
     new_u = u_vec_[id] + alpha_candidate_ * u_fw_vec_[id] + K_vec_[id] * (cur_x - x_vec_[id]);
     checkControlInputFeasible(&new_u, id);
-    // method 1:
-    // VectorXd un = VectorXd(4);
-    // un << 9.34459, 9.70679, 8.71779, 8.35559; // to adapt to simulation
-    // new_u = new_u + un;
-    // method 2:
-    // new_u = new_u + *un_ptr_;
-    // method 3:
-    VectorXd stable_u = getStableThrust(id);
+    VectorXd stable_u = un_vec_[id];
     new_u = new_u + stable_u;
     return new_u;
   }
