@@ -114,6 +114,7 @@ namespace lqr_discrete{
     void getRiccatiH();
     void iterativeOptimization();
     void updateNewState(VectorXd *new_x_ptr, VectorXd *x_ptr, VectorXd *u_ptr, int time_id);
+    void normalizeQuaternion(VectorXd *new_x_ptr);
     bool feedforwardConverged();
     VectorXd infiniteFeedbackControl(VectorXd *cur_real_x_ptr);
     VectorXd highFrequencyFeedbackControl(double relative_time, VectorXd *cur_real_x_ptr);

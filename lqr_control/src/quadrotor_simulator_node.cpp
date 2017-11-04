@@ -46,12 +46,13 @@ int main(int argc, char **argv)
 
   std::vector<VectorXd> way_pts_vec;
   std::vector<double> period_vec;
-  VectorXd start_state = VectorXd::Zero(12);
+  VectorXd start_state = VectorXd::Zero(13);
   nh_private.param("start_x", start_state(0), 10.0);
   nh_private.param("start_y", start_state(1), 5.0);
   nh_private.param("start_z", start_state(2), 3.0);
   double start_time;
   nh_private.param("start_time", start_time, 0.0);
+  start_state(Q_W) = 1.0;
   // start_state(0) = 10.0;
   // start_state(1) = 5.0;
   // start_state(2) = 3.0;
@@ -72,13 +73,14 @@ int main(int argc, char **argv)
   // way_pts_vec.push_back(mid_state);
   // period_vec.push_back(3.0);
 
-  VectorXd end_state = VectorXd::Zero(12);
+  VectorXd end_state = VectorXd::Zero(13);
   nh_private.param("end_x", end_state(0), 10.0);
   nh_private.param("end_y", end_state(1), 5.0);
   nh_private.param("end_z", end_state(2), 3.0);
   double end_time;
   nh_private.param("end_time", end_time, 6.0);
   end_state(E_Y) = -1.0;
+  end_state(Q_W) = 1.0;
   // end_state(0) = 12.0;
   // end_state(1) = 3.0;
   // end_state(2) = 6.0;

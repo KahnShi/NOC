@@ -72,7 +72,7 @@ namespace lqr_discrete{
     M_z_(2) = -c_rf;
     M_z_(3) = c_rf;
 
-    x_size_ = 12;
+    x_size_ = 13;
     u_size_ = 4;
     A_ptr_ = new MatrixXd(x_size_, x_size_);
     B_ptr_ = new MatrixXd(x_size_, u_size_);
@@ -105,7 +105,7 @@ namespace lqr_discrete{
       (*Q0_ptr_)(i, i) = Q_v_para;
     for (int i = W_X; i <= W_Z; ++i)
       (*Q0_ptr_)(i, i) = Q_w_para;
-    for (int i = E_R; i <= E_Y; ++i)
+    for (int i = Q_W; i <= Q_Z; ++i)
       (*Q0_ptr_)(i, i) = Q_e_para;
     // test: weight on z
     (*Q0_ptr_)(P_Z, P_Z) = (*Q0_ptr_)(V_Z, V_Z) = Q_z_para;
@@ -564,7 +564,7 @@ namespace lqr_discrete{
       for (int i = 0; i < n_links_ - 1; ++i)
         joint(i) = PI / 2.0;
     }
-    // return joint;
+    return joint;
 
     // example: end time is 6s: [0, 5] 1.57; [5, 5.5] 1.57-3.14*(t-5.0)^2; [5.5, 6] 3.14*(t-6.0)^2
     // double action_period = 2.0;
@@ -884,6 +884,22 @@ namespace lqr_discrete{
     *new_relative_x_ptr = getRelativeState(&new_x);
   }
 
+  void SlqFiniteDiscreteControlHydrus::normalizeQuaternion(VectorXd *new_x_ptr){
+    double q_sum = 0.0;
+    for (int i = Q_W; i <= Q_Z; ++i)
+      q_sum += pow((*new_x_ptr)(i), 2.0);
+    q_sum = sqrt(q_sum);
+    if (q_sum == 0.0){
+      (*new_x_ptr)(Q_W) = 1.0;
+      for (int i = Q_X; i <= Q_Z; ++i)
+        (*new_x_ptr)(i) = 0.0;
+    }
+    else{
+      for (int i = Q_W; i <= Q_Z; ++i)
+        (*new_x_ptr)(i) = (*new_x_ptr)(i) / q_sum;
+    }
+  }
+
   bool SlqFiniteDiscreteControlHydrus::feedforwardConverged(){
     double fw_max = 0.0;
     for (int i = 0; i < iteration_times_; ++i){
@@ -1025,24 +1041,32 @@ namespace lqr_discrete{
   VectorXd SlqFiniteDiscreteControlHydrus::stateAddition(VectorXd *x1_ptr, VectorXd *x2_ptr){
     VectorXd result(x_size_);
     result = (*x1_ptr) + (*x2_ptr);
-    // todo: euler angle addition
+    // quaternion addition
+    Quaterniond q1((*x1_ptr)[Q_W], (*x1_ptr)[Q_X], (*x1_ptr)[Q_Y], (*x1_ptr)[Q_Z]);
+    Quaterniond q2((*x2_ptr)[Q_W], (*x2_ptr)[Q_X], (*x2_ptr)[Q_Y], (*x2_ptr)[Q_Z]);
+    Quaterniond q = q1 * q2;
+    for (int i = Q_W; i <= Q_Z; ++i)
+      result(i) = q(i - Q_W);
     return result;
   }
 
   VectorXd SlqFiniteDiscreteControlHydrus::stateSubtraction(VectorXd *x1_ptr, VectorXd *x2_ptr){
     VectorXd result(x_size_);
     result = (*x1_ptr) - (*x2_ptr);
-    // todo: euler angle subtraction
+    // quaternion subtraction
+    Quaterniond q1((*x1_ptr)[Q_W], (*x1_ptr)[Q_X], (*x1_ptr)[Q_Y], (*x1_ptr)[Q_Z]);
+    Quaterniond q2((*x2_ptr)[Q_W], (*x2_ptr)[Q_X], (*x2_ptr)[Q_Y], (*x2_ptr)[Q_Z]);
+    Quaterniond q = q1 * q2.inverse();
+    for (int i = Q_W; i <= Q_Z; ++i)
+      result(i) = q(i - Q_W);
     return result;
   }
 
   VectorXd SlqFiniteDiscreteControlHydrus::getAbsoluteState(VectorXd *relative_x_ptr){
-    // todo
-    return stateAddition(relative_x_ptr, xn_ptr_);
+    return stateAddition(xn_ptr_, relative_x_ptr);
   }
 
   VectorXd SlqFiniteDiscreteControlHydrus::getRelativeState(VectorXd *absolute_x_ptr){
-    // todo
     return stateSubtraction(absolute_x_ptr, xn_ptr_);
   }
 
