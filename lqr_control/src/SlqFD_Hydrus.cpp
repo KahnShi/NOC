@@ -365,8 +365,10 @@ namespace lqr_discrete{
     alpha_candidate_ = 1.0;
     double energy_min = -1.0;
     double search_rate = 2.0;
-    if (feedforwardConverged() && debug_)
-      std::cout << "[SLQ] feedforward converge.";
+    if (feedforwardConverged()){
+      if (debug_)
+        std::cout << "[SLQ] feedforward converge.";
+    }
     else{
       for (int factor = 0; factor < line_search_steps_; ++factor){
         double energy_sum = 0.0;
