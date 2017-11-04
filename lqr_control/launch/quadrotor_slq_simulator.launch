@@ -9,7 +9,7 @@
     <param name="Q_p_para" value="10.0" />
     <param name="Q_v_para" value="10.0" />
     <param name="Q_w_para" value="10.0" />
-    <param name="Q_e_para" value="100.0" />
+    <param name="Q_e_para" value="1.0" />
     <param name="Q_z_para" value="50.0" />
     <param name="start_x" value="10.0" />
     <param name="start_y" value="5.0" />

@@ -79,7 +79,6 @@ int main(int argc, char **argv)
   nh_private.param("end_z", end_state(2), 3.0);
   double end_time;
   nh_private.param("end_time", end_time, 6.0);
-  end_state(E_Y) = -1.0;
   end_state(Q_W) = 1.0;
   // end_state(0) = 12.0;
   // end_state(1) = 3.0;
