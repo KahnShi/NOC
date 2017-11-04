@@ -78,6 +78,7 @@ int main(int argc, char **argv)
   nh_private.param("end_z", end_state(2), 3.0);
   double end_time;
   nh_private.param("end_time", end_time, 6.0);
+  end_state(E_Y) = -1.0;
   // end_state(0) = 12.0;
   // end_state(1) = 3.0;
   // end_state(2) = 6.0;
@@ -90,6 +91,7 @@ int main(int argc, char **argv)
   period_vec.push_back(end_time);
 
   quadrotor_sim_node->initQuadrotorSimulator(&way_pts_vec, &period_vec, 20.0);
+  quadrotor_sim_node->visualizeTrajectory();
   quadrotor_sim_node->planOptimalTrajectory();
   quadrotor_sim_node->visualizeTrajectory();
 
