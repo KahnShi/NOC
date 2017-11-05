@@ -50,6 +50,8 @@ namespace lqr_discrete{
     nhp_.param("Q_w_para", Q_w_para, 10.0);
     nhp_.param("Q_e_para", Q_e_para, 100.0);
 
+    debug_ = true;
+
     /* hydrus */
     link_length_ = 0.6;
     n_links_ = 4;
@@ -129,11 +131,12 @@ namespace lqr_discrete{
       end_time_ = period;
       iteration_times_ = floor(freq * period);
     }
-    std::cout << "[SLQ] Trajectory period: " << end_time_
-              << ", Itetation times: " << iteration_times_ << "\n";
-
-    std::cout << "[SLQ] Start position: " << (*waypoints_ptr)[0].transpose() << "\n";
-    std::cout << "[SLQ] End position: " << (*waypoints_ptr)[waypoints_ptr->size()  - 1].transpose() << "\n";
+    if (debug_){
+      std::cout << "[SLQ] Trajectory period: " << end_time_
+                << ", Itetation times: " << iteration_times_ << "\n";
+      std::cout << "[SLQ] Start position: " << (*waypoints_ptr)[0].transpose() << "\n";
+      std::cout << "[SLQ] End position: " << (*waypoints_ptr)[waypoints_ptr->size()  - 1].transpose() << "\n";
+    }
 
     if (waypoints_ptr_->size())
       waypoints_ptr_->clear();
@@ -211,7 +214,6 @@ namespace lqr_discrete{
 
     line_search_steps_ = 4;
 
-    debug_ = true;
     FDLQR();
     getRiccatiH();
     *IDlqr_F_ptr_ = (*R_ptr_ +
