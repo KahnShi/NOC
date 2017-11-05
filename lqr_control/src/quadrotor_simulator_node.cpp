@@ -98,6 +98,7 @@ int main(int argc, char **argv)
   period_vec.push_back(end_time);
 
   quadrotor_sim_node->initQuadrotorSimulator(&way_pts_vec, &period_vec, 10.0);
+  quadrotor_sim_node->visualizeTrajectory();
   quadrotor_sim_node->planOptimalTrajectory();
   quadrotor_sim_node->visualizeTrajectory();
 

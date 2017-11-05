@@ -57,7 +57,7 @@ namespace quadrotor_simulator{
     controller_freq_ = controller_freq;
     // controller_ptr_->initLQR(controller_freq_, period_, start_state_ptr_, end_state_ptr_);
     controller_ptr_->initSLQ(controller_freq_, time_ptr_, waypoints_ptr_);
-    visualizeTrajectory();
+    // visualizeTrajectory();
     ROS_INFO("[QuadrotorSimulator] init finished.");
   }
 
