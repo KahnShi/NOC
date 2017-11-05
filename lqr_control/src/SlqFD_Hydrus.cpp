@@ -461,6 +461,14 @@ namespace lqr_discrete{
     infinite_feedback_update_flag_ = false;
   }
 
+  VectorXd SlqFiniteDiscreteControlHydrus::getCurrentIdealPosition(double relative_time){
+    int id = floor(relative_time * control_freq_);
+    if (id > iteration_times_ - 1){
+      id = iteration_times_ - 1;
+    }
+    return getAbsoluteState(&(x_vec_[id]));
+  }
+
   VectorXd SlqFiniteDiscreteControlHydrus::highFrequencyFeedbackControl(double relative_time, VectorXd *cur_real_x_ptr){
     // save for infinite state
     if (!infinite_feedback_update_flag_){
