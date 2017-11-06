@@ -178,6 +178,7 @@ namespace lqr_discrete{
       u_vec_.clear();
       joint_vec_.clear();
       joint_dt_vec_.clear();
+      joint_ddt_vec_.clear();
       I_vec_.clear();
       I_dt_vec_.clear();
       link_center_pos_local_vec_.clear();
@@ -197,8 +198,10 @@ namespace lqr_discrete{
       u_vec_.push_back(u_init);
       VectorXd cur_joint = getCurrentJoint(double(i)/control_freq_);
       VectorXd cur_joint_dt = getCurrentJoint(double(i)/control_freq_, 1);
+      VectorXd cur_joint_ddt = getCurrentJoint(double(i)/control_freq_, 2);
       joint_vec_.push_back(cur_joint);
       joint_dt_vec_.push_back(cur_joint_dt);
+      joint_ddt_vec_.push_back(cur_joint_ddt);
       getHydrusLinksCenter(&cur_joint);
       getHydrusLinksCenterDerivative(&cur_joint, &cur_joint_dt);
       updateHydrusCogPosition(i);
@@ -534,7 +537,7 @@ namespace lqr_discrete{
     Eigen::Vector3d dw;
     Eigen::Vector3d momentum = Eigen::Vector3d::Zero();
     VectorXd dq = joint_dt_vec_[time_id];
-    VectorXd ddq = getCurrentJoint(time_id/control_freq_, 2);
+    VectorXd ddq = joint_ddt_vec_[time_id];
     for (int i = 0; i < n_links_; ++i){
       MatrixXd JW_mat = getJacobianW(i);
       Eigen::Vector3d wi = w + VectorXdTo3d(JW_mat * dq);
@@ -862,7 +865,7 @@ namespace lqr_discrete{
     Eigen::Vector3d dw;
     Eigen::Vector3d mid_result = Eigen::Vector3d::Zero();
     VectorXd dq = joint_dt_vec_[time_id];
-    VectorXd ddq = getCurrentJoint(time_id/control_freq_, 2);
+    VectorXd ddq = joint_ddt_vec_[time_id];
     for (int i = 0; i < n_links_; ++i){
       MatrixXd JW_mat = getJacobianW(i);
       Eigen::Vector3d wi = w + VectorXdTo3d(JW_mat * dq);
