@@ -104,6 +104,14 @@ namespace lqr_discrete{
     VectorXd xn_last_;
     bool infinite_feedback_update_flag_;
 
+    /* dynamic freqency */
+    double control_high_freq_;
+    double control_low_freq_;
+    double high_freq_iteration_times_;
+    double low_freq_iteration_times_;
+    double high_freq_end_time_;
+    double low_freq_end_time_;
+
     /* Ros service */
     ros::ServiceClient dare_client_;
 
