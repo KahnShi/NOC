@@ -221,9 +221,6 @@ namespace lqr_discrete{
     for (int i = 0; i <= iteration_times_; ++i){
       x_vec_.push_back(x_init);
       u_vec_.push_back(u_init);
-      VectorXd cur_joint = getCurrentJoint(double(i)/control_freq_);
-      VectorXd cur_joint_dt = getCurrentJoint(double(i)/control_freq_, 1);
-      VectorXd cur_joint_ddt = getCurrentJoint(double(i)/control_freq_, 2);
       double cur_time;
       if (i <= high_freq_iteration_times_)
         cur_time = i / control_high_freq_;
@@ -232,6 +229,7 @@ namespace lqr_discrete{
           (i - high_freq_iteration_times_) / control_low_freq_;
       VectorXd cur_joint = getCurrentJoint(cur_time);
       VectorXd cur_joint_dt = getCurrentJoint(cur_time, 1);
+      VectorXd cur_joint_ddt = getCurrentJoint(cur_time, 2);
       joint_vec_.push_back(cur_joint);
       joint_dt_vec_.push_back(cur_joint_dt);
       joint_ddt_vec_.push_back(cur_joint_ddt);
