@@ -224,6 +224,14 @@ namespace lqr_discrete{
       VectorXd cur_joint = getCurrentJoint(double(i)/control_freq_);
       VectorXd cur_joint_dt = getCurrentJoint(double(i)/control_freq_, 1);
       VectorXd cur_joint_ddt = getCurrentJoint(double(i)/control_freq_, 2);
+      double cur_time;
+      if (i <= high_freq_iteration_times_)
+        cur_time = i / control_high_freq_;
+      else
+        cur_time = high_freq_iteration_times_ +
+          (i - high_freq_iteration_times_) / control_low_freq_;
+      VectorXd cur_joint = getCurrentJoint(cur_time);
+      VectorXd cur_joint_dt = getCurrentJoint(cur_time, 1);
       joint_vec_.push_back(cur_joint);
       joint_dt_vec_.push_back(cur_joint_dt);
       joint_ddt_vec_.push_back(cur_joint_ddt);
@@ -479,7 +487,13 @@ namespace lqr_discrete{
   }
 
   VectorXd SlqFiniteDiscreteControlHydrus::getCurrentIdealPosition(double relative_time){
-    int id = floor(relative_time * control_freq_);
+    int id;
+    if (relative_time <= high_freq_end_time_)
+      id = floor(relative_time * control_high_freq_);
+    else
+      id = high_freq_iteration_times_ +
+        floor((relative_time - high_freq_end_time_) * control_low_freq_);
+
     if (id > iteration_times_ - 1){
       id = iteration_times_ - 1;
     }
@@ -494,7 +508,13 @@ namespace lqr_discrete{
     }
 
     // relative_time is (current time - start time)
-    int id = floor(relative_time * control_freq_);
+    int id;
+    if (relative_time <= high_freq_end_time_)
+      id = floor(relative_time * control_high_freq_);
+    else
+      id = high_freq_iteration_times_ +
+        floor((relative_time - high_freq_end_time_) * control_low_freq_);
+
     if (id > iteration_times_ - 1){
       id = iteration_times_ - 1;
       return infiniteFeedbackControl(cur_real_x_ptr);
@@ -521,7 +541,13 @@ namespace lqr_discrete{
     VectorXd new_u = VectorXd::Zero(u_size_);
     VectorXd cur_x = getRelativeState(cur_real_x_ptr);
     // relative_time is (current time - start time)
-    int id = floor(relative_time * control_freq_);
+    int id;
+    if (relative_time <= high_freq_end_time_)
+      id = floor(relative_time * control_high_freq_);
+    else
+      id = high_freq_iteration_times_ +
+        floor((relative_time - high_freq_end_time_) * control_low_freq_);
+
     if (id > iteration_times_ - 1){
       id = iteration_times_;
       new_u = -(*IDlqr_F_ptr_) * cur_x;
@@ -793,7 +819,10 @@ namespace lqr_discrete{
       (*A_ptr_)(i, W_X) = d_w_w_i_vec[2](i - W_X);
     }
 
-    (*A_ptr_) = (*A_ptr_) / control_freq_ + MatrixXd::Identity(x_size_, x_size_);
+    if (time_id < high_freq_iteration_times_)
+      (*A_ptr_) = (*A_ptr_) / control_high_freq_ + MatrixXd::Identity(x_size_, x_size_);
+    else
+      (*A_ptr_) = (*A_ptr_) / control_low_freq_ + MatrixXd::Identity(x_size_, x_size_);
   }
 
   void SlqFiniteDiscreteControlHydrus::updateMatrixB(int time_id){
@@ -840,7 +869,10 @@ namespace lqr_discrete{
         (*B_ptr_)(W_X + j, U_1 + i) = dw_u_i(j);
     }
 
-    (*B_ptr_) = (*B_ptr_) / control_freq_;
+    if (time_id < high_freq_iteration_times_)
+      (*B_ptr_) = (*B_ptr_) / control_high_freq_;
+    else
+      (*B_ptr_) = (*B_ptr_) / control_low_freq_;
   }
 
   void SlqFiniteDiscreteControlHydrus::updateNewState(VectorXd *new_relative_x_ptr, VectorXd *relative_x_ptr, VectorXd *relative_u_ptr, int time_id){
@@ -910,7 +942,11 @@ namespace lqr_discrete{
     for (int i = 0; i < 3; ++i)
       dev_x(W_X + i) = dw(i);
 
-    VectorXd new_x = dev_x / control_freq_ + *x_ptr;
+    VectorXd new_x;
+    if (time_id < high_freq_iteration_times_)
+      new_x = dev_x / control_high_freq_ + *x_ptr;
+    else
+      new_x = dev_x / control_low_freq_ + *x_ptr;
     *new_relative_x_ptr = getRelativeState(&new_x);
   }
 
