@@ -122,15 +122,40 @@ namespace lqr_discrete{
 
   void SlqFiniteDiscreteControlHydrus::initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr){
     control_freq_ = freq;
+    // Here we assume frequency is an odd integer
+    control_high_freq_ = freq;
+    control_low_freq_ = freq / 2.0;
     double period = (*time_ptr)[time_ptr->size() - 1] - (*time_ptr)[0];
-    if (floor(freq * period) < freq * period){
-      end_time_ = (floor(freq * period) + 1.0) / freq;
-      iteration_times_ = floor(freq * period) + 1;
+    double high_freq_default_period = 1.0;
+    if (period <= high_freq_default_period){
+      double high_freq_period = period;
+      if (floor(control_high_freq_ * high_freq_period) < control_high_freq_ * high_freq_period){
+        end_time_ = (floor(control_high_freq_ * high_freq_period) + 1.0) / control_high_freq_;
+        iteration_times_ = floor(control_high_freq_ * high_freq_period) + 1;
+      }
+      else{
+        end_time_ = high_freq_period;
+        iteration_times_ = floor(control_high_freq_ * high_freq_period);
+      }
+      high_freq_end_time_ = end_time_;
+      low_freq_end_time_ = end_time_;
+      high_freq_iteration_times_ = iteration_times_;
+      low_freq_end_time_ = 0.0;
     }
     else{
-      end_time_ = period;
-      iteration_times_ = floor(freq * period);
+      double low_freq_period = period - high_freq_default_period;
+      high_freq_end_time_ = high_freq_default_period;
+      high_freq_iteration_times_ = floor(control_high_freq_ * high_freq_end_time_);
+      if (floor(control_low_freq_ * low_freq_period) < control_low_freq_ * low_freq_period){
+        end_time_ = (floor(control_low_freq_ * low_freq_period) + 1.0) / control_low_freq_ + high_freq_end_time_;
+        iteration_times_ = floor(control_low_freq_ * low_freq_period) + 1 + high_freq_iteration_times_;
+      }
+      else{
+        end_time_ = period;
+        iteration_times_ = floor(control_low_freq_ * low_freq_period) + high_freq_iteration_times_;
+      }
     }
+
     if (debug_){
       std::cout << "[SLQ] Trajectory period: " << end_time_
                 << ", Itetation times: " << iteration_times_ << "\n";
