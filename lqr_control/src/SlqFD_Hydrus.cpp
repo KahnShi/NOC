@@ -140,19 +140,23 @@ namespace lqr_discrete{
       high_freq_end_time_ = end_time_;
       low_freq_end_time_ = end_time_;
       high_freq_iteration_times_ = iteration_times_;
-      low_freq_end_time_ = 0.0;
+      low_freq_iteration_times_ = 0.0;
     }
     else{
       double low_freq_period = period - high_freq_default_period;
       high_freq_end_time_ = high_freq_default_period;
       high_freq_iteration_times_ = floor(control_high_freq_ * high_freq_end_time_);
       if (floor(control_low_freq_ * low_freq_period) < control_low_freq_ * low_freq_period){
-        end_time_ = (floor(control_low_freq_ * low_freq_period) + 1.0) / control_low_freq_ + high_freq_end_time_;
-        iteration_times_ = floor(control_low_freq_ * low_freq_period) + 1 + high_freq_iteration_times_;
+        low_freq_iteration_times_ = floor(control_low_freq_ * low_freq_period) + 1;
+        end_time_ = low_freq_iteration_times_ / control_low_freq_ + high_freq_end_time_;
+        low_freq_end_time_ = end_time_;
+        iteration_times_ = low_freq_iteration_times_ + high_freq_iteration_times_;
       }
       else{
+        low_freq_iteration_times_ = floor(control_low_freq_ * low_freq_period);
         end_time_ = period;
-        iteration_times_ = floor(control_low_freq_ * low_freq_period) + high_freq_iteration_times_;
+        low_freq_end_time_ = end_time_;
+        iteration_times_ = low_freq_iteration_times_ + high_freq_iteration_times_;
       }
     }
 
@@ -161,6 +165,8 @@ namespace lqr_discrete{
                 << ", Itetation times: " << iteration_times_ << "\n";
       std::cout << "[SLQ] Start position: " << (*waypoints_ptr)[0].transpose() << "\n";
       std::cout << "[SLQ] End position: " << (*waypoints_ptr)[waypoints_ptr->size()  - 1].transpose() << "\n";
+      std::cout << "[SLQ] High frequency end time: " << high_freq_end_time_ << ", times: " << high_freq_iteration_times_ << "\n";
+      std::cout << "[SLQ] Low frequency end time: " << low_freq_end_time_ << ", times: " << low_freq_iteration_times_ << "\n";
     }
 
     if (waypoints_ptr_->size())
@@ -618,7 +624,7 @@ namespace lqr_discrete{
       for (int i = 0; i < n_links_ - 1; ++i)
         joint(i) = PI / 2.0;
     }
-    // return joint;
+    return joint;
 
     // example: end time is 6s: [0, 5] 1.57; [5, 5.5] 1.57-3.14*(t-5.0)^2; [5.5, 6] 3.14*(t-6.0)^2
     // double action_period = 2.0;
