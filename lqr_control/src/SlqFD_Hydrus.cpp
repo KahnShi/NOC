@@ -507,7 +507,7 @@ namespace lqr_discrete{
     if (relative_time <= high_freq_end_time_)
       id = floor(relative_time * control_high_freq_);
     else
-      id = high_freq_iteration_times_ +
+      id = int(high_freq_iteration_times_) +
         floor((relative_time - high_freq_end_time_) * control_low_freq_);
 
     if (id > iteration_times_ - 1){
@@ -528,7 +528,7 @@ namespace lqr_discrete{
     if (relative_time <= high_freq_end_time_)
       id = floor(relative_time * control_high_freq_);
     else
-      id = high_freq_iteration_times_ +
+      id = int(high_freq_iteration_times_) +
         floor((relative_time - high_freq_end_time_) * control_low_freq_);
 
     if (id > iteration_times_ - 1){
@@ -561,7 +561,7 @@ namespace lqr_discrete{
     if (relative_time <= high_freq_end_time_)
       id = floor(relative_time * control_high_freq_);
     else
-      id = high_freq_iteration_times_ +
+      id = int(high_freq_iteration_times_) +
         floor((relative_time - high_freq_end_time_) * control_low_freq_);
 
     if (id > iteration_times_ - 1){
