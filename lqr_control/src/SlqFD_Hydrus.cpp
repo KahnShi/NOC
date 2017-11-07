@@ -372,15 +372,15 @@ namespace lqr_discrete{
 
     for (int i = iteration_times_ - 1; i >= 0; --i){
       // add weight for waypoints
+      double cur_time;
+      if (i <= high_freq_iteration_times_)
+        cur_time = double(i) / control_high_freq_;
+      else
+        cur_time = high_freq_end_time_ +
+          (i - high_freq_iteration_times_) / control_low_freq_;
       std::vector<MatrixXd> W_vec;
       for (int j = 1; j < waypoints_ptr_->size(); ++j){
         MatrixXd W = MatrixXd::Zero(x_size_, x_size_);
-        double cur_time;
-        if (i <= high_freq_iteration_times_)
-          cur_time = double(i) / control_high_freq_;
-        else
-          cur_time = high_freq_end_time_ +
-            (i - high_freq_iteration_times_) / control_low_freq_;
         updateWaypointWeightMatrix(cur_time, (*time_ptr_)[j] - (*time_ptr_)[0], &W, j == (waypoints_ptr_->size() - 1));
         W_vec.push_back(W);
       }
@@ -433,15 +433,15 @@ namespace lqr_discrete{
           checkControlInputFeasible(&cur_u, i);
           // calculate energy
           // add weight for waypoints
+          double cur_time;
+          if (i <= high_freq_iteration_times_)
+            cur_time = double(i) / control_high_freq_;
+          else
+            cur_time = high_freq_end_time_ +
+              (i - high_freq_iteration_times_) / control_low_freq_;
           std::vector<MatrixXd> W_vec;
           for (int j = 1; j < waypoints_ptr_->size(); ++j){
             MatrixXd W = MatrixXd::Zero(x_size_, x_size_);
-            double cur_time;
-            if (i <= high_freq_iteration_times_)
-              cur_time = double(i) / control_high_freq_;
-            else
-              cur_time = high_freq_end_time_ +
-                (i - high_freq_iteration_times_) / control_low_freq_;
             updateWaypointWeightMatrix(cur_time, (*time_ptr_)[j] - (*time_ptr_)[0], &W, j == (waypoints_ptr_->size() - 1));
             W_vec.push_back(W);
           }
@@ -1202,15 +1202,15 @@ namespace lqr_discrete{
       cost += (u_vec_[i].transpose() * (*R_ptr_) * u_vec_[i]
                + x_vec_[i].transpose() * (*Q0_ptr_) * x_vec_[i])(0);
       // waypoint cost
+      double cur_time;
+      if (i <= high_freq_iteration_times_)
+        cur_time = double(i) / control_high_freq_;
+      else
+        cur_time = high_freq_end_time_ +
+          (i - high_freq_iteration_times_) / control_low_freq_;
       VectorXd real_x = getAbsoluteState(&(x_vec_[i]));
       for (int j = 1; j < waypoints_ptr_->size(); ++j){
         MatrixXd W = MatrixXd::Zero(x_size_, x_size_);
-        double cur_time;
-        if (i <= high_freq_iteration_times_)
-          cur_time = double(i) / control_high_freq_;
-        else
-          cur_time = high_freq_end_time_ +
-            (i - high_freq_iteration_times_) / control_low_freq_;
         updateWaypointWeightMatrix(cur_time, (*time_ptr_)[j] - (*time_ptr_)[0], &W, j == (waypoints_ptr_->size() - 1));
         VectorXd dx_pt = stateSubtraction(&real_x, &((*waypoints_ptr_)[j]));
         cost += (dx_pt.transpose() * W * dx_pt)(0);
