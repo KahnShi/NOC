@@ -1292,9 +1292,9 @@ namespace lqr_discrete{
       // return (state_minor + state_max) / 2.0;
 
       // get weight adding
-      return (state_minor * ((id+1) / control_freq_ - relative_time)
-              + state_max * (relative_time - id / control_freq_))
-        * control_freq_;
+      return (state_minor * ((id+1) / control_high_freq_ - relative_time)
+              + state_max * (relative_time - id / control_high_freq_))
+        * control_high_freq_;
     }
   }
 }
