@@ -143,6 +143,7 @@ namespace lqr_discrete{
     void printControlInfo(VectorXd *u, int id);
     void printMatrixAB();
     VectorXd getCurrentIdealPosition(double relative_time);
+    VectorXd estimateFutureState(double relative_time);
   };
 }
 

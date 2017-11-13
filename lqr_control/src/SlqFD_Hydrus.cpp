@@ -50,7 +50,7 @@ namespace lqr_discrete{
     nhp_.param("Q_w_para", Q_w_para, 10.0);
     nhp_.param("Q_e_para", Q_e_para, 100.0);
 
-    debug_ = true;
+    debug_ = false;
 
     /* hydrus */
     link_length_ = 0.6;
@@ -569,7 +569,7 @@ namespace lqr_discrete{
       for (int i = 0; i < n_links_ - 1; ++i)
         joint(i) = PI / 2.0;
     }
-    // return joint;
+    return joint;
 
     // example: end time is 6s: [0, 5] 1.57; [5, 5.5] 1.57-3.14*(t-5.0)^2; [5.5, 6] 3.14*(t-6.0)^2
     // double action_period = 2.0;
@@ -1196,6 +1196,23 @@ namespace lqr_discrete{
       std::cout << ";";
     }
     std::cout << "\n\n";
+  }
+
+  VectorXd SlqFiniteDiscreteControlHydrus::estimateFutureState(double relative_time){
+    int id = floor(relative_time * control_freq_);
+    if (id >= iteration_times_)
+      return getAbsoluteState(&(x_vec_[iteration_times_]));
+    else{
+      VectorXd state_minor = getAbsoluteState(&(x_vec_[id]));
+      VectorXd state_max = getAbsoluteState(&(x_vec_[id+1]));
+      // simpliy average
+      // return (state_minor + state_max) / 2.0;
+
+      // get weight adding
+      return (state_minor * ((id+1) / control_freq_ - relative_time)
+              + state_max * (relative_time - id / control_freq_))
+        * control_freq_;
+    }
   }
 }
 
