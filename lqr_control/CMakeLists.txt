@@ -21,14 +21,14 @@ find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN_INCLUDE_DIRS})
 add_definitions(${EIGEN_DEFINITIONS})
 
-add_service_files(
-  FILES
-  Dare.srv
-  )
-
 add_message_files(
   FILES
   float64Array.msg
+  )
+
+add_service_files(
+  FILES
+  Dare.srv
   )
 
 generate_messages(DEPENDENCIES std_msgs)
