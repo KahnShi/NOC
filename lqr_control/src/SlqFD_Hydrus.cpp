@@ -50,6 +50,10 @@ namespace lqr_discrete{
     nhp_.param("Q_w_para", Q_w_para, 10.0);
     nhp_.param("Q_e_para", Q_e_para, 100.0);
 
+    nhp_.param("dynamic_freqency_flag", dynamic_freqency_flag_, true);
+    nhp_.param("high_freq_least_period", high_freq_least_period_, 1.0);
+    nhp_.param("line_search_steps", line_search_steps_, 4);
+
     debug_ = false;
 
     /* hydrus */
@@ -114,8 +118,8 @@ namespace lqr_discrete{
 
     *R_ptr_ = R_para * MatrixXd::Identity(u_size_, u_size_);
 
-    uav_rotor_thrust_min_ = 0.0;
-    uav_rotor_thrust_max_ = 18.0;
+    uav_rotor_thrust_min_ = 2.0;
+    uav_rotor_thrust_max_ = 16.4;
 
     ROS_INFO("[SLQ] Hydrus init finished.");
   }
@@ -126,8 +130,7 @@ namespace lqr_discrete{
     control_high_freq_ = freq;
     control_low_freq_ = freq / 2.0;
     double period = (*time_ptr)[time_ptr->size() - 1] - (*time_ptr)[0];
-    double high_freq_default_period = 1.0;
-    if (period <= high_freq_default_period){
+    if (dynamic_freqency_flag_ || period <= high_freq_least_period_){
       double high_freq_period = period;
       if (floor(control_high_freq_ * high_freq_period) < control_high_freq_ * high_freq_period){
         end_time_ = (floor(control_high_freq_ * high_freq_period) + 1.0) / control_high_freq_;
@@ -143,8 +146,8 @@ namespace lqr_discrete{
       low_freq_iteration_times_ = 0.0;
     }
     else{
-      double low_freq_period = period - high_freq_default_period;
-      high_freq_end_time_ = high_freq_default_period;
+      double low_freq_period = period - high_freq_least_period_;
+      high_freq_end_time_ = high_freq_least_period_;
       high_freq_iteration_times_ = floor(control_high_freq_ * high_freq_end_time_);
       if (floor(control_low_freq_ * low_freq_period) < control_low_freq_ * low_freq_period){
         low_freq_iteration_times_ = floor(control_low_freq_ * low_freq_period) + 1;
@@ -251,8 +254,6 @@ namespace lqr_discrete{
       un_vec_.push_back(stable_u);
     }
     stable_u_last_ = un_vec_[iteration_times_];
-
-    line_search_steps_ = 4;
 
     FDLQR();
     getRiccatiH();
@@ -1115,6 +1116,12 @@ namespace lqr_discrete{
     VectorXd result(x_size_);
     result = (*x1_ptr) - (*x2_ptr);
     // todo: euler angle subtraction
+    for (int i = x_size_ - 3; i < x_size_; ++i){
+      while (result[i] > PI)
+        result[i] -= 2 * PI;
+      while (result[i] < -PI)
+        result[i] += 2 * PI;
+    }
     return result;
   }
 

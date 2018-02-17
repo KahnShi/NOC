@@ -105,12 +105,14 @@ namespace lqr_discrete{
     bool infinite_feedback_update_flag_;
 
     /* dynamic freqency */
+    bool dynamic_freqency_flag_;
     double control_high_freq_;
     double control_low_freq_;
     double high_freq_iteration_times_;
     double low_freq_iteration_times_;
     double high_freq_end_time_;
     double low_freq_end_time_;
+    double high_freq_least_period_;
 
     /* Ros service */
     ros::ServiceClient dare_client_;
