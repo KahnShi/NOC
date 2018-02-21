@@ -78,7 +78,10 @@ int main(int argc, char **argv)
   way_pts_vec.push_back(end_state);
   period_vec.push_back(6.0);
 
-  hydrus_node->initSLQ(100.0, &period_vec, &way_pts_vec);
+  TennisTaskDescriptor task_descriptor;
+  task_descriptor.hitting_time = 10000.0;
+  task_descriptor.post_hitting_time = 10000.0;
+  hydrus_node->initSLQ(100.0, &period_vec, &way_pts_vec, task_descriptor);
 
   VectorXd x = VectorXd::Zero(12);
   VectorXd q = VectorXd::Zero(3);

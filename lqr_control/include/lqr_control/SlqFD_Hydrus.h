@@ -47,6 +47,10 @@
 
 namespace lqr_discrete{
 #define PI 3.141592653
+  struct TennisTaskDescriptor{
+    double hitting_time;
+    double post_hitting_time;
+  };
   class SlqFiniteDiscreteControlHydrus: public LqrDiscreteControlBase{
   public:
     SlqFiniteDiscreteControlHydrus(ros::NodeHandle nh, ros::NodeHandle nhp):
@@ -114,11 +118,17 @@ namespace lqr_discrete{
     double low_freq_end_time_;
     double high_freq_least_period_;
 
+    /* tennis task */
+    TennisTaskDescriptor tennis_task_descriptor_;
+    double R_pre_hit_para_, Q_p_pre_hit_para_, Q_v_pre_hit_para_, Q_e_pre_hit_para_, Q_w_pre_hit_para_, Q_z_pre_hit_para_, Q_yaw_pre_hit_para_;
+    double R_post_hit_para_, Q_p_post_hit_para_, Q_v_post_hit_para_, Q_e_post_hit_para_, Q_w_post_hit_para_, Q_z_post_hit_para_, Q_yaw_post_hit_para_;
+    double R_para_, Q_p_para_, Q_v_para_, Q_e_para_, Q_w_para_, Q_z_para_, Q_yaw_para_;
+
     /* Ros service */
     ros::ServiceClient dare_client_;
 
     void initHydrus();
-    void initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr);
+    void initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr, TennisTaskDescriptor task_descriptor);
     void updateMatrixA(int time_id);
     void updateMatrixB(int time_id);
     void updateMatrixAB(int time_id);
@@ -154,6 +164,7 @@ namespace lqr_discrete{
     void printMatrixAB();
     VectorXd getCurrentIdealPosition(double relative_time);
     VectorXd estimateFutureState(double relative_time);
+    void adjustTennisTaskParamater(TennisTaskDescriptor task_descriptor, double cut_time);
   };
 }
 

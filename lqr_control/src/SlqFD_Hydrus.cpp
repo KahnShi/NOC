@@ -41,14 +41,30 @@ namespace lqr_discrete{
 
     not_first_slq_flag_ = false;
     /* ros param */
-    double R_para, Q_p_para, Q_v_para, Q_e_para, Q_w_para, Q_z_para;
     nhp_.param("transform_movement_flag", transform_movement_flag_, true);
-    nhp_.param("R_para", R_para, 10.0);
-    nhp_.param("Q_p_para", Q_p_para, 5.0);
-    nhp_.param("Q_v_para", Q_v_para, 10.0);
-    nhp_.param("Q_z_para", Q_z_para, 50.0);
-    nhp_.param("Q_w_para", Q_w_para, 10.0);
-    nhp_.param("Q_e_para", Q_e_para, 100.0);
+    nhp_.param("R_pre_hit_para", R_pre_hit_para_, 5.0);
+    nhp_.param("Q_p_pre_hit_para", Q_p_pre_hit_para_, 100.0);
+    nhp_.param("Q_v_pre_hit_para", Q_v_pre_hit_para_, 0.1);
+    nhp_.param("Q_z_pre_hit_para", Q_z_pre_hit_para_, 50.0);
+    nhp_.param("Q_w_pre_hit_para", Q_w_pre_hit_para_, 0.1);
+    nhp_.param("Q_e_pre_hit_para", Q_e_pre_hit_para_, 10.0);
+    nhp_.param("Q_yaw_pre_hit_para", Q_yaw_pre_hit_para_, 50.0);
+
+    nhp_.param("R_post_hit_para", R_post_hit_para_, 10.0);
+    nhp_.param("Q_p_post_hit_para", Q_p_post_hit_para_, 5.0);
+    nhp_.param("Q_v_post_hit_para", Q_v_post_hit_para_, 10.0);
+    nhp_.param("Q_z_post_hit_para", Q_z_post_hit_para_, 50.0);
+    nhp_.param("Q_w_post_hit_para", Q_w_post_hit_para_, 10.0);
+    nhp_.param("Q_e_post_hit_para", Q_e_post_hit_para_, 100.0);
+    nhp_.param("Q_yaw_post_hit_para", Q_yaw_post_hit_para_, 100.0);
+
+    R_para_ = R_pre_hit_para_;
+    Q_p_para_ = Q_p_pre_hit_para_;
+    Q_v_para_ = Q_v_pre_hit_para_;
+    Q_z_para_ = Q_z_pre_hit_para_;
+    Q_w_para_ = Q_w_pre_hit_para_;
+    Q_e_para_ = Q_e_pre_hit_para_;
+    Q_yaw_para_ = Q_yaw_pre_hit_para_;
 
     nhp_.param("dynamic_freqency_flag", dynamic_freqency_flag_, true);
     nhp_.param("high_freq_least_period", high_freq_least_period_, 1.0);
@@ -106,17 +122,17 @@ namespace lqr_discrete{
     /* init Q and R matrice */
     *Q0_ptr_ = MatrixXd::Zero(x_size_, x_size_);
     for (int i = 0; i <= P_Z; ++i)
-      (*Q0_ptr_)(i, i) = Q_p_para;
+      (*Q0_ptr_)(i, i) = Q_p_para_;
     for (int i = V_X; i <= V_Z; ++i)
-      (*Q0_ptr_)(i, i) = Q_v_para;
+      (*Q0_ptr_)(i, i) = Q_v_para_;
     for (int i = W_X; i <= W_Z; ++i)
-      (*Q0_ptr_)(i, i) = Q_w_para;
+      (*Q0_ptr_)(i, i) = Q_w_para_;
     for (int i = E_R; i <= E_Y; ++i)
-      (*Q0_ptr_)(i, i) = Q_e_para;
+      (*Q0_ptr_)(i, i) = Q_e_para_;
     // test: weight on z
-    (*Q0_ptr_)(P_Z, P_Z) = (*Q0_ptr_)(V_Z, V_Z) = Q_z_para;
+    (*Q0_ptr_)(P_Z, P_Z) = (*Q0_ptr_)(V_Z, V_Z) = Q_z_para_;
 
-    *R_ptr_ = R_para * MatrixXd::Identity(u_size_, u_size_);
+    *R_ptr_ = R_para_ * MatrixXd::Identity(u_size_, u_size_);
 
     uav_rotor_thrust_min_ = 2.0;
     uav_rotor_thrust_max_ = 16.4;
@@ -124,8 +140,45 @@ namespace lqr_discrete{
     ROS_INFO("[SLQ] Hydrus init finished.");
   }
 
-  void SlqFiniteDiscreteControlHydrus::initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr){
+  void SlqFiniteDiscreteControlHydrus::adjustTennisTaskParamater(TennisTaskDescriptor task_descriptor, double cur_time){
+    if (cur_time < task_descriptor.hitting_time){
+      R_para_ = R_pre_hit_para_;
+      Q_p_para_ = Q_p_pre_hit_para_;
+      Q_v_para_ = Q_v_pre_hit_para_;
+      Q_z_para_ = Q_z_pre_hit_para_;
+      Q_w_para_ = Q_w_pre_hit_para_;
+      Q_e_para_ = Q_e_pre_hit_para_;
+      Q_yaw_para_ = Q_yaw_pre_hit_para_;
+    }
+    else{
+      R_para_ = R_post_hit_para_;
+      Q_p_para_ = Q_p_post_hit_para_;
+      Q_v_para_ = Q_v_post_hit_para_;
+      Q_z_para_ = Q_z_post_hit_para_;
+      Q_w_para_ = Q_w_post_hit_para_;
+      Q_e_para_ = Q_e_post_hit_para_;
+      Q_yaw_para_ = Q_yaw_post_hit_para_;
+    }
+    for (int i = 0; i <= P_Z; ++i)
+      (*Q0_ptr_)(i, i) = Q_p_para_;
+    for (int i = V_X; i <= V_Z; ++i)
+      (*Q0_ptr_)(i, i) = Q_v_para_;
+    for (int i = W_X; i <= W_Z; ++i)
+      (*Q0_ptr_)(i, i) = Q_w_para_;
+    for (int i = E_R; i <= E_Y; ++i)
+      (*Q0_ptr_)(i, i) = Q_e_para_;
+    // test: weight on z
+    (*Q0_ptr_)(E_Y, E_Y) = Q_yaw_para_;
+    (*Q0_ptr_)(P_Z, P_Z) = Q_z_para_;
+
+    *R_ptr_ = R_para_ * MatrixXd::Identity(u_size_, u_size_);
+
+  }
+
+  void SlqFiniteDiscreteControlHydrus::initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr, TennisTaskDescriptor task_descriptor){
     control_freq_ = freq;
+    tennis_task_descriptor_ = task_descriptor;
+    adjustTennisTaskParamater(task_descriptor, (*time_ptr)[0]);
     // Here we assume frequency is an odd integer
     control_high_freq_ = freq;
     control_low_freq_ = freq / 2.0;
@@ -636,6 +689,7 @@ namespace lqr_discrete{
     if (order == 0){
       for (int i = 0; i < n_links_ - 1; ++i)
         joint(i) = PI / 2.0;
+      joint << 0.785, 1.5708, 1.5708;
     }
     return joint;
 
