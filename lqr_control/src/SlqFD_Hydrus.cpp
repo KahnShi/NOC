@@ -1251,7 +1251,7 @@ namespace lqr_discrete{
     updateMatrixAB(0);
 
     MatrixXd P(x_size_, x_size_);
-    P = *Q_ptr_;
+    P = *Q0_ptr_;
     for (int i = 0; i < iteration_times_; ++i){
       MatrixXd F = MatrixXd::Zero(u_size_, x_size_);
       F = ((*R_ptr_) + B_ptr_->transpose() * P * (*B_ptr_)).inverse()

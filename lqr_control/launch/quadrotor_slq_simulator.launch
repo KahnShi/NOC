@@ -4,14 +4,15 @@
   </node>
   <node pkg="lqr_control" type="quadrotor_simulator_node" name="quadrotor_simulator" output="screen" >
     <param name="transform_movement_flag" value="true" />
+    <param name="verbose" value="true" />
     <param name="anime_mode" value="$(arg anime_mode)" />
     <param name="R_para" value="1.0" />
-    <param name="Q_p_para" value="100.0" />
-    <param name="Q_v_para" value="0.0" />
-    <param name="Q_w_para" value="0.0" />
-    <param name="Q_e_para" value="10.0" />
-    <param name="Q_z_para" value="50.0" />
-    <param name="Q_yaw_para" value="50.0" />
+    <param name="Q_p_pre_hit_para" value="100.0" />
+    <param name="Q_v_pre_hit_para" value="0.0" />
+    <param name="Q_w_pre_hit_para" value="0.0" />
+    <param name="Q_e_pre_hit_para" value="10.0" />
+    <param name="Q_z_pre_hit_para" value="100.0" />
+    <param name="Q_yaw_pre_hit_para" value="50.0" />
     <param name="start_x" value="0.5" />
     <param name="start_y" value="1.0" />
     <param name="start_z" value="1.2" />
