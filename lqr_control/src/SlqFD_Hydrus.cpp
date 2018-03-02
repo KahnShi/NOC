@@ -460,7 +460,7 @@ namespace lqr_discrete{
         cur_time = high_freq_end_time_ +
           (i - high_freq_iteration_times_) / control_low_freq_;
       std::vector<MatrixXd> W_vec;
-      for (int j = 1; j < waypoints_ptr_->size(); ++j){
+      for (int j = 1; j < waypoints_ptr_->size() - 1; ++j){
         MatrixXd W = MatrixXd::Zero(x_size_, x_size_);
         updateWaypointWeightMatrix(cur_time, (*time_ptr_)[j] - (*time_ptr_)[0], &W, j == (waypoints_ptr_->size() - 1));
         W_vec.push_back(W);
@@ -468,7 +468,7 @@ namespace lqr_discrete{
 
       // update current Q and R matrix
       *Q_ptr_ = (*Q0_ptr_);
-      for (int j = 1; j < waypoints_ptr_->size(); ++j)
+      for (int j = 1; j < waypoints_ptr_->size() - 1; ++j)
         *Q_ptr_ = *Q_ptr_ + W_vec[j-1];
 
       *x_ptr_ = x_vec_[i];
@@ -477,7 +477,7 @@ namespace lqr_discrete{
       updateMatrixAB(i);
 
       *q_ptr_ = VectorXd::Zero(x_size_);
-      for (int j = 1; j < waypoints_ptr_->size(); ++j)
+      for (int j = 1; j < waypoints_ptr_->size() - 1; ++j)
         *q_ptr_ = (*q_ptr_) +
           2.0 * W_vec[j-1] * stateSubtraction(xn_ptr_, &((*waypoints_ptr_)[j]));
 
@@ -497,7 +497,7 @@ namespace lqr_discrete{
     double search_rate = 2.0;
     /* When there are no middle waypoints, feedforward term is 0. */
     bool alpha_iteration_flag = true;
-    if (waypoints_ptr_->size() == 2 || feedforwardConverged()){
+    if (feedforwardConverged()){
       alpha_iteration_flag = false;
       if (debug_)
         std::cout << "[SLQ] feedforward converge.";
@@ -521,7 +521,7 @@ namespace lqr_discrete{
             cur_time = high_freq_end_time_ +
               (i - high_freq_iteration_times_) / control_low_freq_;
           std::vector<MatrixXd> W_vec;
-          for (int j = 1; j < waypoints_ptr_->size(); ++j){
+          for (int j = 1; j < waypoints_ptr_->size() - 1; ++j){
             MatrixXd W = MatrixXd::Zero(x_size_, x_size_);
             updateWaypointWeightMatrix(cur_time, (*time_ptr_)[j] - (*time_ptr_)[0], &W, j == (waypoints_ptr_->size() - 1));
             W_vec.push_back(W);
@@ -530,7 +530,7 @@ namespace lqr_discrete{
           energy_sum += (cur_u.transpose() * (*R_ptr_) * cur_u)(0);
           energy_sum += (cur_x.transpose() * (*Q0_ptr_) * cur_x)(0);
           VectorXd real_x = getAbsoluteState(&cur_x);
-          for (int j = 1; j < waypoints_ptr_->size(); ++j){
+          for (int j = 1; j < waypoints_ptr_->size() - 1; ++j){
             VectorXd dx_pt = stateSubtraction(&real_x, &((*waypoints_ptr_)[j]));
             energy_sum += (dx_pt.transpose() * W_vec[j-1] * dx_pt)(0);
           }
@@ -1053,13 +1053,12 @@ namespace lqr_discrete{
     for (int i = 0; i < iteration_times_; ++i){
       double control_sum = 0.0;
       for (int j = 0; j < u_size_; ++j){
-        control_sum += pow((u_fw_vec_[i])(j), 2.0);
+        if (control_sum > fabs((u_fw_vec_[i])(j)))
+          fw_max = fabs((u_fw_vec_[i])(j));
       }
-      if (control_sum > fw_max)
-        fw_max = control_sum;
     }
     double fw_converge_threshold = (hydrus_weight_ * 9.78 / 4.0) * 0.1;
-    if (fw_max < pow(fw_converge_threshold, 2))
+    if (fw_max < fw_converge_threshold)
       return true;
     else
       return false;
@@ -1297,7 +1296,7 @@ namespace lqr_discrete{
         cur_time = high_freq_end_time_ +
           (i - high_freq_iteration_times_) / control_low_freq_;
       VectorXd real_x = getAbsoluteState(&(x_vec_[i]));
-      for (int j = 1; j < waypoints_ptr_->size(); ++j){
+      for (int j = 1; j < waypoints_ptr_->size() - 1; ++j){
         MatrixXd W = MatrixXd::Zero(x_size_, x_size_);
         updateWaypointWeightMatrix(cur_time, (*time_ptr_)[j] - (*time_ptr_)[0], &W, j == (waypoints_ptr_->size() - 1));
         VectorXd dx_pt = stateSubtraction(&real_x, &((*waypoints_ptr_)[j]));
