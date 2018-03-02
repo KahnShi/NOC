@@ -23,6 +23,7 @@
     <param name="end_yaw" value="-1.57" />
     <param name="end_time" value="1.0" />
     <param name="mpc_freq" value="10.0" />
+    <param name="manual_final_ocp_flag" value="true" />
   </node>
   <group if="$(arg anime_mode)">
     <node pkg="rviz" type="rviz" name="rviz" args="-d $(find lqr_control)/config/traj_anime_mode.rviz" />

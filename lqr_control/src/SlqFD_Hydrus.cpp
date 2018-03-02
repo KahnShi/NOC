@@ -57,6 +57,13 @@ namespace lqr_discrete{
     nhp_.param("Q_w_post_hit_para", Q_w_post_hit_para_, 10.0);
     nhp_.param("Q_e_post_hit_para", Q_e_post_hit_para_, 100.0);
     nhp_.param("Q_yaw_post_hit_para", Q_yaw_post_hit_para_, 100.0);
+    nhp_.param("manual_final_ocp_flag", manual_final_ocp_flag_, true);
+    nhp_.param("Q_p_final_para", Q_p_final_para_, 500.0);
+    nhp_.param("Q_v_final_para", Q_v_final_para_, 10.0);
+    nhp_.param("Q_z_final_para", Q_z_final_para_, 500.0);
+    nhp_.param("Q_w_final_para", Q_w_final_para_, 10.0);
+    nhp_.param("Q_e_final_para", Q_e_final_para_, 10.0);
+    nhp_.param("Q_yaw_final_para", Q_yaw_final_para_, 500.0);
 
     R_para_ = R_pre_hit_para_;
     Q_p_para_ = Q_p_pre_hit_para_;
@@ -66,11 +73,10 @@ namespace lqr_discrete{
     Q_e_para_ = Q_e_pre_hit_para_;
     Q_yaw_para_ = Q_yaw_pre_hit_para_;
 
+    nhp_.param("verbose", debug_, false);
     nhp_.param("dynamic_freqency_flag", dynamic_freqency_flag_, true);
     nhp_.param("high_freq_least_period", high_freq_least_period_, 1.0);
     nhp_.param("line_search_steps", line_search_steps_, 4);
-
-    debug_ = false;
 
     /* hydrus */
     link_length_ = 0.6;
@@ -99,6 +105,7 @@ namespace lqr_discrete{
     A_ptr_ = new MatrixXd(x_size_, x_size_);
     B_ptr_ = new MatrixXd(x_size_, u_size_);
     Q0_ptr_ = new MatrixXd(x_size_, x_size_);
+    P0_ptr_ = new MatrixXd(x_size_, x_size_);
     Q_ptr_ = new MatrixXd(x_size_, x_size_);
     R_ptr_ = new MatrixXd(u_size_, u_size_);
     x0_ptr_ = new VectorXd(x_size_);
@@ -314,6 +321,26 @@ namespace lqr_discrete{
                      B_ptr_->transpose() * (*Riccati_P_ptr_) * (*B_ptr_)).inverse()
       * (B_ptr_->transpose() * (*Riccati_P_ptr_) * (*A_ptr_));
 
+    if (manual_final_ocp_flag_){
+      *P0_ptr_ = MatrixXd::Zero(x_size_, x_size_);
+      for (int i = 0; i <= P_Z; ++i)
+        (*P0_ptr_)(i, i) = Q_p_final_para_;
+      for (int i = V_X; i <= V_Z; ++i)
+        (*P0_ptr_)(i, i) = Q_v_final_para_;
+      for (int i = W_X; i <= W_Z; ++i)
+        (*P0_ptr_)(i, i) = Q_w_final_para_;
+      for (int i = E_R; i <= E_Y; ++i)
+        (*P0_ptr_)(i, i) = Q_e_final_para_;
+      // test: weight on z
+      (*P0_ptr_)(E_Y, E_Y) = Q_yaw_final_para_;
+      (*P0_ptr_)(P_Z, P_Z) = Q_z_final_para_;
+    }
+    else{
+      *P0_ptr_ = *Riccati_P_ptr_;
+      if (debug_)
+        std::cout << "\nRiccati P matrix: \n" << *P0_ptr_ << "\n\n";
+    }
+
     if (debug_){
       double lqr_cost = calculateCostFunction();
       std::cout << "\n Cost: " << lqr_cost << "\n\n";
@@ -421,7 +448,7 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlHydrus::iterativeOptimization(){
-    *P_ptr_ = *Riccati_P_ptr_;
+    *P_ptr_ = *P0_ptr_;
     *p_ptr_ = VectorXd::Zero(x_size_);
 
     for (int i = iteration_times_ - 1; i >= 0; --i){

@@ -91,6 +91,7 @@ namespace lqr_discrete{
     VectorXd *r_ptr_;
     VectorXd *q_ptr_;
     MatrixXd *Q0_ptr_;
+    MatrixXd *P0_ptr_;
     double alpha_;
     double alpha_candidate_;
     int line_search_steps_;
@@ -122,7 +123,9 @@ namespace lqr_discrete{
     TennisTaskDescriptor tennis_task_descriptor_;
     double R_pre_hit_para_, Q_p_pre_hit_para_, Q_v_pre_hit_para_, Q_e_pre_hit_para_, Q_w_pre_hit_para_, Q_z_pre_hit_para_, Q_yaw_pre_hit_para_;
     double R_post_hit_para_, Q_p_post_hit_para_, Q_v_post_hit_para_, Q_e_post_hit_para_, Q_w_post_hit_para_, Q_z_post_hit_para_, Q_yaw_post_hit_para_;
+    double R_final_para_, Q_p_final_para_, Q_v_final_para_, Q_e_final_para_, Q_w_final_para_, Q_z_final_para_, Q_yaw_final_para_;
     double R_para_, Q_p_para_, Q_v_para_, Q_e_para_, Q_w_para_, Q_z_para_, Q_yaw_para_;
+    bool manual_final_ocp_flag_;
 
     /* Ros service */
     ros::ServiceClient dare_client_;
