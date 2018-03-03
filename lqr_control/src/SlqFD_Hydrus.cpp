@@ -42,13 +42,13 @@ namespace lqr_discrete{
     not_first_slq_flag_ = false;
     /* ros param */
     nhp_.param("transform_movement_flag", transform_movement_flag_, true);
-    nhp_.param("R_pre_hit_para", R_pre_hit_para_, 5.0);
-    nhp_.param("Q_p_pre_hit_para", Q_p_pre_hit_para_, 100.0);
+    nhp_.param("R_pre_hit_para", R_pre_hit_para_, 1.0);
+    nhp_.param("Q_p_pre_hit_para", Q_p_pre_hit_para_, 50.0);
     nhp_.param("Q_v_pre_hit_para", Q_v_pre_hit_para_, 0.1);
     nhp_.param("Q_z_pre_hit_para", Q_z_pre_hit_para_, 50.0);
     nhp_.param("Q_w_pre_hit_para", Q_w_pre_hit_para_, 0.1);
-    nhp_.param("Q_e_pre_hit_para", Q_e_pre_hit_para_, 10.0);
-    nhp_.param("Q_yaw_pre_hit_para", Q_yaw_pre_hit_para_, 50.0);
+    nhp_.param("Q_e_pre_hit_para", Q_e_pre_hit_para_, 5.0);
+    nhp_.param("Q_yaw_pre_hit_para", Q_yaw_pre_hit_para_, 10.0);
 
     nhp_.param("R_post_hit_para", R_post_hit_para_, 10.0);
     nhp_.param("Q_p_post_hit_para", Q_p_post_hit_para_, 5.0);
@@ -280,7 +280,6 @@ namespace lqr_discrete{
       cog_pos_local_vec_.clear();
       cog_pos_local_dt_vec_.clear();
       u_fw_vec_.clear();
-      u_fb_vec_.clear();
       K_vec_.clear();
       un_vec_.clear();
     }
@@ -288,8 +287,6 @@ namespace lqr_discrete{
       not_first_slq_flag_ = true;
 
     for (int i = 0; i <= iteration_times_; ++i){
-      x_vec_.push_back(x_init);
-      u_vec_.push_back(u_init);
       double cur_time;
       if (i <= high_freq_iteration_times_)
         cur_time = double(i) / control_high_freq_;
@@ -308,10 +305,11 @@ namespace lqr_discrete{
       updateHydrusCogPositionDerivative(i);
       getHydrusInertialTensor(&cur_joint, i);
       u_fw_vec_.push_back(u_init);
-      u_fb_vec_.push_back(u_init);
       K_vec_.push_back(MatrixXd::Zero(u_size_, x_size_));
       VectorXd stable_u = getStableThrust(i);
       un_vec_.push_back(stable_u);
+      x_vec_.push_back(x_init);
+      u_vec_.push_back(un_vec_[0] - un_vec_[i]);
     }
     stable_u_last_ = un_vec_[iteration_times_];
 
@@ -449,7 +447,8 @@ namespace lqr_discrete{
 
   void SlqFiniteDiscreteControlHydrus::iterativeOptimization(){
     *P_ptr_ = *P0_ptr_;
-    *p_ptr_ = VectorXd::Zero(x_size_);
+    //todo: judge the negative sign
+    *p_ptr_ = -2.0 * (*P_ptr_) * x_vec_[iteration_times_];
 
     for (int i = iteration_times_ - 1; i >= 0; --i){
       // add weight for waypoints
@@ -476,17 +475,18 @@ namespace lqr_discrete{
       *joint_ptr_ = joint_vec_[i];
       updateMatrixAB(i);
 
-      *q_ptr_ = VectorXd::Zero(x_size_);
+      //todo: judge the negative sign
+      *q_ptr_ = -2.0 * (*Q0_ptr_) * x_vec_[i];
       for (int j = 1; j < waypoints_ptr_->size() - 1; ++j)
         *q_ptr_ = (*q_ptr_) +
           2.0 * W_vec[j-1] * stateSubtraction(xn_ptr_, &((*waypoints_ptr_)[j]));
 
-      *r_ptr_ = VectorXd::Zero(u_size_);
+      //todo: judge the positive sign
+      *r_ptr_ = 2.0 * (*R_ptr_) * u_vec_[i];
       updateSLQEquations();
 
-      Vector4d u_fb = (*K_ptr_) * (*x_ptr_);
-      u_fb_vec_[i] = u_fb;
       u_fw_vec_[i] = (*l_ptr_);
+      //todo: judge the positive sign
       K_vec_[i] = (*K_ptr_);
     }
 
@@ -500,7 +500,7 @@ namespace lqr_discrete{
     if (feedforwardConverged()){
       alpha_iteration_flag = false;
       if (debug_)
-        std::cout << "[SLQ] feedforward converge.";
+        std::cout << "[SLQ] feedforward converge.\n";
     }
     else{
       for (int factor = 0; factor < line_search_steps_; ++factor){
@@ -539,10 +539,11 @@ namespace lqr_discrete{
           updateNewState(&new_x, &cur_x, &cur_u, i);
           cur_x = new_x;
         }
-        energy_sum += (cur_x.transpose() * (*Riccati_P_ptr_) * cur_x)(0);
+        energy_sum += (cur_x.transpose() * (*P0_ptr_) * cur_x)(0);
 
         // energy and alpha' relationships
-        // std::cout << "[SLQ] Energy: " << energy_sum << ", alpha: " << alpha_ << "\n";
+        if (debug_)
+          std::cout << "[SLQ] Energy: " << energy_sum << ", alpha: " << alpha_ << "\n";
 
         if (energy_sum < energy_min || energy_min < 0){
           energy_min = energy_sum;
@@ -562,7 +563,7 @@ namespace lqr_discrete{
     for (int i = 0; i < iteration_times_; ++i){
       VectorXd cur_u(u_size_);
       cur_u = u_vec_[i] + alpha_candidate_ * u_fw_vec_[i]
-        + K_vec_[i] * cur_x;
+        + K_vec_[i] * (cur_x);
       checkControlInputFeasible(&cur_u, i);
       VectorXd new_x(x_size_);
       updateNewState(&new_x, &cur_x, &cur_u, i);
@@ -573,8 +574,11 @@ namespace lqr_discrete{
       x_vec_[i] = cur_x;
       u_vec_[i] = cur_u;
       cur_x = new_x;
-      if (i == iteration_times_ - 1)
+      if (i == iteration_times_ - 1){
         x_vec_[iteration_times_] = new_x;
+        if (debug_)
+          printStateInfo(&new_x, iteration_times_);
+      }
     }
     if (debug_ && !alpha_iteration_flag){
       double traj_cost = calculateCostFunction();
@@ -716,7 +720,7 @@ namespace lqr_discrete{
     if (order == 0){
       for (int i = 0; i < n_links_ - 1; ++i)
         joint(i) = PI / 2.0;
-      joint << 0.785, 1.5708, 1.5708;
+      joint << 0.785, 1.5708, 0.785;
     }
     return joint;
 
@@ -1051,9 +1055,8 @@ namespace lqr_discrete{
   bool SlqFiniteDiscreteControlHydrus::feedforwardConverged(){
     double fw_max = 0.0;
     for (int i = 0; i < iteration_times_; ++i){
-      double control_sum = 0.0;
       for (int j = 0; j < u_size_; ++j){
-        if (control_sum > fabs((u_fw_vec_[i])(j)))
+        if (fw_max < fabs((u_fw_vec_[i])(j)))
           fw_max = fabs((u_fw_vec_[i])(j));
       }
     }
@@ -1304,7 +1307,7 @@ namespace lqr_discrete{
       }
     }
     // final time(tf) cost
-    cost += (x_vec_[iteration_times_].transpose() * (*Riccati_P_ptr_) * x_vec_[iteration_times_])(0);
+    cost += (x_vec_[iteration_times_].transpose() * (*P0_ptr_) * x_vec_[iteration_times_])(0);
     return cost;
   }
 

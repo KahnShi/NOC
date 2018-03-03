@@ -97,7 +97,6 @@ namespace lqr_discrete{
     int line_search_steps_;
     std::vector<MatrixXd> lqr_F_vec_;
     std::vector<Vector4d> u_fw_vec_;
-    std::vector<Vector4d> u_fb_vec_;
     std::vector<VectorXd> un_vec_;
     std::vector<MatrixXd> K_vec_;
     std::vector<VectorXd> *waypoints_ptr_;
