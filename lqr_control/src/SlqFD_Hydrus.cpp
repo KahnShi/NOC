@@ -52,9 +52,9 @@ namespace lqr_discrete{
 
     nhp_.param("R_post_hit_para", R_post_hit_para_, 1.0);
     nhp_.param("Q_p_post_hit_para", Q_p_post_hit_para_, 50.0);
-    nhp_.param("Q_v_post_hit_para", Q_v_post_hit_para_, 5.0);
+    nhp_.param("Q_v_post_hit_para", Q_v_post_hit_para_, 0.1);
     nhp_.param("Q_z_post_hit_para", Q_z_post_hit_para_, 50.0);
-    nhp_.param("Q_w_post_hit_para", Q_w_post_hit_para_, 5.0);
+    nhp_.param("Q_w_post_hit_para", Q_w_post_hit_para_, 0.1);
     nhp_.param("Q_e_post_hit_para", Q_e_post_hit_para_, 5.0);
     nhp_.param("Q_yaw_post_hit_para", Q_yaw_post_hit_para_, 10.0);
     nhp_.param("manual_final_ocp_flag", manual_final_ocp_flag_, true);
