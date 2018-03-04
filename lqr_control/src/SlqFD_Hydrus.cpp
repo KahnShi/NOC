@@ -716,13 +716,30 @@ namespace lqr_discrete{
 
   VectorXd SlqFiniteDiscreteControlHydrus::getCurrentJoint(double time, int order){
     VectorXd joint = VectorXd::Zero(n_links_ - 1);
-    // keep quadrotor model, neglecting time, order
-    if (order == 0){
-      for (int i = 0; i < n_links_ - 1; ++i)
-        joint(i) = PI / 2.0;
-      joint << 0.785, 1.5708, 0.785;
+    // todo: temprarily assume transform action only in hitting time
+    if (time > tennis_task_descriptor_.hitting_time){
+      // keep quadrotor model, neglecting time, order
+      if (order == 0){
+        for (int i = 0; i < n_links_ - 1; ++i)
+          joint(i) = PI / 2.0;
+        joint << 0.785, 1.5708, 0.785;
+      }
+      return joint;
     }
-    return joint;
+    else{
+      double factor = 1.5; // -PI/4 * factor + PI/4
+      if (order == 0){
+        joint << 0.785, 1.5708, 0.785;
+        joint(2) = -4 * pow(time, 2) * pow(time - 1.0, 2) * factor + 0.785;
+      }
+      else if (order == 1)
+        joint(2) = -8 * time * pow(time - 1.0, 2) * factor
+          - 8 * pow(time, 2) * (time - 1.0) * factor;
+      else if (order == 2)
+        joint(2) = -8 * pow(time - 1.0, 2) * factor - 16 * time * (time - 1.0) * factor
+          - 16 * time * (time - 1.0) * factor - 8 * pow(time, 2) * factor;
+      return joint;
+    }
 
     // example: end time is 6s: [0, 5] 1.57; [5, 5.5] 1.57-3.14*(t-5.0)^2; [5.5, 6] 3.14*(t-6.0)^2
     // double action_period = 2.0;
