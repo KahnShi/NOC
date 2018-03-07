@@ -61,7 +61,7 @@ namespace lqr_discrete{
     nhp_.param("Q_p_final_para", Q_p_final_para_, 500.0);
     nhp_.param("Q_v_final_para", Q_v_final_para_, 10.0);
     nhp_.param("Q_z_final_para", Q_z_final_para_, 500.0);
-    nhp_.param("Q_w_final_para", Q_w_final_para_, 10.0);
+    nhp_.param("Q_w_final_para", Q_w_final_para_, 1.0);
     nhp_.param("Q_e_final_para", Q_e_final_para_, 10.0);
     nhp_.param("Q_yaw_final_para", Q_yaw_final_para_, 500.0);
 
@@ -76,7 +76,7 @@ namespace lqr_discrete{
     nhp_.param("verbose", debug_, false);
     nhp_.param("dynamic_freqency_flag", dynamic_freqency_flag_, true);
     nhp_.param("high_freq_least_period", high_freq_least_period_, 1.0);
-    nhp_.param("line_search_steps", line_search_steps_, 4);
+    nhp_.param("line_search_steps", line_search_steps_, 3);
 
     /* hydrus */
     link_length_ = 0.6;
@@ -727,17 +727,18 @@ namespace lqr_discrete{
       return joint;
     }
     else{
+      double period = (*time_ptr_)[time_ptr_->size() - 1] - (*time_ptr_)[0];
       double factor = 1.5; // -PI/4 * factor + PI/4
       if (order == 0){
         joint << 0.785, 1.5708, 0.785;
-        joint(2) = -4 * pow(time, 2) * pow(time - 1.0, 2) * factor + 0.785;
+        joint(2) = -4 * pow(time, 2) * pow(time - period, 2) * factor + 0.785;
       }
       else if (order == 1)
-        joint(2) = -8 * time * pow(time - 1.0, 2) * factor
-          - 8 * pow(time, 2) * (time - 1.0) * factor;
+        joint(2) = -8 * time * pow(time - period, 2) * factor
+          - 8 * pow(time, 2) * (time - period) * factor;
       else if (order == 2)
-        joint(2) = -8 * pow(time - 1.0, 2) * factor - 16 * time * (time - 1.0) * factor
-          - 16 * time * (time - 1.0) * factor - 8 * pow(time, 2) * factor;
+        joint(2) = -8 * pow(time - period, 2) * factor - 16 * time * (time - period) * factor
+          - 16 * time * (time - period) * factor - 8 * pow(time, 2) * factor;
       return joint;
     }
 
