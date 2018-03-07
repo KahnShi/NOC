@@ -61,8 +61,8 @@ namespace lqr_discrete{
     nhp_.param("Q_p_final_para", Q_p_final_para_, 500.0);
     nhp_.param("Q_v_final_para", Q_v_final_para_, 10.0);
     nhp_.param("Q_z_final_para", Q_z_final_para_, 500.0);
-    nhp_.param("Q_w_final_para", Q_w_final_para_, 1.0);
-    nhp_.param("Q_e_final_para", Q_e_final_para_, 10.0);
+    nhp_.param("Q_w_final_para", Q_w_final_para_, 200.0);
+    nhp_.param("Q_e_final_para", Q_e_final_para_, 400.0);
     nhp_.param("Q_yaw_final_para", Q_yaw_final_para_, 500.0);
 
     R_para_ = R_pre_hit_para_;
@@ -77,6 +77,7 @@ namespace lqr_discrete{
     nhp_.param("dynamic_freqency_flag", dynamic_freqency_flag_, true);
     nhp_.param("high_freq_least_period", high_freq_least_period_, 1.0);
     nhp_.param("line_search_steps", line_search_steps_, 3);
+    nhp_.param("line_search_mode", line_search_mode_, 1);// 0, standard mode; 1, final state priority mode
 
     /* hydrus */
     link_length_ = 0.6;
@@ -514,37 +515,39 @@ namespace lqr_discrete{
           checkControlInputFeasible(&cur_u, i);
           // calculate energy
           // add weight for waypoints
-          double cur_time;
-          if (i <= high_freq_iteration_times_)
-            cur_time = double(i) / control_high_freq_;
-          else
-            cur_time = high_freq_end_time_ +
-              (i - high_freq_iteration_times_) / control_low_freq_;
-          std::vector<MatrixXd> W_vec;
-          for (int j = 1; j < waypoints_ptr_->size() - 1; ++j){
-            MatrixXd W = MatrixXd::Zero(x_size_, x_size_);
-            updateWaypointWeightMatrix(cur_time, (*time_ptr_)[j] - (*time_ptr_)[0], &W, j == (waypoints_ptr_->size() - 1));
-            W_vec.push_back(W);
-          }
+          if (line_search_mode_ == 0){
+            double cur_time;
+            if (i <= high_freq_iteration_times_)
+              cur_time = double(i) / control_high_freq_;
+            else
+              cur_time = high_freq_end_time_ +
+                (i - high_freq_iteration_times_) / control_low_freq_;
+            std::vector<MatrixXd> W_vec;
+            for (int j = 1; j < waypoints_ptr_->size() - 1; ++j){
+              MatrixXd W = MatrixXd::Zero(x_size_, x_size_);
+              updateWaypointWeightMatrix(cur_time, (*time_ptr_)[j] - (*time_ptr_)[0], &W, j == (waypoints_ptr_->size() - 1));
+              W_vec.push_back(W);
+            }
 
-          energy_sum += (cur_u.transpose() * (*R_ptr_) * cur_u)(0);
-          energy_sum += (cur_x.transpose() * (*Q0_ptr_) * cur_x)(0);
-          VectorXd real_x = getAbsoluteState(&cur_x);
-          for (int j = 1; j < waypoints_ptr_->size() - 1; ++j){
-            VectorXd dx_pt = stateSubtraction(&real_x, &((*waypoints_ptr_)[j]));
-            energy_sum += (dx_pt.transpose() * W_vec[j-1] * dx_pt)(0);
+            energy_sum += (cur_u.transpose() * (*R_ptr_) * cur_u)(0);
+            energy_sum += (cur_x.transpose() * (*Q0_ptr_) * cur_x)(0);
+            VectorXd real_x = getAbsoluteState(&cur_x);
+            for (int j = 1; j < waypoints_ptr_->size() - 1; ++j){
+              VectorXd dx_pt = stateSubtraction(&real_x, &((*waypoints_ptr_)[j]));
+              energy_sum += (dx_pt.transpose() * W_vec[j-1] * dx_pt)(0);
+            }
           }
 
           VectorXd new_x(x_size_);
           updateNewState(&new_x, &cur_x, &cur_u, i);
           cur_x = new_x;
         }
+        // when line_search_mode is 1, only considering final cost
         energy_sum += (cur_x.transpose() * (*P0_ptr_) * cur_x)(0);
 
         // energy and alpha' relationships
         if (debug_)
           std::cout << "[SLQ] Energy: " << energy_sum << ", alpha: " << alpha_ << "\n";
-
         if (energy_sum < energy_min || energy_min < 0){
           energy_min = energy_sum;
           alpha_candidate_ = alpha_;
@@ -728,16 +731,17 @@ namespace lqr_discrete{
     }
     else{
       double period = (*time_ptr_)[time_ptr_->size() - 1] - (*time_ptr_)[0];
-      double factor = 1.5; // -PI/4 * factor + PI/4
+      double factor = 1.0; // -PI/4 * factor + PI/4
+      int joint_id = 2;
       if (order == 0){
         joint << 0.785, 1.5708, 0.785;
-        joint(2) = -4 * pow(time, 2) * pow(time - period, 2) * factor + 0.785;
+        joint(joint_id) = -4 * pow(time, 2) * pow(time - period, 2) * factor + 0.785;
       }
       else if (order == 1)
-        joint(2) = -8 * time * pow(time - period, 2) * factor
+        joint(joint_id) = -8 * time * pow(time - period, 2) * factor
           - 8 * pow(time, 2) * (time - period) * factor;
       else if (order == 2)
-        joint(2) = -8 * pow(time - period, 2) * factor - 16 * time * (time - period) * factor
+        joint(joint_id) = -8 * pow(time - period, 2) * factor - 16 * time * (time - period) * factor
           - 16 * time * (time - period) * factor - 8 * pow(time, 2) * factor;
       return joint;
     }

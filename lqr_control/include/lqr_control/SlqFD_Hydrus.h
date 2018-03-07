@@ -95,6 +95,7 @@ namespace lqr_discrete{
     double alpha_;
     double alpha_candidate_;
     int line_search_steps_;
+    int line_search_mode_; // 0, standard mode; 1, final state priority mode
     std::vector<MatrixXd> lqr_F_vec_;
     std::vector<Vector4d> u_fw_vec_;
     std::vector<VectorXd> un_vec_;
