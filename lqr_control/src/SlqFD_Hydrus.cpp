@@ -725,7 +725,7 @@ namespace lqr_discrete{
   VectorXd SlqFiniteDiscreteControlHydrus::getCurrentJointAbsoluteTime(double time, int order){
     VectorXd joint = VectorXd::Zero(n_links_ - 1);
     int joint_id = 2;
-    double dq = 4;
+    double dq = 5.0 * tennis_task_descriptor_.hitting_time; // joint velocity
     double racket_return_time = 1.2; //tennis_task_descriptor_.post_hitting_time
     // todo: temprarily assume transform action only in hitting time
     if (time > tennis_task_descriptor_.hitting_time + racket_return_time){
