@@ -717,10 +717,18 @@ namespace lqr_discrete{
     return stable_u;
   }
 
-  VectorXd SlqFiniteDiscreteControlHydrus::getCurrentJoint(double time, int order){
+  VectorXd SlqFiniteDiscreteControlHydrus::getCurrentJoint(double relative_time, int order){
+    double time = relative_time + (*time_ptr_)[0];
+    return getCurrentJointAbsoluteTime(time, order);
+  }
+
+  VectorXd SlqFiniteDiscreteControlHydrus::getCurrentJointAbsoluteTime(double time, int order){
     VectorXd joint = VectorXd::Zero(n_links_ - 1);
+    int joint_id = 2;
+    double dq = 4;
+    double racket_return_time = 1.2; //tennis_task_descriptor_.post_hitting_time
     // todo: temprarily assume transform action only in hitting time
-    if (time > tennis_task_descriptor_.hitting_time){
+    if (time > tennis_task_descriptor_.hitting_time + racket_return_time){
       // keep quadrotor model, neglecting time, order
       if (order == 0){
         for (int i = 0; i < n_links_ - 1; ++i)
@@ -729,20 +737,29 @@ namespace lqr_discrete{
       }
       return joint;
     }
-    else{
-      double period = (*time_ptr_)[time_ptr_->size() - 1] - (*time_ptr_)[0];
-      double factor = 1.0; // -PI/4 * factor + PI/4
-      int joint_id = 2;
+    else if (time > tennis_task_descriptor_.hitting_time){
+      double tf = racket_return_time;
+      double relative_time = time - tennis_task_descriptor_.hitting_time;
       if (order == 0){
         joint << 0.785, 1.5708, 0.785;
-        joint(joint_id) = -4 * pow(time, 2) * pow(time - period, 2) * factor + 0.785;
+        joint(joint_id) = dq / pow(tf, 2) * pow(relative_time, 3) - 2 * dq / tf * pow(relative_time, 2) + dq * relative_time + 0.785;
       }
       else if (order == 1)
-        joint(joint_id) = -8 * time * pow(time - period, 2) * factor
-          - 8 * pow(time, 2) * (time - period) * factor;
+        joint(joint_id) = 3 * dq / pow(tf, 2) * pow(relative_time, 2) - 4 * dq / tf * relative_time + dq;
       else if (order == 2)
-        joint(joint_id) = -8 * pow(time - period, 2) * factor - 16 * time * (time - period) * factor
-          - 16 * time * (time - period) * factor - 8 * pow(time, 2) * factor;
+        joint(joint_id) = 6 * dq / pow(tf, 2) * relative_time - 4 * dq / tf;
+      return joint;
+    }
+    else{
+      double tf = tennis_task_descriptor_.hitting_time;
+      if (order == 0){
+        joint << 0.785, 1.5708, 0.785;
+        joint(joint_id) = dq / pow(tf, 2) * pow(time, 3) - dq / tf * pow(time, 2) + 0.785;
+      }
+      else if (order == 1)
+        joint(joint_id) = 3 * dq / pow(tf, 2) * pow(time, 2) - 2 * dq / tf * time;
+      else if (order == 2)
+        joint(joint_id) = 6 * dq / pow(tf, 2) * time - 2 * dq / tf;
       return joint;
     }
 
