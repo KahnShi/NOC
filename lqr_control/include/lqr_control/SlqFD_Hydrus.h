@@ -48,6 +48,7 @@
 namespace lqr_discrete{
 #define PI 3.141592653
   struct TennisTaskDescriptor{
+    int hitting_hand;
     double hitting_time;
     double post_hitting_time;
   };
