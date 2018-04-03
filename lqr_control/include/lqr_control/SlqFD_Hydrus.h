@@ -59,6 +59,7 @@ namespace lqr_discrete{
     /* Hydrus */
     double link_length_;
     int n_links_;
+    int baselink_id_;
     std::vector<double> link_weight_vec_;
     VectorXd *joint_ptr_;
     std::vector<VectorXd> joint_vec_;
@@ -130,7 +131,7 @@ namespace lqr_discrete{
     /* Ros service */
     ros::ServiceClient dare_client_;
 
-    void initHydrus();
+    void initHydrus(int baselink_id = 0);
     void initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr, TennisTaskDescriptor task_descriptor);
     void updateMatrixA(int time_id);
     void updateMatrixB(int time_id);
