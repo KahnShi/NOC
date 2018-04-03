@@ -35,7 +35,10 @@
 
 #include <lqr_control/SlqFD_Hydrus.h>
 namespace lqr_discrete{
-  void SlqFiniteDiscreteControlHydrus::initHydrus(){
+  void SlqFiniteDiscreteControlHydrus::initHydrus(int baselink_id){
+    baselink_id_ = baselink_id;
+    std::cout << "[SlqFD_Hydrus] Baselink id: link " << baselink_id << "\n";
+
     /* Ros service */
     dare_client_ = nh_.serviceClient<lqr_control::Dare>("/dare_solver");
 
@@ -1172,15 +1175,16 @@ namespace lqr_discrete{
 
   void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenter(VectorXd *joint_ptr){
     std::vector<Eigen::Vector3d> links_center_vec;
-    Eigen::Vector3d link1_center(link_length_ / 2.0, 0, 0);
-    link1_center = link1_center;
-    links_center_vec.push_back(link1_center);
+    for (int i = 0; i < n_links_; ++i)
+      links_center_vec.push_back(Eigen::Vector3d(0.0, 0.0, 0.0));
+    Eigen::Vector3d baselink_center(link_length_ / 2.0, 0, 0);
+    links_center_vec[baselink_id_] = baselink_center; // BASELINK count from 1 instead of 0
     Eigen::Vector3d prev_link_end(link_length_, 0, 0);
     prev_link_end = prev_link_end;
     double joint_ang = 0.0;
 
     // only considering 2d hydrus
-    for (int i = 1; i < n_links_; ++i){
+    for (int i = baselink_id_ + 1; i < n_links_; ++i){
       Eigen::Vector3d link_center = Eigen::Vector3d::Zero();
       joint_ang += (*joint_ptr)(i - 1);
       Eigen::Matrix3d rot;
@@ -1188,21 +1192,38 @@ namespace lqr_discrete{
         sin(joint_ang), cos(joint_ang), 0,
         0, 0, 1;
       link_center = prev_link_end + rot * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
-      links_center_vec.push_back(link_center);
+      links_center_vec[i] = link_center;
       prev_link_end = prev_link_end + rot * Eigen::Vector3d(link_length_, 0, 0);
+    }
+
+    prev_link_end = Eigen::Vector3d(0.0, 0.0, 0.0);
+    joint_ang = 0.0;
+    for (int i = baselink_id_ - 1; i >= 0; --i){
+      Eigen::Vector3d link_center = Eigen::Vector3d::Zero();
+      joint_ang -= (*joint_ptr)(i);
+      Eigen::Matrix3d rot;
+      rot << cos(joint_ang), -sin(joint_ang), 0,
+        sin(joint_ang), cos(joint_ang), 0,
+        0, 0, 1;
+      link_center = prev_link_end + rot * Eigen::Vector3d(-link_length_ / 2.0, 0, 0);
+      links_center_vec[i] = link_center;
+      prev_link_end = prev_link_end + rot * Eigen::Vector3d(-link_length_, 0, 0);
     }
     link_center_pos_local_vec_.push_back(links_center_vec);
   }
 
   void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr){
     std::vector<Eigen::Vector3d> links_center_dt_vec;
-    Eigen::Vector3d link1_center_dt(0.0, 0, 0);
-    links_center_dt_vec.push_back(link1_center_dt);
+    for (int i = 0; i < n_links_; ++i)
+      links_center_dt_vec.push_back(Eigen::Vector3d(0.0, 0.0, 0.0));
+    Eigen::Vector3d baselink_center_dt(0.0, 0, 0);
+    links_center_dt_vec[baselink_id_] = baselink_center_dt;
+
     Eigen::Vector3d prev_link_end_dt(0, 0, 0);
     double joint_ang = 0.0;
     double joint_ang_dt = 0.0;
     // only considering 2d hydrus
-    for (int i = 1; i < n_links_; ++i){
+    for (int i = baselink_id_ + 1; i < n_links_; ++i){
       Eigen::Vector3d link_center_dt = Eigen::Vector3d::Zero();
       joint_ang += (*joint_ptr)(i - 1);
       joint_ang_dt += (*joint_dt_ptr)(i - 1);
@@ -1212,8 +1233,26 @@ namespace lqr_discrete{
         0, 0, 0;
       rot_dt = rot_dt * joint_ang_dt;
       link_center_dt = prev_link_end_dt + rot_dt * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
-      links_center_dt_vec.push_back(link_center_dt);
+      links_center_dt_vec[i] = link_center_dt;
       prev_link_end_dt = prev_link_end_dt + rot_dt * Eigen::Vector3d(link_length_, 0, 0);
+    }
+
+    prev_link_end_dt = Eigen::Vector3d(0, 0, 0);
+    joint_ang = 0.0;
+    joint_ang_dt = 0.0;
+    // only considering 2d hydrus
+    for (int i = baselink_id_ - 1; i >= 0; --i){
+      Eigen::Vector3d link_center_dt = Eigen::Vector3d::Zero();
+      joint_ang -= (*joint_ptr)(i);
+      joint_ang_dt -= (*joint_dt_ptr)(i);
+      Eigen::Matrix3d rot_dt;
+      rot_dt << -sin(joint_ang), -cos(joint_ang), 0,
+        cos(joint_ang), -sin(joint_ang), 0,
+        0, 0, 0;
+      rot_dt = rot_dt * joint_ang_dt;
+      link_center_dt = prev_link_end_dt + rot_dt * Eigen::Vector3d(-link_length_ / 2.0, 0, 0);
+      links_center_dt_vec[i] = link_center_dt;
+      prev_link_end_dt = prev_link_end_dt + rot_dt * Eigen::Vector3d(-link_length_, 0, 0);
     }
     link_center_pos_local_dt_vec_.push_back(links_center_dt_vec);
   }

@@ -49,10 +49,11 @@ using namespace lqr_discrete;
 namespace quadrotor_simulator{
   class QuadrotorSimulator{
   public:
-    QuadrotorSimulator(ros::NodeHandle nh, ros::NodeHandle nhp);
+    QuadrotorSimulator(ros::NodeHandle nh, ros::NodeHandle nhp, int baselink_id = 0);
     ~QuadrotorSimulator(){};
     ros::NodeHandle nh_;
     ros::NodeHandle nhp_;
+    int baselink_id_;
     bool anime_mode_;
     // SlqFiniteDiscreteControlQuadrotor *controller_ptr_;
     SlqFiniteDiscreteControlHydrus *controller_ptr_;

@@ -17,12 +17,12 @@
     <param name="start_x" value="0.5" />
     <param name="start_y" value="1.0" />
     <param name="start_z" value="1.2" />
-    <param name="start_yaw" value="-1.57" />
+    <param name="start_yaw" value="0.785" />
     <param name="start_time" value="0.0" />
     <param name="end_x" value="1.091" />
     <param name="end_y" value="1.421" />
     <param name="end_z" value="1.14" />
-    <param name="end_yaw" value="-1.57" />
+    <param name="end_yaw" value="0.785" />
     <param name="end_time" value="1.0" />
     <param name="mpc_freq" value="20.0" />
     <param name="manual_final_ocp_flag" value="true" />
