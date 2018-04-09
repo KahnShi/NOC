@@ -1262,11 +1262,24 @@ namespace lqr_discrete{
   }
 
   MatrixXd SlqFiniteDiscreteControlHydrus::getJacobianW(int id){
-    // eg. [0 0 0; 0 0 0; 0 0 0], [0 0 0; 0 0 0; 1 0 0],
+    // eg. when baselink is 0: [0 0 0; 0 0 0; 0 0 0], [0 0 0; 0 0 0; 1 0 0],
     // [0 0 0; 0 0 0; 1 1 0], [0 0 0; 0 0 0; 1 1 1 ]
+
+    // eg. when baselink is 1: [0 0 0; 0 0 0; -1 0 0], [0 0 0; 0 0 0; 0 0 0],
+    // [0 0 0; 0 0 0; 0 1 0], [0 0 0; 0 0 0; 0 1 1 ]
+
+    // eg. when baselink is 2: [0 0 0; 0 0 0; -1 -1 0], [0 0 0; 0 0 0; 0 -1 0],
+    // [0 0 0; 0 0 0; 0 0 0], [0 0 0; 0 0 0; 0 0 1 ]
     MatrixXd JW_mat = MatrixXd::Zero(3, n_links_ - 1);
-    for (int i = 0; i < id; ++i)
-      JW_mat(2, i) = 1.0;
+    if (baselink_id_ == id){}
+    else if (id > baselink_id_){
+      for (int i = baselink_id_; i < id; ++i)
+        JW_mat(2, i) = 1.0;
+    }
+    else if (id < baselink_id_){
+      for (int i = id; i < baselink_id_; ++i)
+        JW_mat(2, i) = -1.0;
+    }
     return JW_mat;
   }
 
