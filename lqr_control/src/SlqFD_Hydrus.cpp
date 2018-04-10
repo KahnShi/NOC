@@ -143,7 +143,7 @@ namespace lqr_discrete{
     // test: weight on z
     (*Q0_ptr_)(P_Z, P_Z) = (*Q0_ptr_)(V_Z, V_Z) = Q_z_para_;
 
-    *R_ptr_ = R_para_ * MatrixXd::Identity(u_size_, u_size_);
+    (*R_ptr_).noalias() = R_para_ * MatrixXd::Identity(u_size_, u_size_);
 
     uav_rotor_thrust_min_ = 2.0;
     uav_rotor_thrust_max_ = 16.4;
@@ -182,7 +182,7 @@ namespace lqr_discrete{
     (*Q0_ptr_)(E_Y, E_Y) = Q_yaw_para_;
     (*Q0_ptr_)(P_Z, P_Z) = Q_z_para_;
 
-    *R_ptr_ = R_para_ * MatrixXd::Identity(u_size_, u_size_);
+    (*R_ptr_).noalias() = R_para_ * MatrixXd::Identity(u_size_, u_size_);
 
   }
 
@@ -292,6 +292,7 @@ namespace lqr_discrete{
     else
       not_first_slq_flag_ = true;
 
+    ROS_INFO("[SLQ] Assign vector starts.");
     for (int i = 0; i <= iteration_times_; ++i){
       double cur_time;
       if (i <= high_freq_iteration_times_)
@@ -318,11 +319,12 @@ namespace lqr_discrete{
       u_vec_.push_back(un_vec_[0] - un_vec_[i]);
     }
     stable_u_last_ = un_vec_[iteration_times_];
+    ROS_INFO("[SLQ] Assign vector finished.");
 
     FDLQR();
     getRiccatiH();
-    *IDlqr_F_ptr_ = (*R_ptr_ +
-                     B_ptr_->transpose() * (*Riccati_P_ptr_) * (*B_ptr_)).inverse()
+    (*IDlqr_F_ptr_).noalias() = (*R_ptr_ +
+                                 B_ptr_->transpose() * (*Riccati_P_ptr_) * (*B_ptr_)).inverse()
       * (B_ptr_->transpose() * (*Riccati_P_ptr_) * (*A_ptr_));
 
     if (manual_final_ocp_flag_){
@@ -454,7 +456,7 @@ namespace lqr_discrete{
   void SlqFiniteDiscreteControlHydrus::iterativeOptimization(){
     *P_ptr_ = *P0_ptr_;
     //todo: judge the negative sign
-    *p_ptr_ = 2.0 * (*P_ptr_) * x_vec_[iteration_times_];
+    (*p_ptr_).noalias() = 2.0 * (*P_ptr_) * x_vec_[iteration_times_];
 
     for (int i = iteration_times_ - 1; i >= 0; --i){
       // add weight for waypoints
@@ -474,7 +476,7 @@ namespace lqr_discrete{
       // update current Q and R matrix
       *Q_ptr_ = (*Q0_ptr_);
       for (int j = 1; j < waypoints_ptr_->size() - 1; ++j)
-        *Q_ptr_ = *Q_ptr_ + W_vec[j-1];
+        (*Q_ptr_).noalias() += W_vec[j-1];
 
       *x_ptr_ = x_vec_[i];
       *u_ptr_ = u_vec_[i];
@@ -482,9 +484,9 @@ namespace lqr_discrete{
       updateMatrixAB(i);
 
       //todo: judge the negative sign
-      *q_ptr_ = 2.0 * (*Q0_ptr_) * x_vec_[i];
+      (*q_ptr_).noalias() = 2.0 * (*Q0_ptr_) * x_vec_[i];
       for (int j = 1; j < waypoints_ptr_->size() - 1; ++j)
-        *q_ptr_ = (*q_ptr_) +
+        (*q_ptr_).noalias() +=
           2.0 * W_vec[j-1] * stateSubtraction(xn_ptr_, &((*waypoints_ptr_)[j]));
 
       //todo: judge the positive sign
@@ -517,8 +519,9 @@ namespace lqr_discrete{
         VectorXd cur_x = x_vec_[0];
         for (int i = 0; i < iteration_times_; ++i){
           VectorXd cur_u(u_size_);
-          cur_u = u_vec_[i] + alpha_ * u_fw_vec_[i]
-            + K_vec_[i] * cur_x;
+          cur_u = u_vec_[i];
+          cur_u.noalias() += alpha_ * u_fw_vec_[i];
+          cur_u.noalias() += K_vec_[i] * cur_x;
           checkControlInputFeasible(&cur_u, i);
           // calculate energy
           // add weight for waypoints
@@ -572,8 +575,9 @@ namespace lqr_discrete{
     cur_x = x_vec_[0];
     for (int i = 0; i < iteration_times_; ++i){
       VectorXd cur_u(u_size_);
-      cur_u = u_vec_[i] + alpha_candidate_ * u_fw_vec_[i]
-        + K_vec_[i] * (cur_x);
+      cur_u = u_vec_[i];
+      cur_u.noalias() += alpha_candidate_ * u_fw_vec_[i];
+      cur_u.noalias() += K_vec_[i] * (cur_x);
       checkControlInputFeasible(&cur_u, i);
       VectorXd new_x(x_size_);
       updateNewState(&new_x, &cur_x, &cur_u, i);
@@ -633,19 +637,21 @@ namespace lqr_discrete{
     }
     VectorXd new_u = VectorXd::Zero(u_size_);
     VectorXd cur_x = getRelativeState(cur_real_x_ptr);
-    new_u = u_vec_[id] + alpha_candidate_ * u_fw_vec_[id] + K_vec_[id] * (cur_x - x_vec_[id]);
+    new_u = u_vec_[id];
+    new_u.noalias() += alpha_candidate_ * u_fw_vec_[id];
+    new_u.noalias() += K_vec_[id] * stateSubtraction(&cur_x, &(x_vec_[id]));
     checkControlInputFeasible(&new_u, id);
     VectorXd stable_u = un_vec_[id];
-    new_u = new_u + stable_u;
+    new_u.noalias() += stable_u;
     return new_u;
   }
 
   VectorXd SlqFiniteDiscreteControlHydrus::infiniteFeedbackControl(VectorXd *cur_real_x_ptr){
     VectorXd new_u = VectorXd::Zero(u_size_);
     VectorXd cur_x = stateSubtraction(cur_real_x_ptr, &xn_last_);
-    new_u = -(*IDlqr_F_ptr_) * cur_x;
+    new_u.noalias() = -(*IDlqr_F_ptr_) * cur_x;
     checkControlInputFeasible(&new_u, iteration_times_);
-    new_u = new_u + stable_u_last_;
+    new_u.noalias() += stable_u_last_;
     return new_u;
   }
 
@@ -662,14 +668,14 @@ namespace lqr_discrete{
 
     if (id > iteration_times_ - 1){
       id = iteration_times_;
-      new_u = -(*IDlqr_F_ptr_) * cur_x;
+      new_u.noalias() = -(*IDlqr_F_ptr_) * cur_x;
       checkControlInputFeasible(&new_u, id);
-      new_u = new_u + stable_u_last_;
+      new_u.noalias() += stable_u_last_;
     }
     else{
-      new_u = -lqr_F_vec_[iteration_times_ - 1 - id] * cur_x;
+      new_u.noalias() = -lqr_F_vec_[iteration_times_ - 1 - id] * cur_x;
       checkControlInputFeasible(&new_u, id);
-      new_u = new_u + un_vec_[id];
+      new_u.noalias() += un_vec_[id];
     }
     return new_u;
   }
@@ -891,7 +897,7 @@ namespace lqr_discrete{
     *A_ptr_ = MatrixXd::Zero(x_size_, x_size_);
 
     VectorXd *x_ptr = new VectorXd(x_size_); *x_ptr = getAbsoluteState(&(x_vec_[time_id]));
-    VectorXd *u_ptr = new VectorXd(u_size_); *u_ptr = u_vec_[time_id] + un_vec_[time_id];
+    VectorXd *u_ptr = new VectorXd(u_size_); (*u_ptr).noalias() = u_vec_[time_id] + un_vec_[time_id];
     VectorXd *joint_ptr = new VectorXd(n_links_ - 1); *joint_ptr = joint_vec_[time_id];
 
     /* x, y, z */
@@ -929,24 +935,21 @@ namespace lqr_discrete{
     R_e << 1, tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]), tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]),
       0, cos((*x_ptr)[E_R]), -sin((*x_ptr)[E_R]),
       0, sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
-    Eigen::Vector3d d_e_w_x = R_e * Eigen::Vector3d(1.0, 0, 0);
-    Eigen::Vector3d d_e_w_y = R_e * Eigen::Vector3d(0, 1.0, 0);
-    Eigen::Vector3d d_e_w_z = R_e * Eigen::Vector3d(0, 0, 1.0);
     MatrixXd R_e_r = MatrixXd::Zero(3, 3);
     R_e_r << 0, tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]), -tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]),
       0, -sin((*x_ptr)[E_R]), -cos((*x_ptr)[E_R]),
       0, cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), -sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
-    Eigen::Vector3d d_e_e_r = R_e_r * w;
+    Eigen::Vector3d d_e_e_r; d_e_e_r.noalias() = R_e_r * w;
     MatrixXd R_e_p = MatrixXd::Zero(3, 3);
     double d_cosp = sin((*x_ptr)[E_P]) / pow(cos((*x_ptr)[E_P]), 2.0);
     R_e_p << 0, sin((*x_ptr)[E_R]) / pow(cos((*x_ptr)[E_P]), 2.0), cos((*x_ptr)[E_R]) / pow(cos((*x_ptr)[E_P]), 2.0),
       0, 0, 0,
       0, sin((*x_ptr)[E_R]) * d_cosp, cos((*x_ptr)[E_R]) * d_cosp;
-    Eigen::Vector3d d_e_e_p = R_e_p * w;
+    Eigen::Vector3d d_e_e_p; d_e_e_p.noalias() = R_e_p * w;
     for (int i = E_R; i <= E_Y; ++i){
-      (*A_ptr_)(i, W_X) = d_e_w_x(i - E_R);
-      (*A_ptr_)(i, W_Y) = d_e_w_y(i - E_R);
-      (*A_ptr_)(i, W_Z) = d_e_w_z(i - E_R);
+      (*A_ptr_)(i, W_X) = R_e(i - E_R, 0);
+      (*A_ptr_)(i, W_Y) = R_e(i - E_R, 1);
+      (*A_ptr_)(i, W_Z) = R_e(i - E_R, 2);
       (*A_ptr_)(i, E_R) = d_e_e_r(i - E_R);
       (*A_ptr_)(i, E_P) = d_e_e_p(i - E_R);
     }
@@ -957,7 +960,7 @@ namespace lqr_discrete{
     w = Eigen::Vector3d((*x_ptr)[W_X], (*x_ptr)[W_Y], (*x_ptr)[W_Z]);
     Eigen::Matrix3d I_sum = Eigen::Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i)
-      I_sum += I_vec_[time_id][i];
+      I_sum.noalias() += I_vec_[time_id][i];
     Eigen::Matrix3d I_inv = I_sum.inverse();
     std::vector<Eigen::Vector3d> d_w_w_i_vec;
     for (int i = 0; i < 3; ++i){
@@ -965,9 +968,9 @@ namespace lqr_discrete{
       Eigen::Vector3d dwi = Eigen::Vector3d::Zero(); dwi(i) = 1.0;
       for (int j = 0; j < n_links_; ++j){
         Eigen::Vector3d wj = w + VectorXdTo3d(getJacobianW(j) * joint_dt_vec_[time_id]);
-        d_w_w_i = d_w_w_i + (-dwi.cross(VectorXdTo3d(I_vec_[time_id][j] * wj))
-                             - wj.cross(VectorXdTo3d(I_vec_[time_id][j] * dwi))
-                             - VectorXdTo3d(I_dt_vec_[time_id][i] * dwi));
+        d_w_w_i.noalias() -= dwi.cross(VectorXdTo3d(I_vec_[time_id][j] * wj));
+        d_w_w_i.noalias() -= wj.cross(VectorXdTo3d(I_vec_[time_id][j] * dwi));
+        d_w_w_i.noalias() -= VectorXdTo3d(I_dt_vec_[time_id][i] * dwi);
       }
       d_w_w_i_vec.push_back(I_inv * d_w_w_i);
     }
@@ -1017,10 +1020,11 @@ namespace lqr_discrete{
     /* d w_u_i = I.inv() * (ri.cross(d fi) + [0;0;d fi * M_z(i)]) */
     Eigen::Matrix3d I_sum = Eigen::Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i)
-      I_sum += I_vec_[time_id][i];
+      I_sum.noalias() += I_vec_[time_id][i];
     Eigen::Matrix3d I_inv = I_sum.inverse();
     for (int i = 0; i < n_links_; ++i){
-      Eigen::Vector3d dw_u_i = I_inv *
+      Eigen::Vector3d dw_u_i;
+      dw_u_i.noalias() = I_inv *
         ((link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id])
          .cross(Eigen::Vector3d(0, 0, 1.0))
          + Eigen::Vector3d(0, 0, M_z_(i)));
@@ -1039,7 +1043,7 @@ namespace lqr_discrete{
     VectorXd *x_ptr = new VectorXd(x_size_);
     VectorXd *u_ptr = new VectorXd(u_size_);
     *x_ptr = getAbsoluteState(relative_x_ptr);
-    *u_ptr = *relative_u_ptr + un_vec_[time_id];
+    (*u_ptr).noalias() = *relative_u_ptr + un_vec_[time_id];
 
     VectorXd *joint_ptr = new VectorXd(n_links_ - 1);
     *joint_ptr = joint_vec_[time_id];
@@ -1072,7 +1076,7 @@ namespace lqr_discrete{
     R_e << 1, tan((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]), tan((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]),
       0, cos((*x_ptr)[E_R]), -sin((*x_ptr)[E_R]),
       0, sin((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]), cos((*x_ptr)[E_R]) / cos((*x_ptr)[E_P]);
-    Eigen::Vector3d d_e = R_e * w;
+    Eigen::Vector3d d_e; d_e.noalias() = R_e * w;
     for (int i = E_R; i <= E_Y; ++i)
       dev_x(i) = d_e(i - E_R);
 
@@ -1084,20 +1088,20 @@ namespace lqr_discrete{
     VectorXd ddq = joint_ddt_vec_[time_id];
     for (int i = 0; i < n_links_; ++i){
       MatrixXd JW_mat = getJacobianW(i);
-      Eigen::Vector3d wi = w + VectorXdTo3d(JW_mat * dq);
+      Eigen::Vector3d wi; wi.noalias() = w + VectorXdTo3d(JW_mat * dq);
       double fi = (*u_ptr)[i];
-      mid_result +=
+      mid_result.noalias() +=
         (link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id]).
-        cross(Eigen::Vector3d(0, 0, fi))
-        + Eigen::Vector3d(0, 0, fi * M_z_(i))
-        - I_vec_[time_id][i] * JW_mat * ddq
-        - wi.cross(VectorXdTo3d(I_vec_[time_id][i] * wi))
-        - I_dt_vec_[time_id][i] * wi;
+        cross(Eigen::Vector3d(0, 0, fi));
+      mid_result.noalias() += Eigen::Vector3d(0, 0, fi * M_z_(i));
+      mid_result.noalias() -= I_vec_[time_id][i] * JW_mat * ddq;
+      mid_result.noalias() -= wi.cross(VectorXdTo3d(I_vec_[time_id][i] * wi));
+      mid_result.noalias() -= I_dt_vec_[time_id][i] * wi;
     }
     Eigen::Matrix3d I_sum = Eigen::Matrix3d::Zero();
     for (int i = 0; i < n_links_; ++i)
-      I_sum += I_vec_[time_id][i];
-    dw = I_sum.inverse() * (mid_result);
+      I_sum.noalias() += I_vec_[time_id][i];
+    dw.noalias() = I_sum.inverse() * (mid_result);
     for (int i = 0; i < 3; ++i)
       dev_x(W_X + i) = dw(i);
 
@@ -1172,7 +1176,7 @@ namespace lqr_discrete{
     Eigen::Vector3d cog_local_pos = Eigen::Vector3d::Zero();
     std::vector<Eigen::Vector3d> center_local_pos_vec = link_center_pos_local_vec_[time_id];
     for (int i = 0; i < n_links_; ++i){
-      cog_local_pos = cog_local_pos + link_weight_vec_[i] * center_local_pos_vec[i];
+      cog_local_pos.noalias() += link_weight_vec_[i] * center_local_pos_vec[i];
     }
     cog_local_pos = cog_local_pos / hydrus_weight_;
     cog_pos_local_vec_.push_back(cog_local_pos);
@@ -1182,7 +1186,7 @@ namespace lqr_discrete{
     Eigen::Vector3d cog_local_pos_dt = Eigen::Vector3d::Zero();
     std::vector<Eigen::Vector3d> center_local_pos_dt_vec = link_center_pos_local_dt_vec_[time_id];
     for (int i = 0; i < n_links_; ++i){
-      cog_local_pos_dt = cog_local_pos_dt + link_weight_vec_[i] * center_local_pos_dt_vec[i];
+      cog_local_pos_dt.noalias() += link_weight_vec_[i] * center_local_pos_dt_vec[i];
     }
     cog_local_pos_dt = cog_local_pos_dt / hydrus_weight_;
     cog_pos_local_dt_vec_.push_back(cog_local_pos_dt);
@@ -1206,9 +1210,9 @@ namespace lqr_discrete{
       rot << cos(joint_ang), -sin(joint_ang), 0,
         sin(joint_ang), cos(joint_ang), 0,
         0, 0, 1;
-      link_center = prev_link_end + rot * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
+      link_center.noalias() = prev_link_end + rot * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
       links_center_vec[i] = link_center;
-      prev_link_end = prev_link_end + rot * Eigen::Vector3d(link_length_, 0, 0);
+      prev_link_end.noalias() += rot * Eigen::Vector3d(link_length_, 0, 0);
     }
 
     prev_link_end = Eigen::Vector3d(0.0, 0.0, 0.0);
@@ -1220,9 +1224,9 @@ namespace lqr_discrete{
       rot << cos(joint_ang), -sin(joint_ang), 0,
         sin(joint_ang), cos(joint_ang), 0,
         0, 0, 1;
-      link_center = prev_link_end + rot * Eigen::Vector3d(-link_length_ / 2.0, 0, 0);
+      link_center.noalias() = prev_link_end + rot * Eigen::Vector3d(-link_length_ / 2.0, 0, 0);
       links_center_vec[i] = link_center;
-      prev_link_end = prev_link_end + rot * Eigen::Vector3d(-link_length_, 0, 0);
+      prev_link_end.noalias() += rot * Eigen::Vector3d(-link_length_, 0, 0);
     }
     link_center_pos_local_vec_.push_back(links_center_vec);
   }
@@ -1247,9 +1251,9 @@ namespace lqr_discrete{
         cos(joint_ang), -sin(joint_ang), 0,
         0, 0, 0;
       rot_dt = rot_dt * joint_ang_dt;
-      link_center_dt = prev_link_end_dt + rot_dt * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
+      link_center_dt.noalias() = prev_link_end_dt + rot_dt * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
       links_center_dt_vec[i] = link_center_dt;
-      prev_link_end_dt = prev_link_end_dt + rot_dt * Eigen::Vector3d(link_length_, 0, 0);
+      prev_link_end_dt.noalias() += rot_dt * Eigen::Vector3d(link_length_, 0, 0);
     }
 
     prev_link_end_dt = Eigen::Vector3d(0, 0, 0);
@@ -1265,9 +1269,9 @@ namespace lqr_discrete{
         cos(joint_ang), -sin(joint_ang), 0,
         0, 0, 0;
       rot_dt = rot_dt * joint_ang_dt;
-      link_center_dt = prev_link_end_dt + rot_dt * Eigen::Vector3d(-link_length_ / 2.0, 0, 0);
+      link_center_dt.noalias() = prev_link_end_dt + rot_dt * Eigen::Vector3d(-link_length_ / 2.0, 0, 0);
       links_center_dt_vec[i] = link_center_dt;
-      prev_link_end_dt = prev_link_end_dt + rot_dt * Eigen::Vector3d(-link_length_, 0, 0);
+      prev_link_end_dt.noalias() += rot_dt * Eigen::Vector3d(-link_length_, 0, 0);
     }
     link_center_pos_local_dt_vec_.push_back(links_center_dt_vec);
   }
@@ -1338,22 +1342,27 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlHydrus::updateSLQEquations(){
-    (*H_ptr_) = (*R_ptr_) + B_ptr_->transpose() * (*P_ptr_) * (*B_ptr_);
-    (*G_ptr_) = B_ptr_->transpose() * (*P_ptr_) * (*A_ptr_);
-    (*g_ptr_) = (*r_ptr_) + B_ptr_->transpose() * (*p_ptr_);
-    (*K_ptr_) = -(H_ptr_->inverse() * (*G_ptr_));
-    (*l_ptr_) = -(H_ptr_->inverse() * (*g_ptr_));
-    (*P_ptr_) = (*Q_ptr_) + A_ptr_->transpose() * (*P_ptr_) * (*A_ptr_)
-      + K_ptr_->transpose() * (*H_ptr_) * (*K_ptr_)
-      + K_ptr_->transpose() * (*G_ptr_)
-      + G_ptr_->transpose() * (*K_ptr_);
-    (*p_ptr_) = (*q_ptr_) + A_ptr_->transpose() * (*p_ptr_)
-      + K_ptr_->transpose() * (*H_ptr_) * (*l_ptr_)
-      + K_ptr_->transpose() * (*g_ptr_)
-      + G_ptr_->transpose() * (*l_ptr_);
+    (*H_ptr_).noalias() = (*R_ptr_) + B_ptr_->transpose() * (*P_ptr_) * (*B_ptr_);
+    (*G_ptr_).noalias() = B_ptr_->transpose() * (*P_ptr_) * (*A_ptr_);
+    (*g_ptr_).noalias() = (*r_ptr_) + B_ptr_->transpose() * (*p_ptr_);
+    (*K_ptr_).noalias() = -(H_ptr_->inverse() * (*G_ptr_));
+    (*l_ptr_).noalias() = -(H_ptr_->inverse() * (*g_ptr_));
+
+    (*P_ptr_) = A_ptr_->transpose() * (*P_ptr_) * (*A_ptr_);
+    (*P_ptr_).noalias() += (*Q_ptr_);
+    (*P_ptr_).noalias() += K_ptr_->transpose() * (*H_ptr_) * (*K_ptr_);
+    (*P_ptr_).noalias() += K_ptr_->transpose() * (*G_ptr_);
+    (*P_ptr_).noalias() += G_ptr_->transpose() * (*K_ptr_);
+
+    (*p_ptr_) = A_ptr_->transpose() * (*p_ptr_);
+    (*p_ptr_).noalias() += (*q_ptr_);
+    (*p_ptr_).noalias() += K_ptr_->transpose() * (*H_ptr_) * (*l_ptr_);
+    (*p_ptr_).noalias() += K_ptr_->transpose() * (*g_ptr_);
+    (*p_ptr_).noalias() += G_ptr_->transpose() * (*l_ptr_);
   }
 
   void SlqFiniteDiscreteControlHydrus::FDLQR(){
+    ROS_INFO("[SLQ] LQR init starts.");
     *x_ptr_ = x_vec_[0];
     *u_ptr_ = u_vec_[0];
     *joint_ptr_ = joint_vec_[0];
@@ -1363,17 +1372,18 @@ namespace lqr_discrete{
     P = *Q0_ptr_;
     for (int i = 0; i < iteration_times_; ++i){
       MatrixXd F = MatrixXd::Zero(u_size_, x_size_);
-      F = ((*R_ptr_) + B_ptr_->transpose() * P * (*B_ptr_)).inverse()
+      F.noalias() = ((*R_ptr_) + B_ptr_->transpose() * P * (*B_ptr_)).inverse()
         * (B_ptr_->transpose() * P * (*A_ptr_));
-      P = A_ptr_->transpose() * P * (*A_ptr_)
-        - (A_ptr_->transpose() * P * (*B_ptr_)) * F
-        + (*Q_ptr_);
+      MatrixXd P_prev = P;
+      P.noalias() = A_ptr_->transpose() * P_prev * (*A_ptr_);
+      P.noalias() -= (A_ptr_->transpose() * P_prev * (*B_ptr_)) * F;
+      P.noalias() += (*Q_ptr_);
       lqr_F_vec_.push_back(F);
     }
 
     VectorXd x = x_vec_[0];
     for (int i = iteration_times_ - 1; i >= 0; --i){
-      VectorXd u = -lqr_F_vec_[i] * x;
+      VectorXd u; u.noalias() = -lqr_F_vec_[i] * x;
       // Guarantee control is in bound
       checkControlInputFeasible(&u, i);
 
