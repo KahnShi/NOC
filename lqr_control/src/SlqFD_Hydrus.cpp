@@ -675,6 +675,12 @@ namespace lqr_discrete{
 
   VectorXd SlqFiniteDiscreteControlHydrus::getStableThrust(int time_id){
     VectorXd stable_u = VectorXd::Zero(u_size_);
+    // todo: currently simply average of the gravity to save computation, configuration needs to be considered
+    for (int i = 0; i < u_size_; ++i)
+      stable_u(i) = hydrus_weight_ * 9.78 / u_size_;
+    return stable_u;
+
+    // todo: debug old method
     VectorXd g = VectorXd::Zero(4);
     g(3) = hydrus_weight_ * 9.78;
     MatrixXd H = MatrixXd::Zero(u_size_, u_size_);
