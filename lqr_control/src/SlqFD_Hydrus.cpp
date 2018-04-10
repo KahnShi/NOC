@@ -187,6 +187,7 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlHydrus::initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr, TennisTaskDescriptor task_descriptor){
+    ROS_INFO("[SLQ] InitSLQ starts.");
     control_freq_ = freq;
     tennis_task_descriptor_ = task_descriptor;
     adjustTennisTaskParamater(task_descriptor, (*time_ptr)[0]);
@@ -347,7 +348,7 @@ namespace lqr_discrete{
       double lqr_cost = calculateCostFunction();
       std::cout << "\n Cost: " << lqr_cost << "\n\n";
     }
-    ROS_INFO("[SLQ] Initialization finished.");
+    ROS_INFO("[SLQ] InitSLQ finished with %d iterations.", iteration_times_);
   }
 
   void SlqFiniteDiscreteControlHydrus::getRiccatiH(){
@@ -495,6 +496,8 @@ namespace lqr_discrete{
     }
 
     /* Update control by finding the best alpha */
+    ROS_INFO("[SLQ] Line search starts.");
+
     alpha_ = 1.0;
     alpha_candidate_ = 1.0;
     double energy_min = -1.0;
@@ -591,6 +594,7 @@ namespace lqr_discrete{
       std::cout << "\n Cost: " << traj_cost << "\n\n";
     }
     infinite_feedback_update_flag_ = false;
+    ROS_INFO("[SLQ] Line search finished.");
   }
 
   VectorXd SlqFiniteDiscreteControlHydrus::getCurrentIdealPosition(double relative_time){
