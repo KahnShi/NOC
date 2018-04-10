@@ -452,7 +452,7 @@ namespace lqr_discrete{
   void SlqFiniteDiscreteControlHydrus::iterativeOptimization(){
     *P_ptr_ = *P0_ptr_;
     //todo: judge the negative sign
-    *p_ptr_ = -2.0 * (*P_ptr_) * x_vec_[iteration_times_];
+    *p_ptr_ = 2.0 * (*P_ptr_) * x_vec_[iteration_times_];
 
     for (int i = iteration_times_ - 1; i >= 0; --i){
       // add weight for waypoints
@@ -480,7 +480,7 @@ namespace lqr_discrete{
       updateMatrixAB(i);
 
       //todo: judge the negative sign
-      *q_ptr_ = -2.0 * (*Q0_ptr_) * x_vec_[i];
+      *q_ptr_ = 2.0 * (*Q0_ptr_) * x_vec_[i];
       for (int j = 1; j < waypoints_ptr_->size() - 1; ++j)
         *q_ptr_ = (*q_ptr_) +
           2.0 * W_vec[j-1] * stateSubtraction(xn_ptr_, &((*waypoints_ptr_)[j]));
