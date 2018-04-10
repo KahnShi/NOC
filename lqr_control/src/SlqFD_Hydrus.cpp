@@ -287,6 +287,7 @@ namespace lqr_discrete{
       u_fw_vec_.clear();
       K_vec_.clear();
       un_vec_.clear();
+      lqr_F_vec_.clear();
     }
     else
       not_first_slq_flag_ = true;
