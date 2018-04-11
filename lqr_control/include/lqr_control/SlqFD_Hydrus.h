@@ -124,8 +124,7 @@ namespace lqr_discrete{
 
     /* tennis task */
     TennisTaskDescriptor tennis_task_descriptor_;
-    double R_pre_hit_para_, Q_p_pre_hit_para_, Q_v_pre_hit_para_, Q_e_pre_hit_para_, Q_w_pre_hit_para_, Q_z_pre_hit_para_, Q_yaw_pre_hit_para_;
-    double R_post_hit_para_, Q_p_post_hit_para_, Q_v_post_hit_para_, Q_e_post_hit_para_, Q_w_post_hit_para_, Q_z_post_hit_para_, Q_yaw_post_hit_para_;
+    double R_mid_para_, Q_p_mid_para_, Q_v_mid_para_, Q_e_mid_para_, Q_w_mid_para_, Q_z_mid_para_, Q_yaw_mid_para_;
     double R_final_para_, Q_p_final_para_, Q_v_final_para_, Q_e_final_para_, Q_w_final_para_, Q_z_final_para_, Q_yaw_final_para_;
     double R_para_, Q_p_para_, Q_v_para_, Q_e_para_, Q_w_para_, Q_z_para_, Q_yaw_para_;
     bool manual_final_ocp_flag_;

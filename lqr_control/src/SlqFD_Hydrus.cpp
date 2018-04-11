@@ -45,21 +45,14 @@ namespace lqr_discrete{
     not_first_slq_flag_ = false;
     /* ros param */
     nhp_.param("transform_movement_flag", transform_movement_flag_, true);
-    nhp_.param("R_pre_hit_para", R_pre_hit_para_, 1.0);
-    nhp_.param("Q_p_pre_hit_para", Q_p_pre_hit_para_, 50.0);
-    nhp_.param("Q_v_pre_hit_para", Q_v_pre_hit_para_, 0.1);
-    nhp_.param("Q_z_pre_hit_para", Q_z_pre_hit_para_, 50.0);
-    nhp_.param("Q_w_pre_hit_para", Q_w_pre_hit_para_, 0.1);
-    nhp_.param("Q_e_pre_hit_para", Q_e_pre_hit_para_, 5.0);
-    nhp_.param("Q_yaw_pre_hit_para", Q_yaw_pre_hit_para_, 10.0);
+    nhp_.param("R_mid_para", R_mid_para_, 1.0);
+    nhp_.param("Q_p_mid_para", Q_p_mid_para_, 50.0);
+    nhp_.param("Q_v_mid_para", Q_v_mid_para_, 0.1);
+    nhp_.param("Q_z_mid_para", Q_z_mid_para_, 50.0);
+    nhp_.param("Q_w_mid_para", Q_w_mid_para_, 0.1);
+    nhp_.param("Q_e_mid_para", Q_e_mid_para_, 5.0);
+    nhp_.param("Q_yaw_mid_para", Q_yaw_mid_para_, 10.0);
 
-    nhp_.param("R_post_hit_para", R_post_hit_para_, 1.0);
-    nhp_.param("Q_p_post_hit_para", Q_p_post_hit_para_, 50.0);
-    nhp_.param("Q_v_post_hit_para", Q_v_post_hit_para_, 0.1);
-    nhp_.param("Q_z_post_hit_para", Q_z_post_hit_para_, 50.0);
-    nhp_.param("Q_w_post_hit_para", Q_w_post_hit_para_, 0.1);
-    nhp_.param("Q_e_post_hit_para", Q_e_post_hit_para_, 5.0);
-    nhp_.param("Q_yaw_post_hit_para", Q_yaw_post_hit_para_, 10.0);
     nhp_.param("manual_final_ocp_flag", manual_final_ocp_flag_, true);
     nhp_.param("Q_p_final_para", Q_p_final_para_, 500.0);
     nhp_.param("Q_v_final_para", Q_v_final_para_, 10.0);
@@ -68,13 +61,13 @@ namespace lqr_discrete{
     nhp_.param("Q_e_final_para", Q_e_final_para_, 400.0);
     nhp_.param("Q_yaw_final_para", Q_yaw_final_para_, 500.0);
 
-    R_para_ = R_pre_hit_para_;
-    Q_p_para_ = Q_p_pre_hit_para_;
-    Q_v_para_ = Q_v_pre_hit_para_;
-    Q_z_para_ = Q_z_pre_hit_para_;
-    Q_w_para_ = Q_w_pre_hit_para_;
-    Q_e_para_ = Q_e_pre_hit_para_;
-    Q_yaw_para_ = Q_yaw_pre_hit_para_;
+    R_para_ = R_mid_para_;
+    Q_p_para_ = Q_p_mid_para_;
+    Q_v_para_ = Q_v_mid_para_;
+    Q_z_para_ = Q_z_mid_para_;
+    Q_w_para_ = Q_w_mid_para_;
+    Q_e_para_ = Q_e_mid_para_;
+    Q_yaw_para_ = Q_yaw_mid_para_;
 
     nhp_.param("verbose", debug_, false);
     nhp_.param("dynamic_freqency_flag", dynamic_freqency_flag_, true);
@@ -151,46 +144,10 @@ namespace lqr_discrete{
     ROS_INFO("[SLQ] Hydrus init finished.");
   }
 
-  void SlqFiniteDiscreteControlHydrus::adjustTennisTaskParamater(TennisTaskDescriptor task_descriptor, double cur_time){
-    if (cur_time < task_descriptor.hitting_time){
-      R_para_ = R_pre_hit_para_;
-      Q_p_para_ = Q_p_pre_hit_para_;
-      Q_v_para_ = Q_v_pre_hit_para_;
-      Q_z_para_ = Q_z_pre_hit_para_;
-      Q_w_para_ = Q_w_pre_hit_para_;
-      Q_e_para_ = Q_e_pre_hit_para_;
-      Q_yaw_para_ = Q_yaw_pre_hit_para_;
-    }
-    else{
-      R_para_ = R_post_hit_para_;
-      Q_p_para_ = Q_p_post_hit_para_;
-      Q_v_para_ = Q_v_post_hit_para_;
-      Q_z_para_ = Q_z_post_hit_para_;
-      Q_w_para_ = Q_w_post_hit_para_;
-      Q_e_para_ = Q_e_post_hit_para_;
-      Q_yaw_para_ = Q_yaw_post_hit_para_;
-    }
-    for (int i = 0; i <= P_Z; ++i)
-      (*Q0_ptr_)(i, i) = Q_p_para_;
-    for (int i = V_X; i <= V_Z; ++i)
-      (*Q0_ptr_)(i, i) = Q_v_para_;
-    for (int i = W_X; i <= W_Z; ++i)
-      (*Q0_ptr_)(i, i) = Q_w_para_;
-    for (int i = E_R; i <= E_Y; ++i)
-      (*Q0_ptr_)(i, i) = Q_e_para_;
-    // test: weight on z
-    (*Q0_ptr_)(E_Y, E_Y) = Q_yaw_para_;
-    (*Q0_ptr_)(P_Z, P_Z) = Q_z_para_;
-
-    (*R_ptr_).noalias() = R_para_ * MatrixXd::Identity(u_size_, u_size_);
-
-  }
-
   void SlqFiniteDiscreteControlHydrus::initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr, TennisTaskDescriptor task_descriptor){
     ROS_INFO("[SLQ] InitSLQ starts.");
     control_freq_ = freq;
     tennis_task_descriptor_ = task_descriptor;
-    adjustTennisTaskParamater(task_descriptor, (*time_ptr)[0]);
     // Here we assume frequency is an odd integer
     control_high_freq_ = freq;
     control_low_freq_ = freq / 2.0;
