@@ -282,6 +282,7 @@ namespace lqr_discrete{
       I_dt_vec_.clear();
       link_center_pos_local_vec_.clear();
       link_center_pos_local_dt_vec_.clear();
+      link_center_pos_cog_vec_.clear();
       cog_pos_local_vec_.clear();
       cog_pos_local_dt_vec_.clear();
       u_fw_vec_.clear();
@@ -699,7 +700,7 @@ namespace lqr_discrete{
       MatrixXd u_param = MatrixXd::Zero(u_size_ - 1, u_size_);
       u_param(u_size_ - 2, i) = 1.0;
       H_minor +=
-        S_operation(link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id])
+        S_operation(link_center_pos_cog_vec_[time_id][i])
         * u_param;
     }
     // z momentum
@@ -1025,7 +1026,7 @@ namespace lqr_discrete{
     for (int i = 0; i < n_links_; ++i){
       Eigen::Vector3d dw_u_i;
       dw_u_i.noalias() = I_inv *
-        ((link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id])
+        (link_center_pos_cog_vec_[time_id][i]
          .cross(Eigen::Vector3d(0, 0, 1.0))
          + Eigen::Vector3d(0, 0, M_z_(i)));
       for (int j = 0; j < 3; ++j)
@@ -1091,7 +1092,7 @@ namespace lqr_discrete{
       Eigen::Vector3d wi; wi.noalias() = w + VectorXdTo3d(JW_mat * dq);
       double fi = (*u_ptr)[i];
       mid_result.noalias() +=
-        (link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id]).
+        link_center_pos_cog_vec_[time_id][i].
         cross(Eigen::Vector3d(0, 0, fi));
       mid_result.noalias() += Eigen::Vector3d(0, 0, fi * M_z_(i));
       mid_result.noalias() -= I_vec_[time_id][i] * JW_mat * ddq;
@@ -1133,7 +1134,7 @@ namespace lqr_discrete{
     std::vector<Eigen::Matrix3d> cur_I_dt_vec;
     for (int i = 0; i < n_links_; ++i){
       Eigen::Matrix3d cur_I = *I_ptr_;
-      Eigen::Vector3d center_pos = link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id];
+      Eigen::Vector3d center_pos = link_center_pos_cog_vec_[time_id][i];
       cur_I(0, 0) += link_weight_vec_[i] * (pow(center_pos(1), 2.0)
                                             + pow(center_pos(2), 2.0));
       cur_I(1, 1) += link_weight_vec_[i] * (pow(center_pos(0), 2.0)
@@ -1180,6 +1181,11 @@ namespace lqr_discrete{
     }
     cog_local_pos = cog_local_pos / hydrus_weight_;
     cog_pos_local_vec_.push_back(cog_local_pos);
+
+    std::vector<Eigen::Vector3d> link_center_cog_pos_vec;
+    for (int i = 0; i < n_links_; ++i)
+      link_center_cog_pos_vec.push_back(link_center_pos_local_vec_[time_id][i] - cog_local_pos);
+    link_center_pos_cog_vec_.push_back(link_center_cog_pos_vec);
   }
 
   void SlqFiniteDiscreteControlHydrus::updateHydrusCogPositionDerivative(int time_id){

@@ -73,6 +73,7 @@ namespace lqr_discrete{
     std::vector<std::vector<Eigen::Matrix3d> > I_dt_vec_;
     std::vector<std::vector<Eigen::Vector3d> > link_center_pos_local_vec_;
     std::vector<std::vector<Eigen::Vector3d> > link_center_pos_local_dt_vec_;
+    std::vector<std::vector<Eigen::Vector3d> > link_center_pos_cog_vec_;
     std::vector<Eigen::Vector3d> cog_pos_local_vec_;
     std::vector<Eigen::Vector3d> cog_pos_local_dt_vec_;
     bool debug_;
