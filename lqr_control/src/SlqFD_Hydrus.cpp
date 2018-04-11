@@ -228,53 +228,52 @@ namespace lqr_discrete{
     x_init = getRelativeState(x0_ptr_);
     u_init = VectorXd::Zero(u_size_);
 
-    /* Clear assigned vector */
-    if (not_first_slq_flag_){
-      x_vec_.clear();
-      u_vec_.clear();
-      joint_vec_.clear();
-      joint_dt_vec_.clear();
-      joint_ddt_vec_.clear();
-      I_vec_.clear();
-      I_dt_vec_.clear();
-      link_center_pos_local_vec_.clear();
-      link_center_pos_local_dt_vec_.clear();
-      link_center_pos_cog_vec_.clear();
-      cog_pos_local_vec_.clear();
-      cog_pos_local_dt_vec_.clear();
-      u_fw_vec_.clear();
-      K_vec_.clear();
-      un_vec_.clear();
-      lqr_F_vec_.clear();
-    }
-    else
-      not_first_slq_flag_ = true;
+    x_vec_.resize(iteration_times_ + 1);
+    u_vec_.resize(iteration_times_ + 1);
+    joint_vec_.resize(iteration_times_ + 1);
+    joint_dt_vec_.resize(iteration_times_ + 1);
+    joint_ddt_vec_.resize(iteration_times_ + 1);
+    I_vec_.resize(iteration_times_ + 1);
+    I_dt_vec_.resize(iteration_times_ + 1);
+    link_center_pos_local_vec_.resize(iteration_times_ + 1);
+    link_center_pos_local_dt_vec_.resize(iteration_times_ + 1);
+    link_center_pos_cog_vec_.resize(iteration_times_ + 1);
+    cog_pos_local_vec_.resize(iteration_times_ + 1);
+    cog_pos_local_dt_vec_.resize(iteration_times_ + 1);
+    u_fw_vec_.resize(iteration_times_ + 1);
+    K_vec_.resize(iteration_times_ + 1);
+    un_vec_.resize(iteration_times_ + 1);
+    lqr_F_vec_.resize(iteration_times_ + 1);
 
     ROS_INFO("[SLQ] Assign vector starts.");
-    for (int i = 0; i <= iteration_times_; ++i){
-      double cur_time;
-      if (i <= high_freq_iteration_times_)
-        cur_time = double(i) / control_high_freq_;
-      else
-        cur_time = high_freq_end_time_ +
-          (i - high_freq_iteration_times_) / control_low_freq_;
-      VectorXd cur_joint = getCurrentJoint(cur_time);
-      VectorXd cur_joint_dt = getCurrentJoint(cur_time, 1);
-      VectorXd cur_joint_ddt = getCurrentJoint(cur_time, 2);
-      joint_vec_.push_back(cur_joint);
-      joint_dt_vec_.push_back(cur_joint_dt);
-      joint_ddt_vec_.push_back(cur_joint_ddt);
-      getHydrusLinksCenter(&cur_joint);
-      getHydrusLinksCenterDerivative(&cur_joint, &cur_joint_dt);
-      updateHydrusCogPosition(i);
-      updateHydrusCogPositionDerivative(i);
-      getHydrusInertialTensor(&cur_joint, i);
-      u_fw_vec_.push_back(u_init);
-      K_vec_.push_back(MatrixXd::Zero(u_size_, x_size_));
-      VectorXd stable_u = getStableThrust(i);
-      un_vec_.push_back(stable_u);
-      x_vec_.push_back(x_init);
-      u_vec_.push_back(un_vec_[0] - un_vec_[i]);
+    #pragma omp parallel num_threads(4)
+    {
+      #pragma omp for nowait
+      for (int i = 0; i <= iteration_times_; ++i){
+        double cur_time;
+        if (i <= high_freq_iteration_times_)
+          cur_time = double(i) / control_high_freq_;
+        else
+          cur_time = high_freq_end_time_ +
+            (i - high_freq_iteration_times_) / control_low_freq_;
+        VectorXd cur_joint = getCurrentJoint(cur_time);
+        VectorXd cur_joint_dt = getCurrentJoint(cur_time, 1);
+        VectorXd cur_joint_ddt = getCurrentJoint(cur_time, 2);
+        joint_vec_[i] = (cur_joint);
+        joint_dt_vec_[i] = (cur_joint_dt);
+        joint_ddt_vec_[i] = (cur_joint_ddt);
+        getHydrusLinksCenter(&cur_joint, i);
+        getHydrusLinksCenterDerivative(&cur_joint, &cur_joint_dt, i);
+        updateHydrusCogPosition(i);
+        updateHydrusCogPositionDerivative(i);
+        getHydrusInertialTensor(&cur_joint, i);
+        u_fw_vec_[i] = (u_init);
+        K_vec_[i] = (MatrixXd::Zero(u_size_, x_size_));
+        VectorXd stable_u = getStableThrust(i);
+        un_vec_[i] = (stable_u);
+        x_vec_[i] = (x_init);
+        u_vec_[i] = (un_vec_[0] - un_vec_[i]);
+      }
     }
     stable_u_last_ = un_vec_[iteration_times_];
     ROS_INFO("[SLQ] Assign vector finished.");
@@ -1138,8 +1137,8 @@ namespace lqr_discrete{
       cur_I_dt(2, 1) = cur_I_dt(1, 2);
       cur_I_dt_vec.push_back(cur_I_dt);
     }
-    I_vec_.push_back(cur_I_vec);
-    I_dt_vec_.push_back(cur_I_dt_vec);
+    I_vec_[time_id] = (cur_I_vec);
+    I_dt_vec_[time_id] = (cur_I_dt_vec);
   }
 
   void SlqFiniteDiscreteControlHydrus::updateHydrusCogPosition(int time_id){
@@ -1149,12 +1148,12 @@ namespace lqr_discrete{
       cog_local_pos.noalias() += link_weight_vec_[i] * center_local_pos_vec[i];
     }
     cog_local_pos = cog_local_pos / hydrus_weight_;
-    cog_pos_local_vec_.push_back(cog_local_pos);
+    cog_pos_local_vec_[time_id] = (cog_local_pos);
 
     std::vector<Eigen::Vector3d> link_center_cog_pos_vec;
     for (int i = 0; i < n_links_; ++i)
       link_center_cog_pos_vec.push_back(link_center_pos_local_vec_[time_id][i] - cog_local_pos);
-    link_center_pos_cog_vec_.push_back(link_center_cog_pos_vec);
+    link_center_pos_cog_vec_[time_id] = (link_center_cog_pos_vec);
   }
 
   void SlqFiniteDiscreteControlHydrus::updateHydrusCogPositionDerivative(int time_id){
@@ -1164,10 +1163,10 @@ namespace lqr_discrete{
       cog_local_pos_dt.noalias() += link_weight_vec_[i] * center_local_pos_dt_vec[i];
     }
     cog_local_pos_dt = cog_local_pos_dt / hydrus_weight_;
-    cog_pos_local_dt_vec_.push_back(cog_local_pos_dt);
+    cog_pos_local_dt_vec_[time_id] = (cog_local_pos_dt);
   }
 
-  void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenter(VectorXd *joint_ptr){
+  void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenter(VectorXd *joint_ptr, int time_id){
     std::vector<Eigen::Vector3d> links_center_vec;
     for (int i = 0; i < n_links_; ++i)
       links_center_vec.push_back(Eigen::Vector3d(0.0, 0.0, 0.0));
@@ -1203,10 +1202,10 @@ namespace lqr_discrete{
       links_center_vec[i] = link_center;
       prev_link_end.noalias() += rot * Eigen::Vector3d(-link_length_, 0, 0);
     }
-    link_center_pos_local_vec_.push_back(links_center_vec);
+    link_center_pos_local_vec_[time_id] = (links_center_vec);
   }
 
-  void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr){
+  void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr, int time_id){
     std::vector<Eigen::Vector3d> links_center_dt_vec;
     for (int i = 0; i < n_links_; ++i)
       links_center_dt_vec.push_back(Eigen::Vector3d(0.0, 0.0, 0.0));
@@ -1248,7 +1247,7 @@ namespace lqr_discrete{
       links_center_dt_vec[i] = link_center_dt;
       prev_link_end_dt.noalias() += rot_dt * Eigen::Vector3d(-link_length_, 0, 0);
     }
-    link_center_pos_local_dt_vec_.push_back(links_center_dt_vec);
+    link_center_pos_local_dt_vec_[time_id] = (links_center_dt_vec);
   }
 
   MatrixXd SlqFiniteDiscreteControlHydrus::getJacobianW(int id){
@@ -1353,7 +1352,7 @@ namespace lqr_discrete{
       P.noalias() = A_ptr_->transpose() * P_prev * (*A_ptr_);
       P.noalias() -= (A_ptr_->transpose() * P_prev * (*B_ptr_)) * F;
       P.noalias() += (*Q_ptr_);
-      lqr_F_vec_.push_back(F);
+      lqr_F_vec_[i] = (F);
     }
 
     VectorXd x = x_vec_[0];

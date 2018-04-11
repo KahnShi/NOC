@@ -157,8 +157,8 @@ namespace lqr_discrete{
     VectorXd getCurrentJoint(double time, int order = 0);
     VectorXd getCurrentJointAbsoluteTime(double time, int order = 0);
     Eigen::Matrix3d getCurrentRotationMatrix(Eigen::Vector3d euler_angle, int order = 0);
-    void getHydrusLinksCenter(VectorXd *joint_ptr);
-    void getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr);
+    void getHydrusLinksCenter(VectorXd *joint_ptr, int time_id);
+    void getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr, int time_id);
     void getHydrusInertialTensor(VectorXd *joint_ptr, int time_id);
     void updateHydrusCogPosition(int time_id);
     void updateHydrusCogPositionDerivative(int time_id);
