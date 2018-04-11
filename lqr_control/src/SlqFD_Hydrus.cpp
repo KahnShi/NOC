@@ -463,6 +463,13 @@ namespace lqr_discrete{
     alpha_candidate_ = 1.0;
     double energy_min = -1.0;
     double search_rate = 2.0;
+    // openmp para
+    std::vector<double> alpha_vec(line_search_steps_);
+    std::vector<double> energy_vec(line_search_steps_);
+    for (int i = 0; i < line_search_steps_; ++i){
+      alpha_vec[i] = 1.0 / pow(search_rate, i);
+      energy_vec[i] = 0.0;
+    }
     /* When there are no middle waypoints, feedforward term is 0. */
     bool alpha_iteration_flag = true;
     if (feedforwardConverged()){
@@ -471,14 +478,16 @@ namespace lqr_discrete{
         std::cout << "[SLQ] feedforward converge.\n";
     }
     else{
-      for (int factor = 0; factor < line_search_steps_; ++factor){
+      #pragma omp parallel num_threads(line_search_steps_)
+      {
+        int id = omp_get_thread_num();
         double energy_sum = 0.0;
         VectorXd cur_u(u_size_);
         VectorXd cur_x = x_vec_[0];
         for (int i = 0; i < iteration_times_; ++i){
           VectorXd cur_u(u_size_);
           cur_u = u_vec_[i];
-          cur_u.noalias() += alpha_ * u_fw_vec_[i];
+          cur_u.noalias() += alpha_vec[id] * u_fw_vec_[i];
           cur_u.noalias() += K_vec_[i] * cur_x;
           checkControlInputFeasible(&cur_u, i);
           // calculate energy
@@ -512,15 +521,18 @@ namespace lqr_discrete{
         }
         // when line_search_mode is 1, only considering final cost
         energy_sum += (cur_x.transpose() * (*P0_ptr_) * cur_x)(0);
-
-        // energy and alpha' relationships
-        if (debug_)
-          std::cout << "[SLQ] Energy: " << energy_sum << ", alpha: " << alpha_ << "\n";
-        if (energy_sum < energy_min || energy_min < 0){
-          energy_min = energy_sum;
-          alpha_candidate_ = alpha_;
-        }
-        alpha_ = alpha_ / search_rate;
+        energy_vec[id] = energy_sum;
+      }
+    }
+    // energy and alpha' relationships
+    if (debug_){
+      for (int i = 0; i < line_search_steps_; ++i)
+        std::cout << "[SLQ] Energy: " << energy_vec[i] << ", alpha: " << alpha_vec[i] << "\n";
+    }
+    for (int i = 0; i < line_search_steps_; ++i){
+      if (energy_vec[i] < energy_min || energy_min < 0){
+        energy_min = energy_vec[i];
+        alpha_candidate_ = alpha_vec[i];
       }
     }
     if (debug_ && alpha_iteration_flag){

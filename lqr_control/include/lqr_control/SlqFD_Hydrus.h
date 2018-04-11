@@ -44,6 +44,8 @@
 #include <lqr_control/float64Array.h>
 #include <geometry_msgs/Pose.h>
 #include <tf/transform_broadcaster.h>
+#include <omp.h>
+#include <math.h>
 
 namespace lqr_discrete{
 #define PI 3.141592653
