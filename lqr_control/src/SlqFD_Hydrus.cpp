@@ -45,42 +45,35 @@ namespace lqr_discrete{
     not_first_slq_flag_ = false;
     /* ros param */
     nhp_.param("transform_movement_flag", transform_movement_flag_, true);
-    nhp_.param("R_pre_hit_para", R_pre_hit_para_, 1.0);
-    nhp_.param("Q_p_pre_hit_para", Q_p_pre_hit_para_, 50.0);
-    nhp_.param("Q_v_pre_hit_para", Q_v_pre_hit_para_, 0.1);
-    nhp_.param("Q_z_pre_hit_para", Q_z_pre_hit_para_, 50.0);
-    nhp_.param("Q_w_pre_hit_para", Q_w_pre_hit_para_, 0.1);
-    nhp_.param("Q_e_pre_hit_para", Q_e_pre_hit_para_, 5.0);
-    nhp_.param("Q_yaw_pre_hit_para", Q_yaw_pre_hit_para_, 10.0);
+    nhp_.param("R_mid_para", R_mid_para_, 1.0);
+    nhp_.param("Q_p_mid_para", Q_p_mid_para_, 50.0);
+    nhp_.param("Q_v_mid_para", Q_v_mid_para_, 0.1);
+    nhp_.param("Q_z_mid_para", Q_z_mid_para_, 50.0);
+    nhp_.param("Q_w_mid_para", Q_w_mid_para_, 0.1);
+    nhp_.param("Q_e_mid_para", Q_e_mid_para_, 5.0);
+    nhp_.param("Q_yaw_mid_para", Q_yaw_mid_para_, 10.0);
 
-    nhp_.param("R_post_hit_para", R_post_hit_para_, 1.0);
-    nhp_.param("Q_p_post_hit_para", Q_p_post_hit_para_, 50.0);
-    nhp_.param("Q_v_post_hit_para", Q_v_post_hit_para_, 0.1);
-    nhp_.param("Q_z_post_hit_para", Q_z_post_hit_para_, 50.0);
-    nhp_.param("Q_w_post_hit_para", Q_w_post_hit_para_, 0.1);
-    nhp_.param("Q_e_post_hit_para", Q_e_post_hit_para_, 5.0);
-    nhp_.param("Q_yaw_post_hit_para", Q_yaw_post_hit_para_, 10.0);
     nhp_.param("manual_final_ocp_flag", manual_final_ocp_flag_, true);
     nhp_.param("Q_p_final_para", Q_p_final_para_, 500.0);
     nhp_.param("Q_v_final_para", Q_v_final_para_, 10.0);
     nhp_.param("Q_z_final_para", Q_z_final_para_, 500.0);
-    nhp_.param("Q_w_final_para", Q_w_final_para_, 200.0);
-    nhp_.param("Q_e_final_para", Q_e_final_para_, 400.0);
-    nhp_.param("Q_yaw_final_para", Q_yaw_final_para_, 500.0);
+    nhp_.param("Q_w_final_para", Q_w_final_para_, 10.0);
+    nhp_.param("Q_e_final_para", Q_e_final_para_, 300.0);
+    nhp_.param("Q_yaw_final_para", Q_yaw_final_para_, 400.0);
 
-    R_para_ = R_pre_hit_para_;
-    Q_p_para_ = Q_p_pre_hit_para_;
-    Q_v_para_ = Q_v_pre_hit_para_;
-    Q_z_para_ = Q_z_pre_hit_para_;
-    Q_w_para_ = Q_w_pre_hit_para_;
-    Q_e_para_ = Q_e_pre_hit_para_;
-    Q_yaw_para_ = Q_yaw_pre_hit_para_;
+    R_para_ = R_mid_para_;
+    Q_p_para_ = Q_p_mid_para_;
+    Q_v_para_ = Q_v_mid_para_;
+    Q_z_para_ = Q_z_mid_para_;
+    Q_w_para_ = Q_w_mid_para_;
+    Q_e_para_ = Q_e_mid_para_;
+    Q_yaw_para_ = Q_yaw_mid_para_;
 
     nhp_.param("verbose", debug_, false);
     nhp_.param("dynamic_freqency_flag", dynamic_freqency_flag_, true);
     nhp_.param("high_freq_least_period", high_freq_least_period_, 1.0);
-    nhp_.param("line_search_steps", line_search_steps_, 3);
-    nhp_.param("line_search_mode", line_search_mode_, 1);// 0, standard mode; 1, final state priority mode
+    nhp_.param("line_search_steps", line_search_steps_, 4);
+    nhp_.param("line_search_mode", line_search_mode_, 2);// 0, standard mode; 1, final state priority mode; 2, final pose priority mode
 
     /* hydrus */
     link_length_ = 0.6;
@@ -151,46 +144,10 @@ namespace lqr_discrete{
     ROS_INFO("[SLQ] Hydrus init finished.");
   }
 
-  void SlqFiniteDiscreteControlHydrus::adjustTennisTaskParamater(TennisTaskDescriptor task_descriptor, double cur_time){
-    if (cur_time < task_descriptor.hitting_time){
-      R_para_ = R_pre_hit_para_;
-      Q_p_para_ = Q_p_pre_hit_para_;
-      Q_v_para_ = Q_v_pre_hit_para_;
-      Q_z_para_ = Q_z_pre_hit_para_;
-      Q_w_para_ = Q_w_pre_hit_para_;
-      Q_e_para_ = Q_e_pre_hit_para_;
-      Q_yaw_para_ = Q_yaw_pre_hit_para_;
-    }
-    else{
-      R_para_ = R_post_hit_para_;
-      Q_p_para_ = Q_p_post_hit_para_;
-      Q_v_para_ = Q_v_post_hit_para_;
-      Q_z_para_ = Q_z_post_hit_para_;
-      Q_w_para_ = Q_w_post_hit_para_;
-      Q_e_para_ = Q_e_post_hit_para_;
-      Q_yaw_para_ = Q_yaw_post_hit_para_;
-    }
-    for (int i = 0; i <= P_Z; ++i)
-      (*Q0_ptr_)(i, i) = Q_p_para_;
-    for (int i = V_X; i <= V_Z; ++i)
-      (*Q0_ptr_)(i, i) = Q_v_para_;
-    for (int i = W_X; i <= W_Z; ++i)
-      (*Q0_ptr_)(i, i) = Q_w_para_;
-    for (int i = E_R; i <= E_Y; ++i)
-      (*Q0_ptr_)(i, i) = Q_e_para_;
-    // test: weight on z
-    (*Q0_ptr_)(E_Y, E_Y) = Q_yaw_para_;
-    (*Q0_ptr_)(P_Z, P_Z) = Q_z_para_;
-
-    (*R_ptr_).noalias() = R_para_ * MatrixXd::Identity(u_size_, u_size_);
-
-  }
-
   void SlqFiniteDiscreteControlHydrus::initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr, TennisTaskDescriptor task_descriptor){
     ROS_INFO("[SLQ] InitSLQ starts.");
     control_freq_ = freq;
     tennis_task_descriptor_ = task_descriptor;
-    adjustTennisTaskParamater(task_descriptor, (*time_ptr)[0]);
     // Here we assume frequency is an odd integer
     control_high_freq_ = freq;
     control_low_freq_ = freq / 2.0;
@@ -271,53 +228,54 @@ namespace lqr_discrete{
     x_init = getRelativeState(x0_ptr_);
     u_init = VectorXd::Zero(u_size_);
 
-    /* Clear assigned vector */
-    if (not_first_slq_flag_){
-      x_vec_.clear();
-      u_vec_.clear();
-      joint_vec_.clear();
-      joint_dt_vec_.clear();
-      joint_ddt_vec_.clear();
-      I_vec_.clear();
-      I_dt_vec_.clear();
-      link_center_pos_local_vec_.clear();
-      link_center_pos_local_dt_vec_.clear();
-      cog_pos_local_vec_.clear();
-      cog_pos_local_dt_vec_.clear();
-      u_fw_vec_.clear();
-      K_vec_.clear();
-      un_vec_.clear();
-      lqr_F_vec_.clear();
-    }
-    else
-      not_first_slq_flag_ = true;
+    x_vec_.resize(iteration_times_ + 1);
+    u_vec_.resize(iteration_times_ + 1);
+    joint_vec_.resize(iteration_times_ + 1);
+    joint_dt_vec_.resize(iteration_times_ + 1);
+    joint_ddt_vec_.resize(iteration_times_ + 1);
+    I_vec_.resize(iteration_times_ + 1);
+    I_dt_vec_.resize(iteration_times_ + 1);
+    link_center_pos_local_vec_.resize(iteration_times_ + 1);
+    link_center_pos_local_dt_vec_.resize(iteration_times_ + 1);
+    link_center_pos_cog_vec_.resize(iteration_times_ + 1);
+    cog_pos_local_vec_.resize(iteration_times_ + 1);
+    cog_pos_local_dt_vec_.resize(iteration_times_ + 1);
+    u_fw_vec_.resize(iteration_times_ + 1);
+    K_vec_.resize(iteration_times_ + 1);
+    un_vec_.resize(iteration_times_ + 1);
+    lqr_F_vec_.resize(iteration_times_ + 1);
 
     ROS_INFO("[SLQ] Assign vector starts.");
-    for (int i = 0; i <= iteration_times_; ++i){
-      double cur_time;
-      if (i <= high_freq_iteration_times_)
-        cur_time = double(i) / control_high_freq_;
-      else
-        cur_time = high_freq_end_time_ +
-          (i - high_freq_iteration_times_) / control_low_freq_;
-      VectorXd cur_joint = getCurrentJoint(cur_time);
-      VectorXd cur_joint_dt = getCurrentJoint(cur_time, 1);
-      VectorXd cur_joint_ddt = getCurrentJoint(cur_time, 2);
-      joint_vec_.push_back(cur_joint);
-      joint_dt_vec_.push_back(cur_joint_dt);
-      joint_ddt_vec_.push_back(cur_joint_ddt);
-      getHydrusLinksCenter(&cur_joint);
-      getHydrusLinksCenterDerivative(&cur_joint, &cur_joint_dt);
-      updateHydrusCogPosition(i);
-      updateHydrusCogPositionDerivative(i);
-      getHydrusInertialTensor(&cur_joint, i);
-      u_fw_vec_.push_back(u_init);
-      K_vec_.push_back(MatrixXd::Zero(u_size_, x_size_));
-      VectorXd stable_u = getStableThrust(i);
-      un_vec_.push_back(stable_u);
-      x_vec_.push_back(x_init);
-      u_vec_.push_back(un_vec_[0] - un_vec_[i]);
+    #pragma omp parallel num_threads(4)
+    {
+      #pragma omp for
+      for (int i = 0; i <= iteration_times_; ++i){
+        double cur_time;
+        if (i <= high_freq_iteration_times_)
+          cur_time = double(i) / control_high_freq_;
+        else
+          cur_time = high_freq_end_time_ +
+            (i - high_freq_iteration_times_) / control_low_freq_;
+        VectorXd cur_joint = getCurrentJoint(cur_time);
+        VectorXd cur_joint_dt = getCurrentJoint(cur_time, 1);
+        VectorXd cur_joint_ddt = getCurrentJoint(cur_time, 2);
+        joint_vec_[i] = (cur_joint);
+        joint_dt_vec_[i] = (cur_joint_dt);
+        joint_ddt_vec_[i] = (cur_joint_ddt);
+        getHydrusLinksCenter(&cur_joint, i);
+        getHydrusLinksCenterDerivative(&cur_joint, &cur_joint_dt, i);
+        updateHydrusCogPosition(i);
+        updateHydrusCogPositionDerivative(i);
+        getHydrusInertialTensor(&cur_joint, i);
+        u_fw_vec_[i] = (u_init);
+        K_vec_[i] = (MatrixXd::Zero(u_size_, x_size_));
+        VectorXd stable_u = getStableThrust(i);
+        un_vec_[i] = (stable_u);
+        x_vec_[i] = (x_init);
+      }
     }
+    for (int i = 0; i <= iteration_times_; ++i)
+      u_vec_[i] = (un_vec_[0] - un_vec_[i]);
     stable_u_last_ = un_vec_[iteration_times_];
     ROS_INFO("[SLQ] Assign vector finished.");
 
@@ -505,6 +463,13 @@ namespace lqr_discrete{
     alpha_candidate_ = 1.0;
     double energy_min = -1.0;
     double search_rate = 2.0;
+    // openmp para
+    std::vector<double> alpha_vec(line_search_steps_);
+    std::vector<double> energy_vec(line_search_steps_);
+    for (int i = 0; i < line_search_steps_; ++i){
+      alpha_vec[i] = 1.0 / pow(search_rate, i);
+      energy_vec[i] = 0.0;
+    }
     /* When there are no middle waypoints, feedforward term is 0. */
     bool alpha_iteration_flag = true;
     if (feedforwardConverged()){
@@ -513,14 +478,16 @@ namespace lqr_discrete{
         std::cout << "[SLQ] feedforward converge.\n";
     }
     else{
-      for (int factor = 0; factor < line_search_steps_; ++factor){
+      #pragma omp parallel num_threads(line_search_steps_)
+      {
+        int id = omp_get_thread_num();
         double energy_sum = 0.0;
         VectorXd cur_u(u_size_);
         VectorXd cur_x = x_vec_[0];
         for (int i = 0; i < iteration_times_; ++i){
           VectorXd cur_u(u_size_);
           cur_u = u_vec_[i];
-          cur_u.noalias() += alpha_ * u_fw_vec_[i];
+          cur_u.noalias() += alpha_vec[id] * u_fw_vec_[i];
           cur_u.noalias() += K_vec_[i] * cur_x;
           checkControlInputFeasible(&cur_u, i);
           // calculate energy
@@ -552,17 +519,27 @@ namespace lqr_discrete{
           updateNewState(&new_x, &cur_x, &cur_u, i);
           cur_x = new_x;
         }
-        // when line_search_mode is 1, only considering final cost
-        energy_sum += (cur_x.transpose() * (*P0_ptr_) * cur_x)(0);
-
-        // energy and alpha' relationships
-        if (debug_)
-          std::cout << "[SLQ] Energy: " << energy_sum << ", alpha: " << alpha_ << "\n";
-        if (energy_sum < energy_min || energy_min < 0){
-          energy_min = energy_sum;
-          alpha_candidate_ = alpha_;
+        // when line_search_mode is 2, only considering final pose cost
+        if (line_search_mode_ == 2){
+          for (int i = P_X; i <= P_Z; ++i)
+            energy_sum += pow(cur_x(i), 2) * (*P0_ptr_)(i, i);
+          for (int i = E_R; i <= E_Y; ++i)
+            energy_sum += pow(cur_x(i), 2) * (*P0_ptr_)(i, i);
         }
-        alpha_ = alpha_ / search_rate;
+        else
+          energy_sum += (cur_x.transpose() * (*P0_ptr_) * cur_x)(0);
+        energy_vec[id] = energy_sum;
+      }
+    }
+    // energy and alpha' relationships
+    if (debug_){
+      for (int i = 0; i < line_search_steps_; ++i)
+        std::cout << "[SLQ] Energy: " << energy_vec[i] << ", alpha: " << alpha_vec[i] << "\n";
+    }
+    for (int i = 0; i < line_search_steps_; ++i){
+      if (energy_vec[i] < energy_min || energy_min < 0){
+        energy_min = energy_vec[i];
+        alpha_candidate_ = alpha_vec[i];
       }
     }
     if (debug_ && alpha_iteration_flag){
@@ -699,7 +676,7 @@ namespace lqr_discrete{
       MatrixXd u_param = MatrixXd::Zero(u_size_ - 1, u_size_);
       u_param(u_size_ - 2, i) = 1.0;
       H_minor +=
-        S_operation(link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id])
+        S_operation(link_center_pos_cog_vec_[time_id][i])
         * u_param;
     }
     // z momentum
@@ -1025,7 +1002,7 @@ namespace lqr_discrete{
     for (int i = 0; i < n_links_; ++i){
       Eigen::Vector3d dw_u_i;
       dw_u_i.noalias() = I_inv *
-        ((link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id])
+        (link_center_pos_cog_vec_[time_id][i]
          .cross(Eigen::Vector3d(0, 0, 1.0))
          + Eigen::Vector3d(0, 0, M_z_(i)));
       for (int j = 0; j < 3; ++j)
@@ -1091,7 +1068,7 @@ namespace lqr_discrete{
       Eigen::Vector3d wi; wi.noalias() = w + VectorXdTo3d(JW_mat * dq);
       double fi = (*u_ptr)[i];
       mid_result.noalias() +=
-        (link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id]).
+        link_center_pos_cog_vec_[time_id][i].
         cross(Eigen::Vector3d(0, 0, fi));
       mid_result.noalias() += Eigen::Vector3d(0, 0, fi * M_z_(i));
       mid_result.noalias() -= I_vec_[time_id][i] * JW_mat * ddq;
@@ -1133,7 +1110,7 @@ namespace lqr_discrete{
     std::vector<Eigen::Matrix3d> cur_I_dt_vec;
     for (int i = 0; i < n_links_; ++i){
       Eigen::Matrix3d cur_I = *I_ptr_;
-      Eigen::Vector3d center_pos = link_center_pos_local_vec_[time_id][i] - cog_pos_local_vec_[time_id];
+      Eigen::Vector3d center_pos = link_center_pos_cog_vec_[time_id][i];
       cur_I(0, 0) += link_weight_vec_[i] * (pow(center_pos(1), 2.0)
                                             + pow(center_pos(2), 2.0));
       cur_I(1, 1) += link_weight_vec_[i] * (pow(center_pos(0), 2.0)
@@ -1168,8 +1145,8 @@ namespace lqr_discrete{
       cur_I_dt(2, 1) = cur_I_dt(1, 2);
       cur_I_dt_vec.push_back(cur_I_dt);
     }
-    I_vec_.push_back(cur_I_vec);
-    I_dt_vec_.push_back(cur_I_dt_vec);
+    I_vec_[time_id] = (cur_I_vec);
+    I_dt_vec_[time_id] = (cur_I_dt_vec);
   }
 
   void SlqFiniteDiscreteControlHydrus::updateHydrusCogPosition(int time_id){
@@ -1179,7 +1156,12 @@ namespace lqr_discrete{
       cog_local_pos.noalias() += link_weight_vec_[i] * center_local_pos_vec[i];
     }
     cog_local_pos = cog_local_pos / hydrus_weight_;
-    cog_pos_local_vec_.push_back(cog_local_pos);
+    cog_pos_local_vec_[time_id] = (cog_local_pos);
+
+    std::vector<Eigen::Vector3d> link_center_cog_pos_vec;
+    for (int i = 0; i < n_links_; ++i)
+      link_center_cog_pos_vec.push_back(link_center_pos_local_vec_[time_id][i] - cog_local_pos);
+    link_center_pos_cog_vec_[time_id] = (link_center_cog_pos_vec);
   }
 
   void SlqFiniteDiscreteControlHydrus::updateHydrusCogPositionDerivative(int time_id){
@@ -1189,10 +1171,10 @@ namespace lqr_discrete{
       cog_local_pos_dt.noalias() += link_weight_vec_[i] * center_local_pos_dt_vec[i];
     }
     cog_local_pos_dt = cog_local_pos_dt / hydrus_weight_;
-    cog_pos_local_dt_vec_.push_back(cog_local_pos_dt);
+    cog_pos_local_dt_vec_[time_id] = (cog_local_pos_dt);
   }
 
-  void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenter(VectorXd *joint_ptr){
+  void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenter(VectorXd *joint_ptr, int time_id){
     std::vector<Eigen::Vector3d> links_center_vec;
     for (int i = 0; i < n_links_; ++i)
       links_center_vec.push_back(Eigen::Vector3d(0.0, 0.0, 0.0));
@@ -1228,10 +1210,10 @@ namespace lqr_discrete{
       links_center_vec[i] = link_center;
       prev_link_end.noalias() += rot * Eigen::Vector3d(-link_length_, 0, 0);
     }
-    link_center_pos_local_vec_.push_back(links_center_vec);
+    link_center_pos_local_vec_[time_id] = (links_center_vec);
   }
 
-  void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr){
+  void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr, int time_id){
     std::vector<Eigen::Vector3d> links_center_dt_vec;
     for (int i = 0; i < n_links_; ++i)
       links_center_dt_vec.push_back(Eigen::Vector3d(0.0, 0.0, 0.0));
@@ -1273,7 +1255,7 @@ namespace lqr_discrete{
       links_center_dt_vec[i] = link_center_dt;
       prev_link_end_dt.noalias() += rot_dt * Eigen::Vector3d(-link_length_, 0, 0);
     }
-    link_center_pos_local_dt_vec_.push_back(links_center_dt_vec);
+    link_center_pos_local_dt_vec_[time_id] = (links_center_dt_vec);
   }
 
   MatrixXd SlqFiniteDiscreteControlHydrus::getJacobianW(int id){
@@ -1378,7 +1360,7 @@ namespace lqr_discrete{
       P.noalias() = A_ptr_->transpose() * P_prev * (*A_ptr_);
       P.noalias() -= (A_ptr_->transpose() * P_prev * (*B_ptr_)) * F;
       P.noalias() += (*Q_ptr_);
-      lqr_F_vec_.push_back(F);
+      lqr_F_vec_[i] = (F);
     }
 
     VectorXd x = x_vec_[0];

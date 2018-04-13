@@ -8,12 +8,12 @@
     <param name="verbose" value="true" />
     <param name="anime_mode" value="$(arg anime_mode)" />
     <param name="R_para" value="1.0" />
-    <param name="Q_p_pre_hit_para" value="50.0" />
-    <param name="Q_v_pre_hit_para" value="0.1" />
-    <param name="Q_w_pre_hit_para" value="0.1" />
-    <param name="Q_e_pre_hit_para" value="5.0" />
-    <param name="Q_z_pre_hit_para" value="50.0" />
-    <param name="Q_yaw_pre_hit_para" value="10.0" />
+    <param name="Q_p_mid_para" value="50.0" />
+    <param name="Q_v_mid_para" value="0.1" />
+    <param name="Q_w_mid_para" value="0.1" />
+    <param name="Q_e_mid_para" value="5.0" />
+    <param name="Q_z_mid_para" value="50.0" />
+    <param name="Q_yaw_mid_para" value="10.0" />
     <param name="start_x" value="0.5" />
     <param name="start_y" value="1.0" />
     <param name="start_z" value="1.2" />

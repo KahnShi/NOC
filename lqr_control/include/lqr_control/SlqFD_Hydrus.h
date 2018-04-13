@@ -44,6 +44,8 @@
 #include <lqr_control/float64Array.h>
 #include <geometry_msgs/Pose.h>
 #include <tf/transform_broadcaster.h>
+#include <omp.h>
+#include <math.h>
 
 namespace lqr_discrete{
 #define PI 3.141592653
@@ -73,6 +75,7 @@ namespace lqr_discrete{
     std::vector<std::vector<Eigen::Matrix3d> > I_dt_vec_;
     std::vector<std::vector<Eigen::Vector3d> > link_center_pos_local_vec_;
     std::vector<std::vector<Eigen::Vector3d> > link_center_pos_local_dt_vec_;
+    std::vector<std::vector<Eigen::Vector3d> > link_center_pos_cog_vec_;
     std::vector<Eigen::Vector3d> cog_pos_local_vec_;
     std::vector<Eigen::Vector3d> cog_pos_local_dt_vec_;
     bool debug_;
@@ -123,8 +126,7 @@ namespace lqr_discrete{
 
     /* tennis task */
     TennisTaskDescriptor tennis_task_descriptor_;
-    double R_pre_hit_para_, Q_p_pre_hit_para_, Q_v_pre_hit_para_, Q_e_pre_hit_para_, Q_w_pre_hit_para_, Q_z_pre_hit_para_, Q_yaw_pre_hit_para_;
-    double R_post_hit_para_, Q_p_post_hit_para_, Q_v_post_hit_para_, Q_e_post_hit_para_, Q_w_post_hit_para_, Q_z_post_hit_para_, Q_yaw_post_hit_para_;
+    double R_mid_para_, Q_p_mid_para_, Q_v_mid_para_, Q_e_mid_para_, Q_w_mid_para_, Q_z_mid_para_, Q_yaw_mid_para_;
     double R_final_para_, Q_p_final_para_, Q_v_final_para_, Q_e_final_para_, Q_w_final_para_, Q_z_final_para_, Q_yaw_final_para_;
     double R_para_, Q_p_para_, Q_v_para_, Q_e_para_, Q_w_para_, Q_z_para_, Q_yaw_para_;
     bool manual_final_ocp_flag_;
@@ -155,8 +157,8 @@ namespace lqr_discrete{
     VectorXd getCurrentJoint(double time, int order = 0);
     VectorXd getCurrentJointAbsoluteTime(double time, int order = 0);
     Eigen::Matrix3d getCurrentRotationMatrix(Eigen::Vector3d euler_angle, int order = 0);
-    void getHydrusLinksCenter(VectorXd *joint_ptr);
-    void getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr);
+    void getHydrusLinksCenter(VectorXd *joint_ptr, int time_id);
+    void getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr, int time_id);
     void getHydrusInertialTensor(VectorXd *joint_ptr, int time_id);
     void updateHydrusCogPosition(int time_id);
     void updateHydrusCogPositionDerivative(int time_id);
