@@ -272,9 +272,10 @@ namespace lqr_discrete{
         VectorXd stable_u = getStableThrust(i);
         un_vec_[i] = (stable_u);
         x_vec_[i] = (x_init);
-        u_vec_[i] = (un_vec_[0] - un_vec_[i]);
       }
     }
+    for (int i = 0; i <= iteration_times_; ++i)
+      u_vec_[i] = (un_vec_[0] - un_vec_[i]);
     stable_u_last_ = un_vec_[iteration_times_];
     ROS_INFO("[SLQ] Assign vector finished.");
 
