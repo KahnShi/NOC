@@ -57,9 +57,9 @@ namespace lqr_discrete{
     nhp_.param("Q_p_final_para", Q_p_final_para_, 500.0);
     nhp_.param("Q_v_final_para", Q_v_final_para_, 10.0);
     nhp_.param("Q_z_final_para", Q_z_final_para_, 500.0);
-    nhp_.param("Q_w_final_para", Q_w_final_para_, 200.0);
-    nhp_.param("Q_e_final_para", Q_e_final_para_, 400.0);
-    nhp_.param("Q_yaw_final_para", Q_yaw_final_para_, 500.0);
+    nhp_.param("Q_w_final_para", Q_w_final_para_, 10.0);
+    nhp_.param("Q_e_final_para", Q_e_final_para_, 300.0);
+    nhp_.param("Q_yaw_final_para", Q_yaw_final_para_, 400.0);
 
     R_para_ = R_mid_para_;
     Q_p_para_ = Q_p_mid_para_;
@@ -72,8 +72,8 @@ namespace lqr_discrete{
     nhp_.param("verbose", debug_, false);
     nhp_.param("dynamic_freqency_flag", dynamic_freqency_flag_, true);
     nhp_.param("high_freq_least_period", high_freq_least_period_, 1.0);
-    nhp_.param("line_search_steps", line_search_steps_, 3);
-    nhp_.param("line_search_mode", line_search_mode_, 1);// 0, standard mode; 1, final state priority mode
+    nhp_.param("line_search_steps", line_search_steps_, 4);
+    nhp_.param("line_search_mode", line_search_mode_, 2);// 0, standard mode; 1, final state priority mode; 2, final pose priority mode
 
     /* hydrus */
     link_length_ = 0.6;
@@ -248,7 +248,7 @@ namespace lqr_discrete{
     ROS_INFO("[SLQ] Assign vector starts.");
     #pragma omp parallel num_threads(4)
     {
-      #pragma omp for nowait
+      #pragma omp for
       for (int i = 0; i <= iteration_times_; ++i){
         double cur_time;
         if (i <= high_freq_iteration_times_)
@@ -518,8 +518,15 @@ namespace lqr_discrete{
           updateNewState(&new_x, &cur_x, &cur_u, i);
           cur_x = new_x;
         }
-        // when line_search_mode is 1, only considering final cost
-        energy_sum += (cur_x.transpose() * (*P0_ptr_) * cur_x)(0);
+        // when line_search_mode is 2, only considering final pose cost
+        if (line_search_mode_ == 2){
+          for (int i = P_X; i <= P_Z; ++i)
+            energy_sum += pow(cur_x(i), 2) * (*P0_ptr_)(i, i);
+          for (int i = E_R; i <= E_Y; ++i)
+            energy_sum += pow(cur_x(i), 2) * (*P0_ptr_)(i, i);
+        }
+        else
+          energy_sum += (cur_x.transpose() * (*P0_ptr_) * cur_x)(0);
         energy_vec[id] = energy_sum;
       }
     }
