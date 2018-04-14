@@ -59,6 +59,7 @@ namespace lqr_discrete{
     SlqFiniteDiscreteControlHydrus(ros::NodeHandle nh, ros::NodeHandle nhp):
       LqrDiscreteControlBase(nh, nhp){};
 
+    bool verbose_;
     /* Hydrus */
     double link_length_;
     int n_links_;

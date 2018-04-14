@@ -36,6 +36,7 @@
 #include <lqr_control/SlqFD_Hydrus.h>
 namespace lqr_discrete{
   void SlqFiniteDiscreteControlHydrus::initHydrus(int baselink_id){
+    verbose_ = false;
     baselink_id_ = baselink_id;
     std::cout << "[SlqFD_Hydrus] Baselink id: link " << baselink_id << "\n";
 
@@ -141,11 +142,13 @@ namespace lqr_discrete{
     uav_rotor_thrust_min_ = 2.0;
     uav_rotor_thrust_max_ = 16.4;
 
-    ROS_INFO("[SLQ] Hydrus init finished.");
+    if (verbose_)
+      ROS_INFO("[SLQ] Hydrus init finished.");
   }
 
   void SlqFiniteDiscreteControlHydrus::initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr, TennisTaskDescriptor task_descriptor){
-    ROS_INFO("[SLQ] InitSLQ starts.");
+    if (verbose_)
+      ROS_INFO("[SLQ] InitSLQ starts.");
     control_freq_ = freq;
     tennis_task_descriptor_ = task_descriptor;
     // Here we assume frequency is an odd integer
@@ -245,7 +248,8 @@ namespace lqr_discrete{
     un_vec_.resize(iteration_times_ + 1);
     lqr_F_vec_.resize(iteration_times_ + 1);
 
-    ROS_INFO("[SLQ] Assign vector starts.");
+    if (verbose_)
+      ROS_INFO("[SLQ] Assign vector starts.");
     #pragma omp parallel num_threads(4)
     {
       #pragma omp for
@@ -277,7 +281,8 @@ namespace lqr_discrete{
     for (int i = 0; i <= iteration_times_; ++i)
       u_vec_[i] = (un_vec_[0] - un_vec_[i]);
     stable_u_last_ = un_vec_[iteration_times_];
-    ROS_INFO("[SLQ] Assign vector finished.");
+    if (verbose_)
+      ROS_INFO("[SLQ] Assign vector finished.");
 
     FDLQR();
     getRiccatiH();
@@ -309,7 +314,8 @@ namespace lqr_discrete{
       double lqr_cost = calculateCostFunction();
       std::cout << "\n Cost: " << lqr_cost << "\n\n";
     }
-    ROS_INFO("[SLQ] InitSLQ finished with %d iterations.", iteration_times_);
+    if (verbose_)
+      ROS_INFO("[SLQ] InitSLQ finished with %d iterations.", iteration_times_);
   }
 
   void SlqFiniteDiscreteControlHydrus::getRiccatiH(){
@@ -388,7 +394,8 @@ namespace lqr_discrete{
     dare_srv.request.B = dat_B;
     dare_srv.request.Q = dat_Q;
     dare_srv.request.R = dat_R;
-    ROS_INFO("[SLQ] Matrix AB is sent to Riccati solver.");
+    if (verbose_)
+      ROS_INFO("[SLQ] Matrix AB is sent to Riccati solver.");
     if (dare_client_.call(dare_srv))
       dat_P = dare_srv.response.P;
     else
@@ -396,7 +403,8 @@ namespace lqr_discrete{
     for (int i = 0; i < x_size_; ++i)
       for (int j = 0; j < x_size_; ++j)
         (*Riccati_P_ptr_)(i, j) = dat_P.array.data[i * x_size_ + j];
-    ROS_INFO("[SLQ] Matrix P is received from Riccati solver.");
+    if (verbose_)
+      ROS_INFO("[SLQ] Matrix P is received from Riccati solver.");
 
     /* debug: output matrix result from riccati eqation */
     // if (debug_){
@@ -408,7 +416,8 @@ namespace lqr_discrete{
     //   }
     // }
 
-    ROS_INFO("[SLQ] Get P matrice initial value from Ricatti function.");
+    if (verbose_)
+      ROS_INFO("[SLQ] Get P matrice initial value from Ricatti function.");
   }
 
   void SlqFiniteDiscreteControlHydrus::iterativeOptimization(){
@@ -457,7 +466,8 @@ namespace lqr_discrete{
     }
 
     /* Update control by finding the best alpha */
-    ROS_INFO("[SLQ] Line search starts.");
+    if (verbose_)
+      ROS_INFO("[SLQ] Line search starts.");
 
     alpha_ = 1.0;
     alpha_candidate_ = 1.0;
@@ -576,7 +586,8 @@ namespace lqr_discrete{
       std::cout << "\n Cost: " << traj_cost << "\n\n";
     }
     infinite_feedback_update_flag_ = false;
-    ROS_INFO("[SLQ] Line search finished.");
+    if (verbose_)
+      ROS_INFO("[SLQ] Line search finished.");
   }
 
   VectorXd SlqFiniteDiscreteControlHydrus::getCurrentIdealPosition(double relative_time){
@@ -1344,7 +1355,8 @@ namespace lqr_discrete{
   }
 
   void SlqFiniteDiscreteControlHydrus::FDLQR(){
-    ROS_INFO("[SLQ] LQR init starts.");
+    if (verbose_)
+      ROS_INFO("[SLQ] LQR init starts.");
     *x_ptr_ = x_vec_[0];
     *u_ptr_ = u_vec_[0];
     *joint_ptr_ = joint_vec_[0];
@@ -1380,7 +1392,8 @@ namespace lqr_discrete{
         printControlInfo(&u, i);
       }
     }
-    ROS_INFO("[SLQ] LQR init finished");
+    if (verbose_)
+      ROS_INFO("[SLQ] LQR init finished");
   }
 
   double SlqFiniteDiscreteControlHydrus::calculateCostFunction(){
