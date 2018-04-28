@@ -34,7 +34,7 @@
  *********************************************************************/
 
 #ifndef SLQ_FINITE_DISCRETE_CONTROLLER_HYDRUS_H
-#define SLQ_FINITE_DISCRETE_CONTROLLER_QUADROTOR_H
+#define SLQ_FINITE_DISCRETE_CONTROLLER_HYDRUS_H
 
 #include <lqr_control/LqrFD_Quadrotor.h>
 #include <std_msgs/Float64MultiArray.h>
