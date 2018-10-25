@@ -73,12 +73,99 @@ namespace lqr_discrete{
     nhp_.param("verbose", debug_, false);
     nhp_.param("line_search_steps", line_search_steps_, 4);
     nhp_.param("line_search_mode", line_search_mode_, 2);// 0, standard mode; 1, final state priority mode; 2, final pose priority mode
+    nhp_.param("n_links", n_links_, 4);
+
+    for (int i = 0; i < n_links_; ++i){
+      link_weight_vec_.push_back(0.0);
+      links_center_weight_link_frame_vec_.push_back(Eigen::Vector3d(0.0, 0.0, 0.0));
+      links_center_on_link_frame_vec_.push_back(Eigen::Vector3d(0.0, 0.0, 0.0));
+    }
 
     /* hydrus */
-    link_length_ = 0.6;
-    n_links_ = 4;
-    for (int i = 0; i < n_links_; ++i)
-      link_weight_vec_.push_back(0.92);
+    double link_rod_mass, link_center_mass, joint_mass, protector_mass, protector_holder_mass, bat_mass, head_leg_mass, end_leg_mass, rotor_mass, fc_mass, gps_mass, pc_mass;
+    nhp_.param("link_rod_mass", link_rod_mass, 0.099);
+    nhp_.param("link_center_mass", link_center_mass, .211);
+    nhp_.param("joint_mass", joint_mass, .19);
+    nhp_.param("protector_mass", protector_mass, .05);
+    nhp_.param("protector_holder_mass", protector_holder_mass, .0386);
+    nhp_.param("bat_mass", bat_mass, 0.193);
+    nhp_.param("head_leg_mass", head_leg_mass, 0.045);
+    nhp_.param("end_leg_mass", end_leg_mass, 0.073);
+    nhp_.param("rotor_mass", rotor_mass, .05);
+    nhp_.param("fc_mass", fc_mass, 0.0457);
+    nhp_.param("gps_mass", gps_mass, 0.044);
+    nhp_.param("pc_mass", pc_mass, 0.164);
+
+    double link_length, link_rod_length, protector_radius, link_joint_offset, rotor_radius, rotor_height, bat_offset, head_leg_offset, end_leg_offset;
+    nhp_.param("link_length", link_length, .6);
+    nhp_.param("link_rod_length", link_rod_length, .528);
+    nhp_.param("protector_radius", protector_radius, .1925);
+    nhp_.param("link_joint_offset", link_joint_offset, 0.3);
+    nhp_.param("rotor_radius", rotor_radius, .02);
+    nhp_.param("rotor_height", rotor_height, .05);
+    nhp_.param("bat_offset", bat_offset, 0.0);
+    nhp_.param("head_leg_offset", head_leg_offset, -0.25);
+    nhp_.param("end_leg_offset", end_leg_offset, 0.235);
+
+    /* create model from urdf file data */
+    double protector_inertia = protector_mass * protector_radius * protector_radius;
+    double link_rod_inertia = link_rod_mass * link_rod_length * link_rod_length /12;
+    double protector_holder_inertia = protector_holder_mass * protector_radius * protector_radius;
+    extraModel bat_model;
+    bat_model.mass = bat_mass;
+    bat_model.offset = Eigen::Vector3d(link_length / 2.0 + bat_offset, 0.0, -0.054);
+    extraModel head_leg_model;
+    head_leg_model.mass = head_leg_mass;
+    head_leg_model.offset = Eigen::Vector3d(link_length * 0.5 + head_leg_offset, 0.0, -0.03);
+    extraModel end_leg_model;
+    end_leg_model.mass = end_leg_mass;
+    end_leg_model.offset = Eigen::Vector3d(link_length * 0.5 + end_leg_offset, 0.0, -0.03);
+    extraModel joint_model;
+    joint_model.mass = joint_mass;
+    joint_model.offset = Eigen::Vector3d(link_length * 0.5 + link_joint_offset, 0.0, 0.0);
+    for (int i = 0; i < n_links_; ++i){
+      hydrus_model_.link_vec.push_back(linkModel());
+            hydrus_model_.link_vec[i].mass = link_rod_mass + link_center_mass + protector_mass + protector_holder_mass - rotor_mass + rotor_mass;
+            hydrus_model_.link_vec[i].length = 0.6;
+            hydrus_model_.link_vec[i].inertia_v = Eigen::Vector3d(protector_inertia / 2,
+                                                                  link_rod_inertia + protector_holder_inertia + protector_inertia /2,
+                                                                  link_rod_inertia + protector_holder_inertia + protector_inertia);
+            hydrus_model_.link_vec[i].extra_vec.push_back(bat_model);
+            if (i == 0)
+              hydrus_model_.link_vec[i].extra_vec.push_back(head_leg_model);
+            if (i == n_links_ - 1)
+              hydrus_model_.link_vec[i].extra_vec.push_back(end_leg_model);
+            if (i < n_links_ - 1)
+              hydrus_model_.link_vec[i].extra_vec.push_back(joint_model);
+            if (i == baselink_id_){
+              extraModel fc_model;
+              fc_model.mass = fc_mass;
+              fc_model.offset = Eigen::Vector3d(link_length / 2.0 + 0.2281, -4.4*0.001, 0.03533)
+                + Eigen::Vector3d(8.7*0.001, 4.4*0.001, -0.01);
+              hydrus_model_.link_vec[i].extra_vec.push_back(fc_model);
+              extraModel gps_model;
+              gps_model.mass = gps_mass;
+              gps_model.offset = Eigen::Vector3d(link_length / 2.0 + 0.206, 0.0, 0.18)
+                + Eigen::Vector3d(0.0, 0.0, -0.08);
+              hydrus_model_.link_vec[i].extra_vec.push_back(gps_model);
+              extraModel pc_model;
+              pc_model.mass = pc_mass;
+              pc_model.offset = Eigen::Vector3d(link_length / 2.0 + 0.1565 + 0.063, 0.0, -0.0394)
+                + Eigen::Vector3d(0.03*0.001, 0.72*0.001, 2.9 * 0.001);
+              hydrus_model_.link_vec[i].extra_vec.push_back(pc_model);
+            }
+    }
+    for (int i = 0; i < n_links_; ++i){
+      link_weight_vec_[i] += hydrus_model_.link_vec[i].mass;
+      links_center_weight_link_frame_vec_[i] = hydrus_model_.link_vec[i].mass * Eigen::Vector3d(hydrus_model_.link_vec[i].length / 2.0, 0.0, 0.0);
+      for (int j = 0; j < hydrus_model_.link_vec[i].extra_vec.size(); ++j){
+        link_weight_vec_[i] += hydrus_model_.link_vec[i].extra_vec[j].mass;
+        links_center_weight_link_frame_vec_[i] += hydrus_model_.link_vec[i].extra_vec[j].mass * hydrus_model_.link_vec[i].extra_vec[j].offset;
+      }
+      links_center_on_link_frame_vec_[i] = links_center_weight_link_frame_vec_[i] / link_weight_vec_[i];
+    }
+
+    link_length_ = link_length;
     hydrus_weight_ = 0.0;
     for (int i = 0; i < n_links_; ++i)
       hydrus_weight_ += link_weight_vec_[i];
@@ -420,7 +507,7 @@ namespace lqr_discrete{
           2.0 * W_vec[j-1] * stateSubtraction(xn_ptr_, &((*waypoints_ptr_)[j]));
 
       //todo: judge the positive sign
-      *r_ptr_ = 2.0 * (*R_ptr_) * u_vec_[i];
+      (*r_ptr_).noalias() = 2.0 * (*R_ptr_) * u_vec_[i];
       updateSLQEquations();
 
       u_fw_vec_[i] = (*l_ptr_);
@@ -1118,7 +1205,7 @@ namespace lqr_discrete{
       rot << cos(joint_ang), -sin(joint_ang), 0,
         sin(joint_ang), cos(joint_ang), 0,
         0, 0, 1;
-      link_center.noalias() = prev_link_end + rot * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
+      link_center.noalias() = prev_link_end + rot * links_center_on_link_frame_vec_[i];
       links_center_vec[i] = link_center;
       prev_link_end.noalias() += rot * Eigen::Vector3d(link_length_, 0, 0);
     }
@@ -1132,7 +1219,7 @@ namespace lqr_discrete{
       rot << cos(joint_ang), -sin(joint_ang), 0,
         sin(joint_ang), cos(joint_ang), 0,
         0, 0, 1;
-      link_center.noalias() = prev_link_end + rot * Eigen::Vector3d(-link_length_ / 2.0, 0, 0);
+      link_center.noalias() = prev_link_end + rot * (-links_center_on_link_frame_vec_[i]);
       links_center_vec[i] = link_center;
       prev_link_end.noalias() += rot * Eigen::Vector3d(-link_length_, 0, 0);
     }
