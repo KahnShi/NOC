@@ -54,6 +54,28 @@ namespace lqr_discrete{
     double hitting_time;
     double post_hitting_time;
   };
+  struct hydrusCmdTask{
+    int id;
+    double period;
+    double start_time;
+    Eigen::Vector3d target_offset;
+    bool sent_flag;
+    Eigen::Vector3d hitting_odom_pos;
+  };
+  struct extraModel{
+    double mass;
+    Eigen::Vector3d offset;
+  };
+  struct linkModel{
+    double mass;
+    double length;
+    Eigen::Vector3d inertia_v;
+    std::vector<extraModel> extra_vec;
+  };
+  struct robotModel{
+    std::vector<linkModel> link_vec;
+  };
+
   class SlqFiniteDiscreteControlHydrus: public LqrDiscreteControlBase{
   public:
     SlqFiniteDiscreteControlHydrus(ros::NodeHandle nh, ros::NodeHandle nhp):
@@ -83,6 +105,12 @@ namespace lqr_discrete{
     double uav_rotor_thrust_min_;
     double uav_rotor_thrust_max_;
     bool transform_movement_flag_;
+
+    /* model */
+    robotModel hydrus_model_;
+    std::vector<Eigen::Vector3d> links_center_weight_link_frame_vec_;
+    std::vector<Eigen::Vector3d> links_center_on_link_frame_vec_;
+
     /* slq */
     bool not_first_slq_flag_;
     MatrixXd *H_ptr_;
