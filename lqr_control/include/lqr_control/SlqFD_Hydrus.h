@@ -181,8 +181,6 @@ namespace lqr_discrete{
     void getHydrusLinksCenter(VectorXd *joint_ptr, int time_id);
     void getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr, int time_id);
     void getHydrusInertialTensor(VectorXd *joint_ptr, int time_id);
-    void updateHydrusCogPosition(int time_id);
-    void updateHydrusCogPositionDerivative(int time_id);
     MatrixXd getJacobianW(int id);
     VectorXd getStableThrust(int id);
     double calculateCostFunction();

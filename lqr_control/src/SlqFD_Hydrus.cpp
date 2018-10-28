@@ -322,8 +322,6 @@ namespace lqr_discrete{
         joint_ddt_vec_[i] = (cur_joint_ddt);
         getHydrusLinksCenter(&cur_joint, i);
         getHydrusLinksCenterDerivative(&cur_joint, &cur_joint_dt, i);
-        updateHydrusCogPosition(i);
-        updateHydrusCogPositionDerivative(i);
         getHydrusInertialTensor(&cur_joint, i);
         u_fw_vec_[i] = (u_init);
         K_vec_[i] = (MatrixXd::Zero(u_size_, x_size_));
@@ -743,6 +741,12 @@ namespace lqr_discrete{
 
   VectorXd SlqFiniteDiscreteControlHydrus::getCurrentJointAbsoluteTime(double time, int order){
     VectorXd joint = VectorXd::Zero(n_links_ - 1);
+    // test
+    // if (order == 0)
+    //   joint << 0.785, 1.5708, 0.785;
+    // return joint;
+    
+    
     int joint_id;
     if (tennis_task_descriptor_.hitting_hand == 0) // left hand
       joint_id = 0;
@@ -1162,12 +1166,53 @@ namespace lqr_discrete{
     I_dt_vec_[time_id] = (cur_I_dt_vec);
   }
 
-  void SlqFiniteDiscreteControlHydrus::updateHydrusCogPosition(int time_id){
+  void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenter(VectorXd *joint_ptr, int time_id){
+    std::vector<Eigen::Vector3d> links_center_vec, links_head_vec;
     Eigen::Vector3d cog_local_pos = Eigen::Vector3d::Zero();
-    std::vector<Eigen::Vector3d> center_local_pos_vec = link_center_pos_local_vec_[time_id];
     for (int i = 0; i < n_links_; ++i){
-      cog_local_pos.noalias() += link_weight_vec_[i] * center_local_pos_vec[i];
+      links_center_vec.push_back(Eigen::Vector3d(0.0, 0.0, 0.0));
+      links_head_vec.push_back(Eigen::Vector3d(0.0, 0.0, 0.0));
     }
+    links_center_vec[baselink_id_] = Eigen::Vector3d(link_length_ / 2.0, 0, 0);
+    cog_local_pos.noalias() += links_center_weight_link_frame_vec_[baselink_id_];
+    Eigen::Vector3d prev_link_head(link_length_, 0, 0);
+    links_head_vec[baselink_id_ + 1] = prev_link_head;
+    double joint_ang = 0.0;
+
+    // only considering 2d hydrus
+    for (int i = baselink_id_ + 1; i < n_links_; ++i){
+      Eigen::Vector3d link_center = Eigen::Vector3d::Zero();
+      joint_ang += (*joint_ptr)(i - 1);
+      Eigen::Matrix3d rot;
+      rot << cos(joint_ang), -sin(joint_ang), 0,
+        sin(joint_ang), cos(joint_ang), 0,
+        0, 0, 1;
+      link_center.noalias() = prev_link_head + rot * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
+      links_center_vec[i] = link_center;
+      cog_local_pos.noalias() += prev_link_head * link_weight_vec_[i] + rot * links_center_weight_link_frame_vec_[i];
+      prev_link_head.noalias() += rot * Eigen::Vector3d(link_length_, 0, 0);
+      if (i < n_links_ - 1)
+        links_head_vec[i + 1] = prev_link_head;
+    }
+
+    prev_link_head = Eigen::Vector3d(0.0, 0.0, 0.0);
+    joint_ang = 0.0;
+    for (int i = baselink_id_ - 1; i >= 0; --i){
+      Eigen::Vector3d link_center = Eigen::Vector3d::Zero();
+      joint_ang -= (*joint_ptr)(i);
+      Eigen::Matrix3d rot;
+      rot << cos(joint_ang), -sin(joint_ang), 0,
+        sin(joint_ang), cos(joint_ang), 0,
+        0, 0, 1;
+      prev_link_head.noalias() += rot * Eigen::Vector3d(-link_length_, 0, 0);
+      links_head_vec[i] = prev_link_head;
+      link_center.noalias() = prev_link_head + rot * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
+      links_center_vec[i] = link_center;
+      cog_local_pos.noalias() += prev_link_head * link_weight_vec_[i] + rot * links_center_weight_link_frame_vec_[i];
+    }
+    link_center_pos_local_vec_[time_id] = (links_center_vec);
+    // cog:= (Sum{i} R_i * (Sum{j} pos_{i, j} * m_{i, j}) + offset_i * (Sum{j} m_{i, j}))
+    //      / (Sum{i, j} m_{i, j}) ## i is link id, j is extra model id
     cog_local_pos = cog_local_pos / hydrus_weight_;
     cog_pos_local_vec_[time_id] = (cog_local_pos);
 
@@ -1177,63 +1222,15 @@ namespace lqr_discrete{
     link_center_pos_cog_vec_[time_id] = (link_center_cog_pos_vec);
   }
 
-  void SlqFiniteDiscreteControlHydrus::updateHydrusCogPositionDerivative(int time_id){
-    Eigen::Vector3d cog_local_pos_dt = Eigen::Vector3d::Zero();
-    std::vector<Eigen::Vector3d> center_local_pos_dt_vec = link_center_pos_local_dt_vec_[time_id];
-    for (int i = 0; i < n_links_; ++i){
-      cog_local_pos_dt.noalias() += link_weight_vec_[i] * center_local_pos_dt_vec[i];
-    }
-    cog_local_pos_dt = cog_local_pos_dt / hydrus_weight_;
-    cog_pos_local_dt_vec_[time_id] = (cog_local_pos_dt);
-  }
-
-  void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenter(VectorXd *joint_ptr, int time_id){
-    std::vector<Eigen::Vector3d> links_center_vec;
-    for (int i = 0; i < n_links_; ++i)
-      links_center_vec.push_back(Eigen::Vector3d(0.0, 0.0, 0.0));
-    Eigen::Vector3d baselink_center(link_length_ / 2.0, 0, 0);
-    links_center_vec[baselink_id_] = baselink_center; // BASELINK count from 1 instead of 0
-    Eigen::Vector3d prev_link_end(link_length_, 0, 0);
-    prev_link_end = prev_link_end;
-    double joint_ang = 0.0;
-
-    // only considering 2d hydrus
-    for (int i = baselink_id_ + 1; i < n_links_; ++i){
-      Eigen::Vector3d link_center = Eigen::Vector3d::Zero();
-      joint_ang += (*joint_ptr)(i - 1);
-      Eigen::Matrix3d rot;
-      rot << cos(joint_ang), -sin(joint_ang), 0,
-        sin(joint_ang), cos(joint_ang), 0,
-        0, 0, 1;
-      link_center.noalias() = prev_link_end + rot * links_center_on_link_frame_vec_[i];
-      links_center_vec[i] = link_center;
-      prev_link_end.noalias() += rot * Eigen::Vector3d(link_length_, 0, 0);
-    }
-
-    prev_link_end = Eigen::Vector3d(0.0, 0.0, 0.0);
-    joint_ang = 0.0;
-    for (int i = baselink_id_ - 1; i >= 0; --i){
-      Eigen::Vector3d link_center = Eigen::Vector3d::Zero();
-      joint_ang -= (*joint_ptr)(i);
-      Eigen::Matrix3d rot;
-      rot << cos(joint_ang), -sin(joint_ang), 0,
-        sin(joint_ang), cos(joint_ang), 0,
-        0, 0, 1;
-      link_center.noalias() = prev_link_end + rot * (-links_center_on_link_frame_vec_[i]);
-      links_center_vec[i] = link_center;
-      prev_link_end.noalias() += rot * Eigen::Vector3d(-link_length_, 0, 0);
-    }
-    link_center_pos_local_vec_[time_id] = (links_center_vec);
-  }
-
   void SlqFiniteDiscreteControlHydrus::getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr, int time_id){
-    std::vector<Eigen::Vector3d> links_center_dt_vec;
-    for (int i = 0; i < n_links_; ++i)
+    std::vector<Eigen::Vector3d> links_center_dt_vec, links_head_dt_vec;
+    Eigen::Vector3d cog_local_vel = Eigen::Vector3d::Zero();
+    for (int i = 0; i < n_links_; ++i){
       links_center_dt_vec.push_back(Eigen::Vector3d(0.0, 0.0, 0.0));
-    Eigen::Vector3d baselink_center_dt(0.0, 0, 0);
-    links_center_dt_vec[baselink_id_] = baselink_center_dt;
+      links_head_dt_vec.push_back(Eigen::Vector3d(0.0, 0.0, 0.0));
+    }
 
-    Eigen::Vector3d prev_link_end_dt(0, 0, 0);
+    Eigen::Vector3d prev_link_head_dt(0, 0, 0);
     double joint_ang = 0.0;
     double joint_ang_dt = 0.0;
     // only considering 2d hydrus
@@ -1242,33 +1239,37 @@ namespace lqr_discrete{
       joint_ang += (*joint_ptr)(i - 1);
       joint_ang_dt += (*joint_dt_ptr)(i - 1);
       Eigen::Matrix3d rot_dt;
-      rot_dt << -sin(joint_ang), -cos(joint_ang), 0,
-        cos(joint_ang), -sin(joint_ang), 0,
+      rot_dt << -sin(joint_ang) * joint_ang_dt, -cos(joint_ang) * joint_ang_dt, 0,
+        cos(joint_ang) * joint_ang_dt, -sin(joint_ang) * joint_ang_dt, 0,
         0, 0, 0;
-      rot_dt = rot_dt * joint_ang_dt;
-      link_center_dt.noalias() = prev_link_end_dt + rot_dt * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
+      link_center_dt.noalias() = prev_link_head_dt + rot_dt * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
       links_center_dt_vec[i] = link_center_dt;
-      prev_link_end_dt.noalias() += rot_dt * Eigen::Vector3d(link_length_, 0, 0);
+      cog_local_vel.noalias() += prev_link_head_dt * link_weight_vec_[i] + rot_dt * links_center_weight_link_frame_vec_[i];
+      prev_link_head_dt.noalias() += rot_dt * Eigen::Vector3d(link_length_, 0, 0);
+      if (i < n_links_ - 1)
+        links_head_dt_vec[i + 1] = prev_link_head_dt;
     }
 
-    prev_link_end_dt = Eigen::Vector3d(0, 0, 0);
+    prev_link_head_dt = Eigen::Vector3d(0.0, 0.0, 0.0);
     joint_ang = 0.0;
     joint_ang_dt = 0.0;
-    // only considering 2d hydrus
     for (int i = baselink_id_ - 1; i >= 0; --i){
       Eigen::Vector3d link_center_dt = Eigen::Vector3d::Zero();
       joint_ang -= (*joint_ptr)(i);
       joint_ang_dt -= (*joint_dt_ptr)(i);
       Eigen::Matrix3d rot_dt;
-      rot_dt << -sin(joint_ang), -cos(joint_ang), 0,
-        cos(joint_ang), -sin(joint_ang), 0,
+      rot_dt << -sin(joint_ang) * joint_ang_dt, -cos(joint_ang) * joint_ang_dt, 0,
+        cos(joint_ang) * joint_ang_dt, -sin(joint_ang) * joint_ang_dt, 0,
         0, 0, 0;
-      rot_dt = rot_dt * joint_ang_dt;
-      link_center_dt.noalias() = prev_link_end_dt + rot_dt * Eigen::Vector3d(-link_length_ / 2.0, 0, 0);
+      prev_link_head_dt.noalias() += rot_dt * Eigen::Vector3d(-link_length_, 0, 0);
+      links_head_dt_vec[i] = prev_link_head_dt;
+      link_center_dt.noalias() = prev_link_head_dt + rot_dt * Eigen::Vector3d(link_length_ / 2.0, 0, 0);
       links_center_dt_vec[i] = link_center_dt;
-      prev_link_end_dt.noalias() += rot_dt * Eigen::Vector3d(-link_length_, 0, 0);
+      cog_local_vel.noalias() += prev_link_head_dt * link_weight_vec_[i] + rot_dt * links_center_weight_link_frame_vec_[i];
     }
     link_center_pos_local_dt_vec_[time_id] = (links_center_dt_vec);
+    cog_local_vel = cog_local_vel / hydrus_weight_;
+    cog_pos_local_dt_vec_[time_id] = (cog_local_vel);
   }
 
   MatrixXd SlqFiniteDiscreteControlHydrus::getJacobianW(int id){
