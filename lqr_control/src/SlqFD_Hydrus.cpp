@@ -331,7 +331,8 @@ namespace lqr_discrete{
       }
     }
     for (int i = 0; i <= iteration_times_; ++i)
-      u_vec_[i] = (un_vec_[0] - un_vec_[i]);
+      // u_vec_[i] = (un_vec_[0] - un_vec_[i]);
+      u_vec_[i] = u_init; // all 0
     stable_u_last_ = un_vec_[iteration_times_];
     if (verbose_)
       ROS_INFO("[SLQ] Assign vector finished.");
@@ -680,57 +681,28 @@ namespace lqr_discrete{
   VectorXd SlqFiniteDiscreteControlHydrus::getStableThrust(int time_id){
     VectorXd stable_u = VectorXd::Zero(u_size_);
     // todo: currently simply average of the gravity to save computation, configuration needs to be considered
-    for (int i = 0; i < u_size_; ++i)
-      stable_u(i) = hydrus_weight_ * 9.78 / u_size_;
-    return stable_u;
+    // for (int i = 0; i < u_size_; ++i)
+    //   stable_u(i) = hydrus_weight_ * 9.78 / u_size_;
+    // return stable_u;
 
-    // todo: debug old method
-    VectorXd g = VectorXd::Zero(4);
-    g(3) = hydrus_weight_ * 9.78;
-    MatrixXd H = MatrixXd::Zero(u_size_, u_size_);
-    for (int i = 0; i < 4; ++i)
-      H(3, i) = 1;
-    // momentum
-    MatrixXd H_minor = MatrixXd::Zero(u_size_ - 1, u_size_);
-    for (int i = 0; i < 4; ++i){
-      MatrixXd u_param = MatrixXd::Zero(u_size_ - 1, u_size_);
-      u_param(u_size_ - 2, i) = 1.0;
-      H_minor +=
-        S_operation(link_center_pos_cog_vec_[time_id][i])
-        * u_param;
+    Eigen::MatrixXd P_dash = Eigen::MatrixXd::Zero(3, n_links_);
+    Eigen::VectorXd p_x(n_links_), p_y(n_links_), p_c(n_links_), p_m(n_links_);
+
+    for(int i = 0; i < n_links_; i++){
+      p_y(i) =  link_center_pos_cog_vec_[time_id][i](1);
+      p_x(i) = -link_center_pos_cog_vec_[time_id][i](0);
+      // p_c(i) =  rotor_direction.at(i + 1) * m_f_rate_ ;
+      p_m(i) =  1.0 / hydrus_weight_;
     }
-    // z momentum
-    for (int i = 0; i < 4; ++i)
-      H_minor(2, i) += M_z_(i);
-    H.block<3, 4>(0, 0) = H_minor;
-
-    // momentum from multi-link model
-    Eigen::Vector3d w = Eigen::Vector3d::Zero();
-    Eigen::Vector3d dw;
-    Eigen::Vector3d momentum = Eigen::Vector3d::Zero();
-    VectorXd dq = joint_dt_vec_[time_id];
-    VectorXd ddq = joint_ddt_vec_[time_id];
-    for (int i = 0; i < n_links_; ++i){
-      MatrixXd JW_mat = getJacobianW(i);
-      Eigen::Vector3d wi = w + VectorXdTo3d(JW_mat * dq);
-      momentum +=
-        I_vec_[time_id][i] * JW_mat * ddq
-        + wi.cross(VectorXdTo3d(I_vec_[time_id][i] * wi))
-        + I_dt_vec_[time_id][i] * wi;
-    }
-    //for (int i = 0; i < 3; ++i)
-    //g(i) = momentum(i);
-
-    /* lagrange mothod */
-    // issue: min u_t * u; constraint: g = H * u  (stable point)
-    //lamda: [4:0]
-    // u = H_t * lamba
-    // (H_  * H_t) * lamda = g
-    // u = H_t * (H_ * H_t).inv * g
-    Eigen::FullPivLU<Eigen::MatrixXd> solver((H * H.transpose()));
+    P_dash.row(0) = p_y;
+    P_dash.row(1) = p_x;
+    P_dash.row(2) = p_m;
+    Eigen::VectorXd g3(3);
+    g3 << 0, 0, 9.8;
+    Eigen::FullPivLU<Eigen::MatrixXd> solver((P_dash * P_dash.transpose()));
     Eigen::VectorXd lamda;
-    lamda = solver.solve(g);
-    stable_u = H.transpose() * lamda;
+    lamda = solver.solve(g3);
+    stable_u = P_dash.transpose() * lamda;
     return stable_u;
   }
 
