@@ -724,6 +724,11 @@ namespace lqr_discrete{
       joint_id = 0;
     else if (tennis_task_descriptor_.hitting_hand == 1) // right hand
       joint_id = 2;
+    else if (tennis_task_descriptor_.hitting_hand == 2){ // no hand
+      if (order == 0) // no transformation for no hand cases
+        joint << 0.785, 1.5708, 0.785;
+      return joint;
+    }
     double dq = 5.0 * tennis_task_descriptor_.hitting_time; // joint velocity
     double racket_return_time = 1.2; //tennis_task_descriptor_.post_hitting_time
     // todo: temprarily assume transform action only in hitting time
