@@ -107,6 +107,9 @@ namespace lqr_discrete{
     double uav_rotor_thrust_min_;
     double uav_rotor_thrust_max_;
     bool transform_movement_flag_;
+    std::vector<double> s_tilts_;
+    std::vector<double> c_tilts_;
+    double rotor_tilt_ang_;
 
     /* model */
     robotModel hydrus_model_;
