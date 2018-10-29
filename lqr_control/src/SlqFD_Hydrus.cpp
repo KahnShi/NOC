@@ -74,11 +74,14 @@ namespace lqr_discrete{
     nhp_.param("line_search_steps", line_search_steps_, 4);
     nhp_.param("line_search_mode", line_search_mode_, 2);// 0, standard mode; 1, final state priority mode; 2, final pose priority mode
     nhp_.param("n_links", n_links_, 4);
+    nhp_.param("rotor_tilt_angle", rotor_tilt_ang_, 20.0);
 
     for (int i = 0; i < n_links_; ++i){
       link_weight_vec_.push_back(0.0);
       links_center_weight_link_frame_vec_.push_back(Eigen::Vector3d(0.0, 0.0, 0.0));
       links_center_on_link_frame_vec_.push_back(Eigen::Vector3d(0.0, 0.0, 0.0));
+      s_tilts_.push_back(sin(pow(-1, i+1) * rotor_tilt_ang_ / 180.0 * PI));
+      c_tilts_.push_back(cos(pow(-1, i+1) * rotor_tilt_ang_ / 180.0 * PI));
     }
 
     /* hydrus */
@@ -685,24 +688,64 @@ namespace lqr_discrete{
     //   stable_u(i) = hydrus_weight_ * 9.78 / u_size_;
     // return stable_u;
 
-    Eigen::MatrixXd P_dash = Eigen::MatrixXd::Zero(3, n_links_);
-    Eigen::VectorXd p_x(n_links_), p_y(n_links_), p_c(n_links_), p_m(n_links_);
 
-    for(int i = 0; i < n_links_; i++){
-      p_y(i) =  link_center_pos_cog_vec_[time_id][i](1);
-      p_x(i) = -link_center_pos_cog_vec_[time_id][i](0);
-      // p_c(i) =  rotor_direction.at(i + 1) * m_f_rate_ ;
-      p_m(i) =  1.0 / hydrus_weight_;
+    // Eigen::MatrixXd P_dash = Eigen::MatrixXd::Zero(3, n_links_);
+    // Eigen::VectorXd p_x(n_links_), p_y(n_links_), p_c(n_links_), p_m(n_links_);
+
+    // for(int i = 0; i < n_links_; i++){
+    //   p_y(i) =  link_center_pos_cog_vec_[time_id][i](1);
+    //   p_x(i) = -link_center_pos_cog_vec_[time_id][i](0);
+    //   // p_c(i) =  rotor_direction.at(i + 1) * m_f_rate_ ;
+    //   p_m(i) =  1.0 / hydrus_weight_;
+    // }
+    // P_dash.row(0) = p_y;
+    // P_dash.row(1) = p_x;
+    // P_dash.row(2) = p_m;
+    // Eigen::VectorXd g3(3);
+    // g3 << 0, 0, 9.8;
+    // Eigen::FullPivLU<Eigen::MatrixXd> solver((P_dash * P_dash.transpose()));
+    // Eigen::VectorXd lamda;
+    // lamda = solver.solve(g3);
+    // stable_u = P_dash.transpose() * lamda;
+    // return stable_u;
+
+
+    Eigen::Matrix4d P;
+    Eigen::VectorXd yaw_vec(n_links_);
+    yaw_vec(baselink_id_) = 0.0;
+    for (int i = baselink_id_ - 1; i >= 0; --i)
+      yaw_vec(i) = yaw_vec(i + 1) - joint_vec_[time_id](i);
+    for (int i = baselink_id_ + 1; i < n_links_; ++i)
+      yaw_vec(i) = yaw_vec(i - 1) + joint_vec_[time_id](i - 1);
+    for (int i = 0; i < n_links_; ++i){
+      Eigen::Vector3d mid_result;
+      mid_result.noalias() =
+        link_center_pos_cog_vec_[time_id][i].
+        cross(Eigen::Vector3d(cos(yaw_vec(i)) * s_tilts_[i], sin(yaw_vec(i)) * s_tilts_[i], c_tilts_[i]));
+      for (int j = 0; j < 3; ++j)
+        P(j, i) = mid_result(j);
     }
-    P_dash.row(0) = p_y;
-    P_dash.row(1) = p_x;
-    P_dash.row(2) = p_m;
+    for (int i = 0; i < n_links_; ++i)
+      P(n_links_ - 1, i) = 1;
+    // test
+    std::cout  << P << "\n\n";
     Eigen::VectorXd g3(3);
-    g3 << 0, 0, 9.8;
+    g3 << 0, 0, 9.8 * hydrus_weight_;
+
+    // method 1
+    // stable_u = P.inverse() * g3;
+
+    // method 2
+    Eigen::MatrixXd P_dash = Eigen::MatrixXd::Zero(3, n_links_);
+    P_dash.row(0) = P.row(0);
+    P_dash.row(1) = P.row(1);
+    P_dash.row(2) = P.row(3);
     Eigen::FullPivLU<Eigen::MatrixXd> solver((P_dash * P_dash.transpose()));
     Eigen::VectorXd lamda;
     lamda = solver.solve(g3);
     stable_u = P_dash.transpose() * lamda;
+    // test
+    std::cout << time_id << ": " << stable_u.transpose() << "\n";
     return stable_u;
   }
 
@@ -886,27 +929,42 @@ namespace lqr_discrete{
     (*A_ptr_)(P_Z, V_Z) = 1;
 
     /* v_x, v_y, v_z */
-    double u = 0.0;
-    for (int i = 0; i < u_size_; ++i)
-      u += (*u_ptr)[i];
-
-    /* u' = u / m */
-    u = u / hydrus_weight_;
-    /* d v_x = (sin y * sin r + cos y * sin p * cos r) * u' */
-    (*A_ptr_)(V_X, E_R) = (sin((*x_ptr)[E_Y]) * cos((*x_ptr)[E_R]) -
-                           cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * sin((*x_ptr)[E_R])) * u;
-    (*A_ptr_)(V_X, E_P) = cos((*x_ptr)[E_Y]) * cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]) * u;
-    (*A_ptr_)(V_X, E_Y) = (cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) -
-                           sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R])) * u;
-    /* d v_y = (-cos y * sin r + sin y * sin p * cos r) * u' */
-    (*A_ptr_)(V_Y, E_R) = (-cos((*x_ptr)[E_Y]) * cos((*x_ptr)[E_R]) -
-                           sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]))* u;
-    (*A_ptr_)(V_Y, E_P) = sin((*x_ptr)[E_Y]) * cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]) * u;
-    (*A_ptr_)(V_Y, E_Y) = (sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
-                           cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))* u;
-    /* d v_z = (cos p * cos r) * u' */
-    (*A_ptr_)(V_Z, E_P) = -sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]) * u;
-    (*A_ptr_)(V_Z, E_R) = -cos((*x_ptr)[E_P]) * sin((*x_ptr)[E_R]) * u;
+    Eigen::Vector3d f_sum_cog = Eigen::Vector3d::Zero();
+    Eigen::VectorXd yaw_vec(n_links_);
+    yaw_vec(baselink_id_) = 0.0;
+    for (int i = baselink_id_ - 1; i >= 0; --i)
+      yaw_vec(i) = yaw_vec(i + 1) - joint_vec_[time_id](i);
+    for (int i = baselink_id_ + 1; i < n_links_; ++i)
+      yaw_vec(i) = yaw_vec(i - 1) + joint_vec_[time_id](i - 1);
+    for (int i = 0; i < n_links_; ++i){
+      double fi = (*u_ptr)[i];
+      f_sum_cog.noalias() += Eigen::Vector3d(cos(yaw_vec(i)) * s_tilts_[i] * fi, sin(yaw_vec(i)) * s_tilts_[i] * fi, c_tilts_[i] * fi);
+    }
+    Eigen::Matrix3d cog_rot_er_dt, cog_rot_ep_dt, cog_rot_ey_dt;
+    cog_rot_ey_dt << -sin((*x_ptr)[E_R]), -cos((*x_ptr)[E_R]), 0,
+      cos((*x_ptr)[E_R]), -sin((*x_ptr)[E_R]), 0,
+      0, 0, 0;
+    cog_rot_ep_dt << -sin((*x_ptr)[E_P]), 0, cos((*x_ptr)[E_P]),
+      0, 0, 0,
+      -cos((*x_ptr)[E_P]), 0, -sin((*x_ptr)[E_P]);
+    cog_rot_er_dt << 0, 0, 0,
+      0, -sin((*x_ptr)[E_Y]), -cos((*x_ptr)[E_Y]),
+      0, cos((*x_ptr)[E_Y]), -sin((*x_ptr)[E_Y]);
+    Eigen::Matrix3d cog_rot_dey = cog_rot_ey_dt
+      * Eigen::AngleAxisd((*x_ptr)[E_P], Eigen::Vector3d::UnitY())
+      * Eigen::AngleAxisd((*x_ptr)[E_R], Eigen::Vector3d::UnitX());
+    Eigen::Matrix3d cog_rot_dep = Eigen::AngleAxisd((*x_ptr)[E_Y], Eigen::Vector3d::UnitZ())
+      * cog_rot_ep_dt
+      * Eigen::AngleAxisd((*x_ptr)[E_R], Eigen::Vector3d::UnitX());
+    Eigen::Matrix3d cog_rot_der = Eigen::AngleAxisd((*x_ptr)[E_Y], Eigen::Vector3d::UnitZ())
+      * Eigen::AngleAxisd((*x_ptr)[E_P], Eigen::Vector3d::UnitY())
+      * cog_rot_er_dt;
+    Eigen::Vector3d f_sum_w_der = cog_rot_der * f_sum_cog;
+    Eigen::Vector3d f_sum_w_dep = cog_rot_dep * f_sum_cog;
+    Eigen::Vector3d f_sum_w_dey = cog_rot_dey * f_sum_cog;
+    for (int i = 0; i < 3; ++i) (*A_ptr_)(V_X + i, E_R) = f_sum_w_der(i);
+    for (int i = 0; i < 3; ++i) (*A_ptr_)(V_X + i, E_P) = f_sum_w_dep(i);
+    for (int i = 0; i < 3; ++i) (*A_ptr_)(V_X + i, E_Y) = f_sum_w_dey(i);
 
     /* e_r, e_p, e_y */
     /* d e = R_e * w_b */
@@ -973,21 +1031,23 @@ namespace lqr_discrete{
     /* x, y, z */
     /* all 0 */
 
-    /* v_x, v_y, v_z */
-    /* d v_x = (sin y * sin r + cos y * sin p * cos r) * (u1 + u2 + u3 + u4) / m */
-    (*B_ptr_)(V_X, U_1) = (sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
-                           cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
-      / hydrus_weight_;
-    /* d v_y = (-cos y * sin r + sin y * sin p * cos r) * (u1 + u2 + u3 + u4) / m  */
-    (*B_ptr_)(V_Y, U_1) = (-cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
-                           sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
-      / hydrus_weight_;
-    /* d v_z = (cos p * cos r) * (u1 + u2 + u3 + u4) / m */
-    (*B_ptr_)(V_Z, U_1) = (cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
-      / hydrus_weight_;
-    for (int i = V_X; i <= V_Z; ++i)
-      for (int j = U_2; j <= U_4; ++j)
-      (*B_ptr_)(i, j) = (*B_ptr_)(i, U_1);
+    // /* v_x, v_y, v_z */
+    Eigen::Matrix3d cog_rot;
+    cog_rot = Eigen::AngleAxisd((*x_ptr)[E_Y], Eigen::Vector3d::UnitZ())
+      * Eigen::AngleAxisd((*x_ptr)[E_P], Eigen::Vector3d::UnitY())
+      * Eigen::AngleAxisd((*x_ptr)[E_R], Eigen::Vector3d::UnitX());
+    Eigen::VectorXd yaw_vec(n_links_);
+    yaw_vec(baselink_id_) = 0.0;
+    for (int i = baselink_id_ - 1; i >= 0; --i)
+      yaw_vec(i) = yaw_vec(i + 1) - joint_vec_[time_id](i);
+    for (int i = baselink_id_ + 1; i < n_links_; ++i)
+      yaw_vec(i) = yaw_vec(i - 1) + joint_vec_[time_id](i - 1);
+    for (int i = 0; i < n_links_; ++i){
+      Eigen::Vector3d fi_dt_cog = Eigen::Vector3d(cos(yaw_vec(i)) * s_tilts_[i], sin(yaw_vec(i)) * s_tilts_[i], c_tilts_[i]);
+      Eigen::Vector3d fi_dt_w = cog_rot * fi_dt_cog;
+      for (int j = 0; j < 3; ++j)
+        (*B_ptr_)(V_X + j, U_1 + i) = fi_dt_w(j);
+    }
 
     /* e_r, e_p, e_y */
     /* all 0 */
@@ -1003,8 +1063,8 @@ namespace lqr_discrete{
       Eigen::Vector3d dw_u_i;
       dw_u_i.noalias() = I_inv *
         (link_center_pos_cog_vec_[time_id][i]
-         .cross(Eigen::Vector3d(0, 0, 1.0))
-         + Eigen::Vector3d(0, 0, M_z_(i)));
+         .cross(Eigen::Vector3d(cos(yaw_vec(i)) * s_tilts_[i], sin(yaw_vec(i)) * s_tilts_[i], c_tilts_[i]))
+         + Eigen::Vector3d(cos(yaw_vec(i)) * s_tilts_[i], sin(yaw_vec(i)) * s_tilts_[i], c_tilts_[i]) * M_z_(i));
       for (int j = 0; j < 3; ++j)
         (*B_ptr_)(W_X + j, U_1 + i) = dw_u_i(j);
     }
@@ -1028,20 +1088,25 @@ namespace lqr_discrete{
     dev_x(P_Z) = (*x_ptr)(V_Z);
 
     /* v_x, v_y, v_z */
-    double u = 0.0;
-    for (int i = 0; i < u_size_; ++i)
-      u += (*u_ptr)[i];
-    /* d v_x = (sin y * sin r + cos y * sin p * cos r) * (u1 + u2 + u3 + u4) / m */
-    dev_x(V_X) = (sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
-                  cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
-      * u / hydrus_weight_;
-    /* d v_y = (-cos y * sin r + sin y * sin p * cos r) * (u1 + u2 + u3 + u4) / m  */
-    dev_x(V_Y) = (-cos((*x_ptr)[E_Y]) * sin((*x_ptr)[E_R]) +
-                  sin((*x_ptr)[E_Y]) * sin((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
-      * u / hydrus_weight_;
-    /* d v_z = (cos p * cos r) * (u1 + u2 + u3 + u4) / m */
-    dev_x(V_Z) = (cos((*x_ptr)[E_P]) * cos((*x_ptr)[E_R]))
-      * u / hydrus_weight_ - 9.78;
+    Eigen::Vector3d f_sum_cog = Eigen::Vector3d::Zero();
+    Eigen::VectorXd yaw_vec(n_links_);
+    yaw_vec(baselink_id_) = 0.0;
+    for (int i = baselink_id_ - 1; i >= 0; --i)
+      yaw_vec(i) = yaw_vec(i + 1) - joint_vec_[time_id](i);
+    for (int i = baselink_id_ + 1; i < n_links_; ++i)
+      yaw_vec(i) = yaw_vec(i - 1) + joint_vec_[time_id](i - 1);
+    for (int i = 0; i < n_links_; ++i){
+      double fi = (*u_ptr)[i];
+      f_sum_cog.noalias() += Eigen::Vector3d(cos(yaw_vec(i)) * s_tilts_[i] * fi, sin(yaw_vec(i)) * s_tilts_[i] * fi, c_tilts_[i] * fi);
+    }
+    Eigen::Matrix3d cog_rot;
+    cog_rot = Eigen::AngleAxisd((*x_ptr)[E_Y], Eigen::Vector3d::UnitZ())
+      * Eigen::AngleAxisd((*x_ptr)[E_P], Eigen::Vector3d::UnitY())
+      * Eigen::AngleAxisd((*x_ptr)[E_R], Eigen::Vector3d::UnitX());
+    Eigen::Vector3d f_sum_w = cog_rot * f_sum_cog;
+    dev_x(V_X) = f_sum_w(0) / hydrus_weight_;
+    dev_x(V_Y) = f_sum_w(1) / hydrus_weight_;
+    dev_x(V_Z) = f_sum_w(2) / hydrus_weight_ - 9.8;
 
     /* e_r, e_p, e_y */
     /* d e = R_e * w_b */
@@ -1066,8 +1131,9 @@ namespace lqr_discrete{
       double fi = (*u_ptr)[i];
       mid_result.noalias() +=
         link_center_pos_cog_vec_[time_id][i].
-        cross(Eigen::Vector3d(0, 0, fi));
-      mid_result.noalias() += Eigen::Vector3d(0, 0, fi * M_z_(i));
+        cross(Eigen::Vector3d(cos(yaw_vec(i)) * s_tilts_[i] * fi, sin(yaw_vec(i)) * s_tilts_[i] * fi, c_tilts_[i] * fi));
+      mid_result.noalias() += Eigen::Vector3d(cos(yaw_vec(i)) * s_tilts_[i], sin(yaw_vec(i)) * s_tilts_[i], c_tilts_[i])
+        * fi * M_z_(i); // too small to ignore
       mid_result.noalias() -= I_vec_[time_id][i] * JW_mat * ddq;
       mid_result.noalias() -= wi.cross(VectorXdTo3d(I_vec_[time_id][i] * wi));
       mid_result.noalias() -= I_dt_vec_[time_id][i] * wi;
