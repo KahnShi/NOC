@@ -725,32 +725,58 @@ namespace lqr_discrete{
       Eigen::Vector3d mid_result;
       mid_result.noalias() =
         link_center_pos_cog_vec_[time_id][i].
-        cross(Eigen::Vector3d(cos(yaw_vec(i)) * s_tilts_[i], sin(yaw_vec(i)) * s_tilts_[i], c_tilts_[i]));
+        cross(Eigen::Vector3d(cos(yaw_vec(i)) * s_tilts_[i], sin(yaw_vec(i)) * s_tilts_[i], c_tilts_[i]))
+        + M_z_(i) * Eigen::Vector3d(cos(yaw_vec(i)) * s_tilts_[i], sin(yaw_vec(i)) * s_tilts_[i], c_tilts_[i]);
       for (int j = 0; j < 3; ++j)
         P(j, i) = mid_result(j);
     }
     for (int i = 0; i < n_links_; ++i)
-      P(n_links_ - 1, i) = 1;
+      P(n_links_ - 1, i) = c_tilts_[i];
     // test
     std::cout  << P << "\n\n";
     Eigen::VectorXd g3(3);
     g3 << 0, 0, 9.8 * hydrus_weight_;
 
-    // method 1
+    /* method 1: directly calculate inverse matrix, which might not feasible */
     // stable_u = P.inverse() * g3;
 
-    // method 2
-    Eigen::MatrixXd P_dash = Eigen::MatrixXd::Zero(3, n_links_);
-    P_dash.row(0) = P.row(0);
-    P_dash.row(1) = P.row(1);
-    P_dash.row(2) = P.row(3);
-    Eigen::FullPivLU<Eigen::MatrixXd> solver((P_dash * P_dash.transpose()));
+    /* method 2: considering torque: x,y; force: z */
+    // Eigen::MatrixXd P_dash = Eigen::MatrixXd::Zero(3, n_links_);
+    // P_dash.row(0) = P.row(0);
+    // P_dash.row(1) = P.row(1);
+    // P_dash.row(2) = P.row(3);
+    // Eigen::FullPivLU<Eigen::MatrixXd> solver((P_dash * P_dash.transpose()));
+    // Eigen::VectorXd lamda;
+    // lamda = solver.solve(g3);
+    // stable_u = P_dash.transpose() * lamda;
+    // // test
+    // std::cout << time_id << ": " << stable_u.transpose() << "\n";
+    // return stable_u;
+
+    /* method 3: considering torque: x,y,z; force: z */
+    Eigen::FullPivLU<Eigen::MatrixXd> solver((P * P.transpose()));
     Eigen::VectorXd lamda;
-    lamda = solver.solve(g3);
-    stable_u = P_dash.transpose() * lamda;
-    // test
-    std::cout << time_id << ": " << stable_u.transpose() << "\n";
+    Eigen::VectorXd g4(4);
+    g4 << 0, 0, 0, 9.8 * hydrus_weight_;
+    lamda = solver.solve(g4);
+    stable_u = P.transpose() * lamda;
     return stable_u;
+
+    /* method 4: considering torque: x,y,z; force: x,y,z */
+    // Eigen::MatrixXd P_ext(6, n_links_);
+    // for (int i = 0; i < 4; ++i)
+    //   P_ext.row(i) = P.row(i);
+    // for (int i = 0; i < n_links_; ++i){
+    //   P_ext(4, i) = cos(yaw_vec(i)) * s_tilts_[i];
+    //   P_ext(5, i) = sin(yaw_vec(i)) * s_tilts_[i];
+    // }
+    // Eigen::FullPivLU<Eigen::MatrixXd> solver((P_ext * P_ext.transpose()));
+    // Eigen::VectorXd lamda;
+    // Eigen::VectorXd g6(6);
+    // g6 << 0, 0, 0, 9.8 * hydrus_weight_, 0, 0;
+    // lamda = solver.solve(g6);
+    // stable_u = P_ext.transpose() * lamda;
+    // return stable_u;
   }
 
   VectorXd SlqFiniteDiscreteControlHydrus::getCurrentJoint(double time, int order, int time_mode){
