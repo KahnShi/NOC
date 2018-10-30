@@ -71,8 +71,6 @@ namespace lqr_discrete{
     Q_yaw_para_ = Q_yaw_mid_para_;
 
     nhp_.param("verbose", debug_, false);
-    nhp_.param("dynamic_freqency_flag", dynamic_freqency_flag_, true);
-    nhp_.param("high_freq_least_period", high_freq_least_period_, 1.0);
     nhp_.param("line_search_steps", line_search_steps_, 4);
     nhp_.param("line_search_mode", line_search_mode_, 2);// 0, standard mode; 1, final state priority mode; 2, final pose priority mode
 
@@ -152,40 +150,15 @@ namespace lqr_discrete{
     control_freq_ = freq;
     tennis_task_descriptor_ = task_descriptor;
     // Here we assume frequency is an odd integer
-    control_high_freq_ = freq;
-    control_low_freq_ = freq / 2.0;
+    slq_discrete_freq_ = freq;
     double period = (*time_ptr)[time_ptr->size() - 1] - (*time_ptr)[0];
-    if (dynamic_freqency_flag_ || period <= high_freq_least_period_){
-      double high_freq_period = period;
-      if (floor(control_high_freq_ * high_freq_period) < control_high_freq_ * high_freq_period){
-        end_time_ = (floor(control_high_freq_ * high_freq_period) + 1.0) / control_high_freq_;
-        iteration_times_ = floor(control_high_freq_ * high_freq_period) + 1;
-      }
-      else{
-        end_time_ = high_freq_period;
-        iteration_times_ = floor(control_high_freq_ * high_freq_period);
-      }
-      high_freq_end_time_ = end_time_;
-      low_freq_end_time_ = end_time_;
-      high_freq_iteration_times_ = iteration_times_;
-      low_freq_iteration_times_ = 0.0;
+    if (floor(slq_discrete_freq_ * period) < slq_discrete_freq_ * period){
+      end_time_ = (floor(slq_discrete_freq_ * period) + 1.0) / slq_discrete_freq_;
+      iteration_times_ = floor(slq_discrete_freq_ * period) + 1;
     }
     else{
-      double low_freq_period = period - high_freq_least_period_;
-      high_freq_end_time_ = high_freq_least_period_;
-      high_freq_iteration_times_ = floor(control_high_freq_ * high_freq_end_time_);
-      if (floor(control_low_freq_ * low_freq_period) < control_low_freq_ * low_freq_period){
-        low_freq_iteration_times_ = floor(control_low_freq_ * low_freq_period) + 1;
-        end_time_ = low_freq_iteration_times_ / control_low_freq_ + high_freq_end_time_;
-        low_freq_end_time_ = end_time_;
-        iteration_times_ = low_freq_iteration_times_ + high_freq_iteration_times_;
-      }
-      else{
-        low_freq_iteration_times_ = floor(control_low_freq_ * low_freq_period);
-        end_time_ = period;
-        low_freq_end_time_ = end_time_;
-        iteration_times_ = low_freq_iteration_times_ + high_freq_iteration_times_;
-      }
+      end_time_ = period;
+      iteration_times_ = floor(slq_discrete_freq_ * period);
     }
 
     if (debug_){
@@ -193,8 +166,6 @@ namespace lqr_discrete{
                 << ", Itetation times: " << iteration_times_ << "\n";
       std::cout << "[SLQ] Start position: " << (*waypoints_ptr)[0].transpose() << "\n";
       std::cout << "[SLQ] End position: " << (*waypoints_ptr)[waypoints_ptr->size()  - 1].transpose() << "\n";
-      std::cout << "[SLQ] High frequency end time: " << high_freq_end_time_ << ", times: " << high_freq_iteration_times_ << "\n";
-      std::cout << "[SLQ] Low frequency end time: " << low_freq_end_time_ << ", times: " << low_freq_iteration_times_ << "\n";
     }
 
     if (waypoints_ptr_->size())
@@ -255,11 +226,7 @@ namespace lqr_discrete{
       #pragma omp for
       for (int i = 0; i <= iteration_times_; ++i){
         double cur_time;
-        if (i <= high_freq_iteration_times_)
-          cur_time = double(i) / control_high_freq_;
-        else
-          cur_time = high_freq_end_time_ +
-            (i - high_freq_iteration_times_) / control_low_freq_;
+        cur_time = double(i) / slq_discrete_freq_;
         VectorXd cur_joint = getCurrentJoint(cur_time);
         VectorXd cur_joint_dt = getCurrentJoint(cur_time, 1);
         VectorXd cur_joint_ddt = getCurrentJoint(cur_time, 2);
@@ -428,11 +395,7 @@ namespace lqr_discrete{
     for (int i = iteration_times_ - 1; i >= 0; --i){
       // add weight for waypoints
       double cur_time;
-      if (i <= high_freq_iteration_times_)
-        cur_time = double(i) / control_high_freq_;
-      else
-        cur_time = high_freq_end_time_ +
-          (i - high_freq_iteration_times_) / control_low_freq_;
+      cur_time = double(i) / slq_discrete_freq_;
       std::vector<MatrixXd> W_vec;
       for (int j = 1; j < waypoints_ptr_->size() - 1; ++j){
         MatrixXd W = MatrixXd::Zero(x_size_, x_size_);
@@ -504,11 +467,7 @@ namespace lqr_discrete{
           // add weight for waypoints
           if (line_search_mode_ == 0){
             double cur_time;
-            if (i <= high_freq_iteration_times_)
-              cur_time = double(i) / control_high_freq_;
-            else
-              cur_time = high_freq_end_time_ +
-                (i - high_freq_iteration_times_) / control_low_freq_;
+            cur_time = double(i) / slq_discrete_freq_;
             std::vector<MatrixXd> W_vec;
             for (int j = 1; j < waypoints_ptr_->size() - 1; ++j){
               MatrixXd W = MatrixXd::Zero(x_size_, x_size_);
@@ -592,19 +551,14 @@ namespace lqr_discrete{
 
   VectorXd SlqFiniteDiscreteControlHydrus::getCurrentIdealPosition(double relative_time){
     int id;
-    if (relative_time <= high_freq_end_time_)
-      id = floor(relative_time * control_high_freq_);
-    else
-      id = int(high_freq_iteration_times_) +
-        floor((relative_time - high_freq_end_time_) * control_low_freq_);
-
+    id = floor(relative_time * slq_discrete_freq_);
     if (id > iteration_times_ - 1){
       id = iteration_times_ - 1;
     }
     return getAbsoluteState(&(x_vec_[id]));
   }
 
-  VectorXd SlqFiniteDiscreteControlHydrus::highFrequencyFeedbackControl(double relative_time, VectorXd *cur_real_x_ptr){
+  VectorXd SlqFiniteDiscreteControlHydrus::slqFeedbackControl(double relative_time, VectorXd *cur_real_x_ptr){
     // save for infinite state
     if (!infinite_feedback_update_flag_){
       infinite_feedback_update_flag_ = true;
@@ -613,12 +567,7 @@ namespace lqr_discrete{
 
     // relative_time is (current time - start time)
     int id;
-    if (relative_time <= high_freq_end_time_)
-      id = floor(relative_time * control_high_freq_);
-    else
-      id = int(high_freq_iteration_times_) +
-        floor((relative_time - high_freq_end_time_) * control_low_freq_);
-
+    id = floor(relative_time * slq_discrete_freq_);
     if (id > iteration_times_ - 1){
       id = iteration_times_ - 1;
       return infiniteFeedbackControl(cur_real_x_ptr);
@@ -640,31 +589,6 @@ namespace lqr_discrete{
     new_u.noalias() = -(*IDlqr_F_ptr_) * cur_x;
     checkControlInputFeasible(&new_u, iteration_times_);
     new_u.noalias() += stable_u_last_;
-    return new_u;
-  }
-
-  VectorXd SlqFiniteDiscreteControlHydrus::highFrequencyLQRFeedbackControl(double relative_time, VectorXd *cur_real_x_ptr){
-    VectorXd new_u = VectorXd::Zero(u_size_);
-    VectorXd cur_x = getRelativeState(cur_real_x_ptr);
-    // relative_time is (current time - start time)
-    int id;
-    if (relative_time <= high_freq_end_time_)
-      id = floor(relative_time * control_high_freq_);
-    else
-      id = int(high_freq_iteration_times_) +
-        floor((relative_time - high_freq_end_time_) * control_low_freq_);
-
-    if (id > iteration_times_ - 1){
-      id = iteration_times_;
-      new_u.noalias() = -(*IDlqr_F_ptr_) * cur_x;
-      checkControlInputFeasible(&new_u, id);
-      new_u.noalias() += stable_u_last_;
-    }
-    else{
-      new_u.noalias() = -lqr_F_vec_[iteration_times_ - 1 - id] * cur_x;
-      checkControlInputFeasible(&new_u, id);
-      new_u.noalias() += un_vec_[id];
-    }
     return new_u;
   }
 
@@ -969,10 +893,7 @@ namespace lqr_discrete{
       (*A_ptr_)(i, W_X) = d_w_w_i_vec[2](i - W_X);
     }
 
-    if (time_id < high_freq_iteration_times_)
-      (*A_ptr_) = (*A_ptr_) / control_high_freq_ + MatrixXd::Identity(x_size_, x_size_);
-    else
-      (*A_ptr_) = (*A_ptr_) / control_low_freq_ + MatrixXd::Identity(x_size_, x_size_);
+    (*A_ptr_) = (*A_ptr_) / slq_discrete_freq_ + MatrixXd::Identity(x_size_, x_size_);
   }
 
   void SlqFiniteDiscreteControlHydrus::updateMatrixB(int time_id){
@@ -1020,10 +941,7 @@ namespace lqr_discrete{
         (*B_ptr_)(W_X + j, U_1 + i) = dw_u_i(j);
     }
 
-    if (time_id < high_freq_iteration_times_)
-      (*B_ptr_) = (*B_ptr_) / control_high_freq_;
-    else
-      (*B_ptr_) = (*B_ptr_) / control_low_freq_;
+    (*B_ptr_) = (*B_ptr_) / slq_discrete_freq_;
   }
 
   void SlqFiniteDiscreteControlHydrus::updateNewState(VectorXd *new_relative_x_ptr, VectorXd *relative_x_ptr, VectorXd *relative_u_ptr, int time_id){
@@ -1094,10 +1012,7 @@ namespace lqr_discrete{
       dev_x(W_X + i) = dw(i);
 
     VectorXd new_x;
-    if (time_id < high_freq_iteration_times_)
-      new_x = dev_x / control_high_freq_ + *x_ptr;
-    else
-      new_x = dev_x / control_low_freq_ + *x_ptr;
+    new_x = dev_x / slq_discrete_freq_ + *x_ptr;
     *new_relative_x_ptr = getRelativeState(&new_x);
   }
 
@@ -1404,11 +1319,7 @@ namespace lqr_discrete{
                + x_vec_[i].transpose() * (*Q0_ptr_) * x_vec_[i])(0);
       // waypoint cost
       double cur_time;
-      if (i <= high_freq_iteration_times_)
-        cur_time = double(i) / control_high_freq_;
-      else
-        cur_time = high_freq_end_time_ +
-          (i - high_freq_iteration_times_) / control_low_freq_;
+      cur_time = double(i) / slq_discrete_freq_;
       VectorXd real_x = getAbsoluteState(&(x_vec_[i]));
       for (int j = 1; j < waypoints_ptr_->size() - 1; ++j){
         MatrixXd W = MatrixXd::Zero(x_size_, x_size_);
@@ -1493,9 +1404,9 @@ namespace lqr_discrete{
       // return (state_minor + state_max) / 2.0;
 
       // get weight adding
-      return (state_minor * ((id+1) / control_high_freq_ - relative_time)
-              + state_max * (relative_time - id / control_high_freq_))
-        * control_high_freq_;
+      return (state_minor * ((id+1) / slq_discrete_freq_ - relative_time)
+              + state_max * (relative_time - id / slq_discrete_freq_))
+        * slq_discrete_freq_;
     }
   }
 }
