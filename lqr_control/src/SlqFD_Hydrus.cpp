@@ -74,7 +74,7 @@ namespace lqr_discrete{
     nhp_.param("line_search_steps", line_search_steps_, 4);
     nhp_.param("line_search_mode", line_search_mode_, 2);// 0, standard mode; 1, final state priority mode; 2, final pose priority mode
     nhp_.param("n_links", n_links_, 4);
-    nhp_.param("rotor_tilt_angle", rotor_tilt_ang_, 20.0);
+    nhp_.param("rotor_tilt_angle", rotor_tilt_ang_, -20.0);
 
     for (int i = 0; i < n_links_; ++i){
       link_weight_vec_.push_back(0.0);
@@ -98,6 +98,9 @@ namespace lqr_discrete{
     nhp_.param("fc_mass", fc_mass, 0.0457);
     nhp_.param("gps_mass", gps_mass, 0.044);
     nhp_.param("pc_mass", pc_mass, 0.164);
+
+    // test
+    link_center_mass += 0.03; // hard coding to make the mass equal
 
     double link_length, link_rod_length, protector_radius, link_joint_offset, rotor_radius, rotor_height, bat_offset, head_leg_offset, end_leg_offset;
     nhp_.param("link_length", link_length, .6);
@@ -172,6 +175,9 @@ namespace lqr_discrete{
     hydrus_weight_ = 0.0;
     for (int i = 0; i < n_links_; ++i)
       hydrus_weight_ += link_weight_vec_[i];
+    // test
+    std::cout << "\n\nhydrus_weight: " << hydrus_weight_ << "\n\n\n\n";
+    propeller_pos_cog_offset_ = Eigen::Vector3d(0.0, 0.0, 0.10); // todo: be more accurate
     joint_ptr_ = new VectorXd(n_links_ - 1);
     I_ptr_ = new Eigen::Matrix3d();
     *I_ptr_ = Eigen::Matrix3d::Zero(3, 3);
@@ -720,7 +726,7 @@ namespace lqr_discrete{
     for (int i = 0; i < n_links_; ++i){
       Eigen::Vector3d mid_result;
       mid_result.noalias() =
-        link_center_pos_cog_vec_[time_id][i].
+        (link_center_pos_cog_vec_[time_id][i] + propeller_pos_cog_offset_).
         cross(Eigen::Vector3d(cos(yaw_vec(i)) * s_tilts_[i], sin(yaw_vec(i)) * s_tilts_[i], c_tilts_[i]))
         + M_z_(i) * Eigen::Vector3d(cos(yaw_vec(i)) * s_tilts_[i], sin(yaw_vec(i)) * s_tilts_[i], c_tilts_[i]);
       for (int j = 0; j < 3; ++j)
@@ -1088,7 +1094,7 @@ namespace lqr_discrete{
     for (int i = 0; i < n_links_; ++i){
       Eigen::Vector3d dw_u_i;
       dw_u_i.noalias() = I_inv *
-        (link_center_pos_cog_vec_[time_id][i]
+        ((link_center_pos_cog_vec_[time_id][i] + propeller_pos_cog_offset_)
          .cross(Eigen::Vector3d(cos(yaw_vec(i)) * s_tilts_[i], sin(yaw_vec(i)) * s_tilts_[i], c_tilts_[i]))
          + Eigen::Vector3d(cos(yaw_vec(i)) * s_tilts_[i], sin(yaw_vec(i)) * s_tilts_[i], c_tilts_[i]) * M_z_(i));
       for (int j = 0; j < 3; ++j)
@@ -1156,7 +1162,7 @@ namespace lqr_discrete{
       Eigen::Vector3d wi; wi.noalias() = w + VectorXdTo3d(JW_mat * dq);
       double fi = (*u_ptr)[i];
       mid_result.noalias() +=
-        link_center_pos_cog_vec_[time_id][i].
+        (link_center_pos_cog_vec_[time_id][i] + propeller_pos_cog_offset_).
         cross(Eigen::Vector3d(cos(yaw_vec(i)) * s_tilts_[i] * fi, sin(yaw_vec(i)) * s_tilts_[i] * fi, c_tilts_[i] * fi));
       mid_result.noalias() += Eigen::Vector3d(cos(yaw_vec(i)) * s_tilts_[i], sin(yaw_vec(i)) * s_tilts_[i], c_tilts_[i])
         * fi * M_z_(i); // too small to ignore
