@@ -85,89 +85,14 @@ namespace lqr_discrete{
     }
 
     /* hydrus */
-    double link_rod_mass, link_center_mass, joint_mass, protector_mass, protector_holder_mass, bat_mass, head_leg_mass, end_leg_mass, rotor_mass, fc_mass, gps_mass, pc_mass;
-    nhp_.param("link_rod_mass", link_rod_mass, 0.099);
-    nhp_.param("link_center_mass", link_center_mass, .211);
-    nhp_.param("joint_mass", joint_mass, .19);
-    nhp_.param("protector_mass", protector_mass, .05);
-    nhp_.param("protector_holder_mass", protector_holder_mass, .0386);
-    nhp_.param("bat_mass", bat_mass, 0.193);
-    nhp_.param("head_leg_mass", head_leg_mass, 0.045);
-    nhp_.param("end_leg_mass", end_leg_mass, 0.073);
-    nhp_.param("rotor_mass", rotor_mass, .05);
-    nhp_.param("fc_mass", fc_mass, 0.0457);
-    nhp_.param("gps_mass", gps_mass, 0.044);
-    nhp_.param("pc_mass", pc_mass, 0.164);
-
-    // test
-    link_center_mass += 0.03; // hard coding to make the mass equal
-
-    double link_length, link_rod_length, protector_radius, link_joint_offset, rotor_radius, rotor_height, bat_offset, head_leg_offset, end_leg_offset;
+    double link_length;
     nhp_.param("link_length", link_length, .6);
-    nhp_.param("link_rod_length", link_rod_length, .528);
-    nhp_.param("protector_radius", protector_radius, .1925);
-    nhp_.param("link_joint_offset", link_joint_offset, 0.3);
-    nhp_.param("rotor_radius", rotor_radius, .02);
-    nhp_.param("rotor_height", rotor_height, .05);
-    nhp_.param("bat_offset", bat_offset, 0.0);
-    nhp_.param("head_leg_offset", head_leg_offset, -0.25);
-    nhp_.param("end_leg_offset", end_leg_offset, 0.235);
-
-    /* create model from urdf file data */
-    double protector_inertia = protector_mass * protector_radius * protector_radius;
-    double link_rod_inertia = link_rod_mass * link_rod_length * link_rod_length /12;
-    double protector_holder_inertia = protector_holder_mass * protector_radius * protector_radius;
-    extraModel bat_model;
-    bat_model.mass = bat_mass;
-    bat_model.offset = Eigen::Vector3d(link_length / 2.0 + bat_offset, 0.0, -0.054);
-    extraModel head_leg_model;
-    head_leg_model.mass = head_leg_mass;
-    head_leg_model.offset = Eigen::Vector3d(link_length * 0.5 + head_leg_offset, 0.0, -0.03);
-    extraModel end_leg_model;
-    end_leg_model.mass = end_leg_mass;
-    end_leg_model.offset = Eigen::Vector3d(link_length * 0.5 + end_leg_offset, 0.0, -0.03);
-    extraModel joint_model;
-    joint_model.mass = joint_mass;
-    joint_model.offset = Eigen::Vector3d(link_length * 0.5 + link_joint_offset, 0.0, 0.0);
+    link_weight_vec_[0] = 0.64047;
+    link_weight_vec_[1] = 0.714766;
+    link_weight_vec_[2] = 0.714766;
+    link_weight_vec_[3] = 0.688192;
     for (int i = 0; i < n_links_; ++i){
-      hydrus_model_.link_vec.push_back(linkModel());
-            hydrus_model_.link_vec[i].mass = link_rod_mass + link_center_mass + protector_mass + protector_holder_mass - rotor_mass + rotor_mass;
-            hydrus_model_.link_vec[i].length = 0.6;
-            hydrus_model_.link_vec[i].inertia_v = Eigen::Vector3d(protector_inertia / 2,
-                                                                  link_rod_inertia + protector_holder_inertia + protector_inertia /2,
-                                                                  link_rod_inertia + protector_holder_inertia + protector_inertia);
-            hydrus_model_.link_vec[i].extra_vec.push_back(bat_model);
-            if (i == 0)
-              hydrus_model_.link_vec[i].extra_vec.push_back(head_leg_model);
-            if (i == n_links_ - 1)
-              hydrus_model_.link_vec[i].extra_vec.push_back(end_leg_model);
-            if (i < n_links_ - 1)
-              hydrus_model_.link_vec[i].extra_vec.push_back(joint_model);
-            if (i == baselink_id_){
-              extraModel fc_model;
-              fc_model.mass = fc_mass;
-              fc_model.offset = Eigen::Vector3d(link_length / 2.0 + 0.2281, -4.4*0.001, 0.03533)
-                + Eigen::Vector3d(8.7*0.001, 4.4*0.001, -0.01);
-              hydrus_model_.link_vec[i].extra_vec.push_back(fc_model);
-              extraModel gps_model;
-              gps_model.mass = gps_mass;
-              gps_model.offset = Eigen::Vector3d(link_length / 2.0 + 0.206, 0.0, 0.18)
-                + Eigen::Vector3d(0.0, 0.0, -0.08);
-              hydrus_model_.link_vec[i].extra_vec.push_back(gps_model);
-              extraModel pc_model;
-              pc_model.mass = pc_mass;
-              pc_model.offset = Eigen::Vector3d(link_length / 2.0 + 0.1565 + 0.063, 0.0, -0.0394)
-                + Eigen::Vector3d(0.03*0.001, 0.72*0.001, 2.9 * 0.001);
-              hydrus_model_.link_vec[i].extra_vec.push_back(pc_model);
-            }
-    }
-    for (int i = 0; i < n_links_; ++i){
-      link_weight_vec_[i] += hydrus_model_.link_vec[i].mass;
-      links_center_weight_link_frame_vec_[i] = hydrus_model_.link_vec[i].mass * Eigen::Vector3d(hydrus_model_.link_vec[i].length / 2.0, 0.0, 0.0);
-      for (int j = 0; j < hydrus_model_.link_vec[i].extra_vec.size(); ++j){
-        link_weight_vec_[i] += hydrus_model_.link_vec[i].extra_vec[j].mass;
-        links_center_weight_link_frame_vec_[i] += hydrus_model_.link_vec[i].extra_vec[j].mass * hydrus_model_.link_vec[i].extra_vec[j].offset;
-      }
+      links_center_weight_link_frame_vec_[i] = link_weight_vec_[i] * Eigen::Vector3d(link_length / 2.0, 0.0, 0.0);
       links_center_on_link_frame_vec_[i] = links_center_weight_link_frame_vec_[i] / link_weight_vec_[i];
     }
 
@@ -177,15 +102,24 @@ namespace lqr_discrete{
       hydrus_weight_ += link_weight_vec_[i];
     // test
     std::cout << "\n\nhydrus_weight: " << hydrus_weight_ << "\n\n\n\n";
-    propeller_pos_cog_offset_ = Eigen::Vector3d(0.0, 0.0, 0.10); // todo: be more accurate
+    propeller_pos_cog_offset_ = Eigen::Vector3d(0.0, 0.0, 0.11058); // todo: be more accurate
     joint_ptr_ = new VectorXd(n_links_ - 1);
     I_ptr_ = new Eigen::Matrix3d();
     *I_ptr_ = Eigen::Matrix3d::Zero(3, 3);
     // Inertial is too small to ignore.
+    (*I_ptr_)(0, 0) = 0.008485 + 0.008182 + 0.008182 + 0.008163;
+    (*I_ptr_)(0, 1) = -0.000009 + -0.000016 + -0.000016 + -0.000016;
+    (*I_ptr_)(0, 2) = 0.007973 + 0.010020 + 0.010020 + 0.009513;
+    (*I_ptr_)(1, 1) = 0.015088 + 0.019328 + 0.019328 + 0.015742;
+    (*I_ptr_)(1, 2) = -0.000001 + -0.000003 + -0.000003 + -0.000003;
+    (*I_ptr_)(2, 2) = 0.019250 + 0.023801 + 0.023801 + 0.020229;
+    (*I_ptr_)(1, 0) = (*I_ptr_)(0, 1);
+    (*I_ptr_)(2, 0) = (*I_ptr_)(0, 2);
+    (*I_ptr_)(2, 1) = (*I_ptr_)(1, 2);
     // (*I_ptr_)(0, 0) = 0.0001;
     // (*I_ptr_)(1, 1) = 0.0001;
     // (*I_ptr_)(2, 2) = 0.0002;
-    double c_rf = -0.01676;
+    double c_rf = -0.01636;
     M_z_ = VectorXd::Zero(n_links_);
     M_z_(0) = -c_rf;
     M_z_(1) = c_rf;
@@ -339,6 +273,11 @@ namespace lqr_discrete{
         x_vec_[i] = (x_init);
       }
     }
+
+    for (int i = 0; i < 4; ++i)
+      std::cout << link_center_pos_cog_vec_[0][i].transpose() << "\n";
+    std::cout << "\n";
+    
     for (int i = 0; i <= iteration_times_; ++i)
       // u_vec_[i] = (un_vec_[0] - un_vec_[i]);
       u_vec_[i] = u_init; // all 0
@@ -735,7 +674,7 @@ namespace lqr_discrete{
     for (int i = 0; i < n_links_; ++i)
       P(n_links_ - 1, i) = c_tilts_[i];
     // test
-    std::cout  << P << "\n\n";
+    // std::cout  << P << "\n\n";
     Eigen::VectorXd g3(3);
     g3 << 0, 0, 9.8 * hydrus_weight_;
 

@@ -111,7 +111,6 @@ namespace lqr_discrete{
     double rotor_tilt_ang_;
 
     /* model */
-    robotModel hydrus_model_;
     std::vector<Eigen::Vector3d> links_center_weight_link_frame_vec_;
     std::vector<Eigen::Vector3d> links_center_on_link_frame_vec_;
 
