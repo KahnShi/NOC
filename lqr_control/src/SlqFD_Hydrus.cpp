@@ -641,6 +641,8 @@ namespace lqr_discrete{
     if (id > iteration_times_ - 1){
       id = iteration_times_ - 1;
     }
+    else if (id < 0)
+      id = 0;
     return getAbsoluteState(&(x_vec_[id]));
   }
 
@@ -658,6 +660,8 @@ namespace lqr_discrete{
       id = iteration_times_ - 1;
       return infiniteFeedbackControl(cur_real_x_ptr);
     }
+    else if (id < 0)
+      id = 0;
     VectorXd new_u = VectorXd::Zero(u_size_);
     VectorXd cur_x = getRelativeState(cur_real_x_ptr);
     new_u = u_vec_[id];
@@ -1462,6 +1466,8 @@ namespace lqr_discrete{
     int id = floor(relative_time * control_freq_);
     if (id >= iteration_times_)
       return getAbsoluteState(&(x_vec_[iteration_times_]));
+    else if (id <= 0)
+      return getAbsoluteState(&(x_vec_[0]));
     else{
       VectorXd state_minor = getAbsoluteState(&(x_vec_[id]));
       VectorXd state_max = getAbsoluteState(&(x_vec_[id+1]));
