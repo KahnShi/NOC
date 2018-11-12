@@ -39,6 +39,7 @@
 #include <lqr_control/LqrFD_Quadrotor.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <std_msgs/MultiArrayDimension.h>
+#include <sensor_msgs/JointState.h>
 #include <unistd.h>
 #include <lqr_control/Dare.h>
 #include <lqr_control/float64Array.h>
@@ -53,6 +54,7 @@ namespace lqr_discrete{
     int hitting_hand;
     double hitting_period;
     double post_hitting_period;
+    sensor_msgs::JointState init_joint_state;
   };
   struct hydrusCmdTask{
     int id;

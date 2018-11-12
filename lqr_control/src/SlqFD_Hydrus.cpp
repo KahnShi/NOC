@@ -719,6 +719,13 @@ namespace lqr_discrete{
       time += (*time_ptr_)[0];
 
     VectorXd joint = VectorXd::Zero(n_links_ - 1);
+    VectorXd init_joint = VectorXd::Zero(n_links_ - 1);
+    if (tennis_task_descriptor_.init_joint_state.position.size() == 0)
+      init_joint << 0.785, 1.5708, 0.785;
+    else
+      init_joint << tennis_task_descriptor_.init_joint_state.position[0],
+        tennis_task_descriptor_.init_joint_state.position[1],
+        tennis_task_descriptor_.init_joint_state.position[2];
     // test
     // if (order == 0)
     //   joint << 0.785, 1.5708, 0.785;
@@ -732,7 +739,7 @@ namespace lqr_discrete{
       joint_id = 2;
     else if (tennis_task_descriptor_.hitting_hand == 2){ // no hand
       if (order == 0) // no transformation for no hand cases
-        joint << 0.785, 1.5708, 0.785;
+        joint = init_joint;
       return joint;
     }
     double dq = 5.0 * tennis_task_descriptor_.hitting_period; // joint velocity
@@ -741,9 +748,7 @@ namespace lqr_discrete{
     if (time > tennis_task_descriptor_.hitting_period + racket_return_time){
       // keep quadrotor model, neglecting time, order
       if (order == 0){
-        for (int i = 0; i < n_links_ - 1; ++i)
-          joint(i) = PI / 2.0;
-        joint << 0.785, 1.5708, 0.785;
+        joint = init_joint;
       }
       return joint;
     }
@@ -751,8 +756,8 @@ namespace lqr_discrete{
       double tf = racket_return_time;
       double relative_time = time - tennis_task_descriptor_.hitting_period;
       if (order == 0){
-        joint << 0.785, 1.5708, 0.785;
-        joint(joint_id) = dq / pow(tf, 2) * pow(relative_time, 3) - 2 * dq / tf * pow(relative_time, 2) + dq * relative_time + 0.785;
+        joint = init_joint;
+        joint(joint_id) = dq / pow(tf, 2) * pow(relative_time, 3) - 2 * dq / tf * pow(relative_time, 2) + dq * relative_time +  init_joint(joint_id);
       }
       else if (order == 1)
         joint(joint_id) = 3 * dq / pow(tf, 2) * pow(relative_time, 2) - 4 * dq / tf * relative_time + dq;
@@ -763,8 +768,8 @@ namespace lqr_discrete{
     else{
       double tf = tennis_task_descriptor_.hitting_period;
       if (order == 0){
-        joint << 0.785, 1.5708, 0.785;
-        joint(joint_id) = dq / pow(tf, 2) * pow(time, 3) - dq / tf * pow(time, 2) + 0.785;
+        joint = init_joint;
+        joint(joint_id) = dq / pow(tf, 2) * pow(time, 3) - dq / tf * pow(time, 2) + init_joint(joint_id);
       }
       else if (order == 1)
         joint(joint_id) = 3 * dq / pow(tf, 2) * pow(time, 2) - 2 * dq / tf * time;
