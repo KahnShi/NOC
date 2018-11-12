@@ -656,8 +656,8 @@ namespace lqr_discrete{
     // relative_time is (current time - start time)
     int id;
     id = floor(relative_time * slq_discrete_freq_);
-    if (id > iteration_times_ - 1){
-      id = iteration_times_ - 1;
+    if (id > iteration_times_){
+      id = iteration_times_;
       return infiniteFeedbackControl(cur_real_x_ptr);
     }
     else if (id < 0)
@@ -710,12 +710,14 @@ namespace lqr_discrete{
     return stable_u;
   }
 
-  VectorXd SlqFiniteDiscreteControlHydrus::getCurrentJoint(double relative_time, int order){
-    double time = relative_time + (*time_ptr_)[0];
-    return getCurrentJointAbsoluteTime(time, order);
-  }
+  VectorXd SlqFiniteDiscreteControlHydrus::getCurrentJoint(double time, int order, int time_mode){
+    /*
+       time_mode 0: time counted from current slq start time
+       time_mode 1: time counted from current task start time
+     */
+    if (time_mode == 0)
+      time += (*time_ptr_)[0];
 
-  VectorXd SlqFiniteDiscreteControlHydrus::getCurrentJointAbsoluteTime(double time, int order){
     VectorXd joint = VectorXd::Zero(n_links_ - 1);
     // test
     // if (order == 0)
@@ -733,10 +735,10 @@ namespace lqr_discrete{
         joint << 0.785, 1.5708, 0.785;
       return joint;
     }
-    double dq = 5.0 * tennis_task_descriptor_.hitting_time; // joint velocity
-    double racket_return_time = 1.2; //tennis_task_descriptor_.post_hitting_time
+    double dq = 5.0 * tennis_task_descriptor_.hitting_period; // joint velocity
+    double racket_return_time = tennis_task_descriptor_.post_hitting_period - 0.3;
     // todo: temprarily assume transform action only in hitting time
-    if (time > tennis_task_descriptor_.hitting_time + racket_return_time){
+    if (time > tennis_task_descriptor_.hitting_period + racket_return_time){
       // keep quadrotor model, neglecting time, order
       if (order == 0){
         for (int i = 0; i < n_links_ - 1; ++i)
@@ -745,9 +747,9 @@ namespace lqr_discrete{
       }
       return joint;
     }
-    else if (time > tennis_task_descriptor_.hitting_time){
+    else if (time > tennis_task_descriptor_.hitting_period){
       double tf = racket_return_time;
-      double relative_time = time - tennis_task_descriptor_.hitting_time;
+      double relative_time = time - tennis_task_descriptor_.hitting_period;
       if (order == 0){
         joint << 0.785, 1.5708, 0.785;
         joint(joint_id) = dq / pow(tf, 2) * pow(relative_time, 3) - 2 * dq / tf * pow(relative_time, 2) + dq * relative_time + 0.785;
@@ -759,7 +761,7 @@ namespace lqr_discrete{
       return joint;
     }
     else{
-      double tf = tennis_task_descriptor_.hitting_time;
+      double tf = tennis_task_descriptor_.hitting_period;
       if (order == 0){
         joint << 0.785, 1.5708, 0.785;
         joint(joint_id) = dq / pow(tf, 2) * pow(time, 3) - dq / tf * pow(time, 2) + 0.785;

@@ -51,8 +51,8 @@ namespace lqr_discrete{
 #define PI 3.141592653
   struct TennisTaskDescriptor{
     int hitting_hand;
-    double hitting_time;
-    double post_hitting_time;
+    double hitting_period;
+    double post_hitting_period;
   };
   struct hydrusCmdTask{
     int id;
@@ -175,8 +175,7 @@ namespace lqr_discrete{
     void updateSLQEquations();
     void FDLQR();
     void checkControlInputFeasible(VectorXd *u, int time_id);
-    VectorXd getCurrentJoint(double time, int order = 0);
-    VectorXd getCurrentJointAbsoluteTime(double time, int order = 0);
+    VectorXd getCurrentJoint(double time, int order = 0, int mode = 0);
     Eigen::Matrix3d getCurrentRotationMatrix(Eigen::Vector3d euler_angle, int order = 0);
     void getHydrusLinksCenter(VectorXd *joint_ptr, int time_id);
     void getHydrusLinksCenterDerivative(VectorXd *joint_ptr, VectorXd *joint_dt_ptr, int time_id);

@@ -95,8 +95,8 @@ int main(int argc, char **argv)
   nh_private.param("mpc_freq", mpc_freq, 10.0);
 
   TennisTaskDescriptor task_descriptor;
-  task_descriptor.hitting_time = 10.0;
-  task_descriptor.post_hitting_time = 10.0;
+  task_descriptor.hitting_period = 1.0;
+  task_descriptor.post_hitting_period = 1.0;
   quadrotor_sim_node->initQuadrotorSimulator(&way_pts_vec, &period_vec, mpc_freq, task_descriptor);
   quadrotor_sim_node->visualizeTrajectory();
   quadrotor_sim_node->planOptimalTrajectory();
