@@ -337,11 +337,24 @@ namespace lqr_discrete{
     if (verbose_)
       ROS_INFO("[SLQ] Assign vector finished.");
 
-    FDLQR();
+    // todo: test to remove lqr initialization
+    // method 1:
+    // FDLQR();
     getRiccatiH();
     (*IDlqr_F_ptr_).noalias() = (*R_ptr_ +
                                  B_ptr_->transpose() * (*Riccati_P_ptr_) * (*B_ptr_)).inverse()
       * (B_ptr_->transpose() * (*Riccati_P_ptr_) * (*A_ptr_));
+    // todo: test directly apply IDlqr_F_ptr for initalization
+    // method 2:
+    VectorXd x = x_vec_[0];
+    for (int i = 1; i <= iteration_times_; ++i){
+      VectorXd u; u.noalias() = -(*IDlqr_F_ptr_) * x;
+      VectorXd new_x(x_size_);
+      updateNewState(&new_x, &x, &u, i);
+      x = new_x;
+      x_vec_[i] = x;
+      u_vec_[i] = u;
+    }
 
     if (manual_final_ocp_flag_){
       *P0_ptr_ = MatrixXd::Zero(x_size_, x_size_);
