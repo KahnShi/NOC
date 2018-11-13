@@ -78,9 +78,9 @@ int main(int argc, char **argv)
   way_pts_vec.push_back(end_state);
   period_vec.push_back(6.0);
 
-  TennisTaskDescriptor task_descriptor;
-  task_descriptor.hitting_time = 10000.0;
-  task_descriptor.post_hitting_time = 10000.0;
+  hydrusCmdTask task_descriptor;
+  task_descriptor.period = 10000.0;
+  task_descriptor.end_time = ros::Time::now().toSec() + 10000.0;
   hydrus_node->initSLQ(100.0, &period_vec, &way_pts_vec, task_descriptor);
 
   VectorXd x = VectorXd::Zero(12);

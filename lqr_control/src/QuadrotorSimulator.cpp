@@ -49,7 +49,7 @@ namespace quadrotor_simulator{
     //sleep(1.0);
   }
 
-  void QuadrotorSimulator::initQuadrotorSimulator(std::vector<VectorXd> *waypoints_ptr, std::vector<double> *time_ptr, double controller_freq, TennisTaskDescriptor task_descriptor){
+  void QuadrotorSimulator::initQuadrotorSimulator(std::vector<VectorXd> *waypoints_ptr, std::vector<double> *time_ptr, double controller_freq, hydrusCmdTask task_descriptor){
     waypoints_ptr_ = waypoints_ptr;
     time_ptr_ = time_ptr;
     period_ = (*time_ptr)[time_ptr->size() - 1] - (*time_ptr)[0];

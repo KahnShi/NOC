@@ -55,12 +55,11 @@ namespace lqr_discrete{
     double post_hitting_time;
   };
   struct hydrusCmdTask{
-    int id;
+    int transform_hand;
+    double full_period;
     double period;
-    double start_time;
-    Eigen::Vector3d target_offset;
+    double end_time;
     bool sent_flag;
-    Eigen::Vector3d hitting_odom_pos;
   };
   struct extraModel{
     double mass;
@@ -147,17 +146,22 @@ namespace lqr_discrete{
     double slq_discrete_freq_;
 
     /* tennis task */
-    TennisTaskDescriptor tennis_task_descriptor_;
+    // TennisTaskDescriptor tennis_task_descriptor_;
+    hydrusCmdTask slq_task_descriptor_;
     double R_mid_para_, Q_p_mid_para_, Q_v_mid_para_, Q_e_mid_para_, Q_w_mid_para_, Q_z_mid_para_, Q_yaw_mid_para_;
     double R_final_para_, Q_p_final_para_, Q_v_final_para_, Q_e_final_para_, Q_w_final_para_, Q_z_final_para_, Q_yaw_final_para_;
     double R_para_, Q_p_para_, Q_v_para_, Q_e_para_, Q_w_para_, Q_z_para_, Q_yaw_para_;
     bool manual_final_ocp_flag_;
+    int tennis_racket_joint_vel_update_;
+    double tennis_racket_joint_vel_;
+    double tennis_racket_hitting_time_;
 
     /* Ros service */
     ros::ServiceClient dare_client_;
 
     void initHydrus(int baselink_id = 0);
-    void initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr, TennisTaskDescriptor task_descriptor);
+    // void initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr, TennisTaskDescriptor task_descriptor);
+    void initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr, hydrusCmdTask task_descriptor);
     void updateMatrixA(int time_id);
     void updateMatrixB(int time_id);
     void updateMatrixAB(int time_id);
@@ -191,7 +195,7 @@ namespace lqr_discrete{
     void printMatrixAB();
     VectorXd getCurrentIdealPosition(double relative_time);
     VectorXd estimateFutureState(double relative_time);
-    void adjustTennisTaskParamater(TennisTaskDescriptor task_descriptor, double cut_time);
+    VectorXd estimateFutureStateAbsoluteTime(double time);
   };
 }
 

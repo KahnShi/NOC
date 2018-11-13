@@ -51,8 +51,8 @@ namespace lqr_discrete{
     nhp_.param("Q_v_mid_para", Q_v_mid_para_, 0.1);
     nhp_.param("Q_z_mid_para", Q_z_mid_para_, 50.0);
     nhp_.param("Q_w_mid_para", Q_w_mid_para_, 0.1);
-    nhp_.param("Q_e_mid_para", Q_e_mid_para_, 5.0);
-    nhp_.param("Q_yaw_mid_para", Q_yaw_mid_para_, 10.0);
+    nhp_.param("Q_e_mid_para", Q_e_mid_para_, 0.5);
+    nhp_.param("Q_yaw_mid_para", Q_yaw_mid_para_,40.0);
 
     nhp_.param("manual_final_ocp_flag", manual_final_ocp_flag_, true);
     nhp_.param("Q_p_final_para", Q_p_final_para_, 500.0);
@@ -60,7 +60,7 @@ namespace lqr_discrete{
     nhp_.param("Q_z_final_para", Q_z_final_para_, 500.0);
     nhp_.param("Q_w_final_para", Q_w_final_para_, 10.0);
     nhp_.param("Q_e_final_para", Q_e_final_para_, 300.0);
-    nhp_.param("Q_yaw_final_para", Q_yaw_final_para_, 400.0);
+    nhp_.param("Q_yaw_final_para", Q_yaw_final_para_, 500.0);
 
     R_para_ = R_mid_para_;
     Q_p_para_ = Q_p_mid_para_;
@@ -231,11 +231,13 @@ namespace lqr_discrete{
       ROS_INFO("[SLQ] Hydrus init finished.");
   }
 
-  void SlqFiniteDiscreteControlHydrus::initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr, TennisTaskDescriptor task_descriptor){
+  // void SlqFiniteDiscreteControlHydrus::initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr, TennisTaskDescriptor task_descriptor){
+  void SlqFiniteDiscreteControlHydrus::initSLQ(double freq, std::vector<double> *time_ptr, std::vector<VectorXd> *waypoints_ptr, hydrusCmdTask task_descriptor){
     if (verbose_)
       ROS_INFO("[SLQ] InitSLQ starts.");
     control_freq_ = freq;
-    tennis_task_descriptor_ = task_descriptor;
+    // tennis_task_descriptor_ = task_descriptor;
+    slq_task_descriptor_ = task_descriptor;
     // Here we assume frequency is an odd integer
     slq_discrete_freq_ = freq;
     double period = (*time_ptr)[time_ptr->size() - 1] - (*time_ptr)[0];
@@ -308,6 +310,10 @@ namespace lqr_discrete{
 
     if (verbose_)
       ROS_INFO("[SLQ] Assign vector starts.");
+    
+    // test
+    // VectorXd stable_u;
+    
     #pragma omp parallel num_threads(4)
     {
       #pragma omp for
@@ -326,6 +332,9 @@ namespace lqr_discrete{
         u_fw_vec_[i] = (u_init);
         K_vec_[i] = (MatrixXd::Zero(u_size_, x_size_));
         VectorXd stable_u = getStableThrust(i);
+        // if (i == 0)
+        //   stable_u = getStableThrust(0);
+        
         un_vec_[i] = (stable_u);
         x_vec_[i] = (x_init);
       }
@@ -720,19 +729,43 @@ namespace lqr_discrete{
     
     
     int joint_id;
-    if (tennis_task_descriptor_.hitting_hand == 0) // left hand
+    switch (slq_task_descriptor_.transform_hand){
+    case 1: // left hand
       joint_id = 0;
-    else if (tennis_task_descriptor_.hitting_hand == 1) // right hand
+      break;
+    case 2: // right hand
       joint_id = 2;
-    else if (tennis_task_descriptor_.hitting_hand == 2){ // no hand
+      break;
+    case 3: // left hand return
+      joint_id = 0;
+      break;
+    case 4: // right hand return
+      joint_id = 2;
+      break;
+    default: // no hand
       if (order == 0) // no transformation for no hand cases
         joint << 0.785, 1.5708, 0.785;
       return joint;
     }
-    double dq = 5.0 * tennis_task_descriptor_.hitting_time; // joint velocity
-    double racket_return_time = 1.2; //tennis_task_descriptor_.post_hitting_time
+    if (!tennis_racket_joint_vel_update_ &&
+        (slq_task_descriptor_.transform_hand == 1
+         || slq_task_descriptor_.transform_hand == 2)){
+      double hitting_period = slq_task_descriptor_.full_period;
+      if (hitting_period > 0.25)
+        hitting_period -= 0.25; // remove computation time
+      tennis_racket_joint_vel_ = 5.0 * hitting_period; // joint velocity
+      tennis_racket_joint_vel_update_ = true;
+      tennis_racket_hitting_time_ = slq_task_descriptor_.end_time;
+    }
+    else if (tennis_racket_joint_vel_update_ &&
+             (slq_task_descriptor_.transform_hand == 3 ||
+              slq_task_descriptor_.transform_hand == 4))
+      tennis_racket_joint_vel_update_ = false;
+    // double dq = 5.0 * slq_task_descriptor_.full_period; // joint velocity
+    double dq = tennis_racket_joint_vel_;
+    double racket_return_time = 1.2;
     // todo: temprarily assume transform action only in hitting time
-    if (time > tennis_task_descriptor_.hitting_time + racket_return_time){
+    if (time > slq_task_descriptor_.end_time || slq_task_descriptor_.transform_hand == 0){
       // keep quadrotor model, neglecting time, order
       if (order == 0){
         for (int i = 0; i < n_links_ - 1; ++i)
@@ -741,9 +774,9 @@ namespace lqr_discrete{
       }
       return joint;
     }
-    else if (time > tennis_task_descriptor_.hitting_time){
+    else if (slq_task_descriptor_.transform_hand == 3 || slq_task_descriptor_.transform_hand == 4){
       double tf = racket_return_time;
-      double relative_time = time - tennis_task_descriptor_.hitting_time;
+      double relative_time = time - tennis_racket_hitting_time_;
       if (order == 0){
         joint << 0.785, 1.5708, 0.785;
         joint(joint_id) = dq / pow(tf, 2) * pow(relative_time, 3) - 2 * dq / tf * pow(relative_time, 2) + dq * relative_time + 0.785;
@@ -754,8 +787,8 @@ namespace lqr_discrete{
         joint(joint_id) = 6 * dq / pow(tf, 2) * relative_time - 4 * dq / tf;
       return joint;
     }
-    else{
-      double tf = tennis_task_descriptor_.hitting_time;
+    else if (slq_task_descriptor_.transform_hand == 1 || slq_task_descriptor_.transform_hand == 2){
+      double tf = slq_task_descriptor_.end_time;
       if (order == 0){
         joint << 0.785, 1.5708, 0.785;
         joint(joint_id) = dq / pow(tf, 2) * pow(time, 3) - dq / tf * pow(time, 2) + 0.785;
@@ -1458,10 +1491,16 @@ namespace lqr_discrete{
     std::cout << "\n\n";
   }
 
+  VectorXd SlqFiniteDiscreteControlHydrus::estimateFutureStateAbsoluteTime(double time){
+    return estimateFutureState(time - (*time_ptr_)[0]);
+  }
+
   VectorXd SlqFiniteDiscreteControlHydrus::estimateFutureState(double relative_time){
     int id = floor(relative_time * control_freq_);
     if (id >= iteration_times_)
       return getAbsoluteState(&(x_vec_[iteration_times_]));
+    else if (id < 0)
+      return getAbsoluteState(&(x_vec_[0]));
     else{
       VectorXd state_minor = getAbsoluteState(&(x_vec_[id]));
       VectorXd state_max = getAbsoluteState(&(x_vec_[id+1]));

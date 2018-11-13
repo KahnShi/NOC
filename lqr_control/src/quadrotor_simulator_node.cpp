@@ -77,7 +77,7 @@ int main(int argc, char **argv)
   nh_private.param("end_x", end_state(0), 10.0);
   nh_private.param("end_y", end_state(1), 5.0);
   nh_private.param("end_z", end_state(2), 3.0);
-  nh_private.param("end_yaw", end_state(E_Y), 1.57);
+  nh_private.param("end_yaw", end_state(E_Y), -0.785);
   double end_time;
   nh_private.param("end_time", end_time, 6.0);
   // end_state(0) = 12.0;
@@ -94,9 +94,10 @@ int main(int argc, char **argv)
   double mpc_freq;
   nh_private.param("mpc_freq", mpc_freq, 10.0);
 
-  TennisTaskDescriptor task_descriptor;
-  task_descriptor.hitting_time = 10.0;
-  task_descriptor.post_hitting_time = 10.0;
+  hydrusCmdTask task_descriptor;
+  task_descriptor.transform_hand = 1;
+  task_descriptor.period = 10.0;
+  task_descriptor.end_time = ros::Time::now().toSec() + 10.0;
   quadrotor_sim_node->initQuadrotorSimulator(&way_pts_vec, &period_vec, mpc_freq, task_descriptor);
   quadrotor_sim_node->visualizeTrajectory();
   quadrotor_sim_node->planOptimalTrajectory();

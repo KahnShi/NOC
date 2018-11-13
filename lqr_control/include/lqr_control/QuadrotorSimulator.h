@@ -68,7 +68,7 @@ namespace quadrotor_simulator{
     ros::Publisher pub_traj_way_points_;
     ros::Publisher pub_anime_joint_state_;
 
-    void initQuadrotorSimulator(std::vector<VectorXd> *waypoints_ptr, std::vector<double> *time_ptr, double controller_freq, TennisTaskDescriptor task_descriptor);
+    void initQuadrotorSimulator(std::vector<VectorXd> *waypoints_ptr, std::vector<double> *time_ptr, double controller_freq, hydrusCmdTask task_descriptor);
     void planOptimalTrajectory();
     void visualizeTrajectory();
     void animizeTrajectory();
