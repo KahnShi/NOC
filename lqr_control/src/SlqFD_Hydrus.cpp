@@ -695,6 +695,22 @@ namespace lqr_discrete{
     return new_u;
   }
 
+  void SlqFiniteDiscreteControlHydrus::getSlqFeedbackGains(Eigen::MatrixXd & K, Eigen::VectorXd & x_target, Eigen::VectorXd & u_ff, int id){
+    if (id > iteration_times_)
+      id = iteration_times_;
+    else if (id < 0)
+      id = 0;
+    K = K_vec_[id];
+    x_target = x_vec_[id];
+    u_ff = u_vec_[id] + alpha_candidate_ * u_fw_vec_[id] + un_vec_[id];
+  }
+
+  void SlqFiniteDiscreteControlHydrus::getInfiniteFeedbackGains(Eigen::MatrixXd & K, Eigen::VectorXd & x_target, Eigen::VectorXd & u_ff){
+    K = -(*IDlqr_F_ptr_);
+    x_target = xn_last_;
+    u_ff = stable_u_last_;
+  }
+
   VectorXd SlqFiniteDiscreteControlHydrus::getStableThrust(int time_id){
     VectorXd stable_u = VectorXd::Zero(u_size_);
     // todo: currently simply average of the gravity to save computation, configuration needs to be considered

@@ -193,6 +193,8 @@ namespace lqr_discrete{
     VectorXd getCurrentIdealPosition(double relative_time);
     VectorXd estimateFutureState(double relative_time);
     void adjustTennisTaskParamater(TennisTaskDescriptor task_descriptor, double cut_time);
+    void getSlqFeedbackGains(Eigen::MatrixXd & K, Eigen::VectorXd & x_target, Eigen::VectorXd & u_ff, int id);
+    void getInfiniteFeedbackGains(Eigen::MatrixXd & K, Eigen::VectorXd & x_target, Eigen::VectorXd & u_ff);
   };
 }
 
