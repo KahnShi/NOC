@@ -1322,10 +1322,10 @@ namespace lqr_discrete{
     VectorXd result(x_size_);
     result = (*x1_ptr) - (*x2_ptr);
     // todo: euler angle subtraction
-    for (int i = x_size_ - 3; i < x_size_; ++i){
+    for (int i = E_R; i <= E_Y; ++i){
       while (result[i] > PI)
         result[i] -= 2 * PI;
-      while (result[i] < -PI)
+      while (result[i] <= -PI)
         result[i] += 2 * PI;
     }
     return result;
