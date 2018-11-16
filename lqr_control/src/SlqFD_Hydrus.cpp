@@ -701,13 +701,13 @@ namespace lqr_discrete{
     else if (id < 0)
       id = 0;
     K = K_vec_[id];
-    x_target = x_vec_[id];
+    x_target = getAbsoluteState(&(x_vec_[id]));
     u_ff = u_vec_[id] + alpha_candidate_ * u_fw_vec_[id] + un_vec_[id];
   }
 
   void SlqFiniteDiscreteControlHydrus::getInfiniteFeedbackGains(Eigen::MatrixXd & K, Eigen::VectorXd & x_target, Eigen::VectorXd & u_ff){
     K = -(*IDlqr_F_ptr_);
-    x_target = xn_last_;
+    x_target = *xn_ptr_;
     u_ff = stable_u_last_;
   }
 
@@ -1315,6 +1315,12 @@ namespace lqr_discrete{
     VectorXd result(x_size_);
     result = (*x1_ptr) + (*x2_ptr);
     // todo: euler angle addition
+    for (int i = E_R; i <= E_Y; ++i){
+      while (result[i] > PI)
+        result[i] -= 2 * PI;
+      while (result[i] <= -PI)
+        result[i] += 2 * PI;
+    }
     return result;
   }
 
